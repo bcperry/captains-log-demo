@@ -8,7 +8,14 @@ param tags object
 
 param principalId string
 
+@description('Container image reference for the web application')
+param containerImage string = ''
+
 var abbrs = loadJsonContent('./abbreviations.json')
+
+// Use our container registry if no image is provided
+var defaultImage = '${containerRegistry.properties.loginServer}/web:latest'
+var actualContainerImage = !empty(containerImage) ? containerImage : defaultImage
 
 // Azure OpenAI Service - Essential for GPT and embeddings
 resource azureOpenAI 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
@@ -83,6 +90,19 @@ resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@
   location: resourceGroup().location
 }
 
+// Azure Container Registry for hosting container images
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+  name: '${abbrs.containerRegistryRegistries}${resourceToken}'
+  location: location
+  sku: {
+    name: 'Basic'
+  }
+  properties: {
+    adminUserEnabled: true
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
 // App Service Plan for hosting the application
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: '${abbrs.webServerFarms}${resourceToken}'
@@ -96,8 +116,8 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   kind: 'linux'
 }
 
-// App Service for hosting the Streamlit application
-resource appService 'Microsoft.Web/sites@2022-03-01' = {
+// App Service for hosting the Streamlit application as a container
+resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: '${abbrs.webSitesAppService}${resourceToken}'
   location: location
   tags: union(tags, { 'azd-service-name': 'web' })
@@ -112,12 +132,27 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
     httpsOnly: true
     siteConfig: {
       alwaysOn: true
-      linuxFxVersion: 'PYTHON|3.11'
-      appCommandLine: 'python -m streamlit run app.py --server.port 8000 --server.address 0.0.0.0 --server.runOnSave false'
+      linuxFxVersion: 'DOCKER|${actualContainerImage}'
       cors: {
         allowedOrigins: ['*']
         supportCredentials: false
       }
+      acrUseManagedIdentityCreds: true
+      acrUserManagedIdentityID: userAssignedIdentity.properties.clientId
+      appSettings: [
+        {
+          name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
+          value: 'false'
+        }
+        {
+          name: 'DOCKER_REGISTRY_SERVER_URL'
+          value: 'https://${containerRegistry.properties.loginServer}'
+        }
+        {
+          name: 'DOCKER_ENABLE_CI'
+          value: 'true'
+        }
+      ]
     }
   }
   
@@ -184,6 +219,17 @@ resource cognitiveServicesSpeechUserForAppService 'Microsoft.Authorization/roleA
   }
 }
 
+// Role assignment for ACR Pull access from app service managed identity
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  scope: containerRegistry
+  name: guid(containerRegistry.id, userAssignedIdentity.id, resourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d'))
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull role
+    principalId: userAssignedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Outputs for environment variables
 output AZURE_OPENAI_ENDPOINT string = 'https://${azureOpenAI.name}.openai.azure.us/'
 output AZURE_OPENAI_KEY string = azureOpenAI.listKeys().key1
@@ -194,3 +240,7 @@ output AZURE_OPENAI_EMBEDDING_MODEL_NAME string = deployments[1].name
 output AZURE_OPENAI_EMBEDDING_MODEL_VERSION string = deployments[1].modelVersion
 output AZURE_SPEECH_ENDPOINT string = 'https://${azureSpeechService.name}.cognitiveservices.azure.us/'
 output AZURE_SPEECH_KEY string = azureSpeechService.listKeys().key1
+
+// Container Registry outputs
+output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.name
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.properties.loginServer

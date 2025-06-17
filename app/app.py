@@ -16,7 +16,7 @@ from openai import AzureOpenAI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 class AudioTranscriber:
     def __init__(self):
@@ -272,9 +272,42 @@ class AzureOpenAISummarizer:
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
+            
+            # Try to extract JSON from response that might have markdown formatting
+            try:
+                response_content = response.choices[0].message.content
+                logger.info(f"Attempting to clean response content: {response_content[:200]}...")
+                
+                # Remove markdown code block formatting
+                if "```json" in response_content:
+                    # Extract content between ```json and ```
+                    start_marker = "```json"
+                    end_marker = "```"
+                    start_idx = response_content.find(start_marker) + len(start_marker)
+                    end_idx = response_content.find(end_marker, start_idx)
+                    
+                    if start_idx > len(start_marker) - 1 and end_idx > start_idx:
+                        cleaned_content = response_content[start_idx:end_idx].strip()
+                        analysis_result = json.loads(cleaned_content)
+                        
+                        # Add metadata
+                        analysis_result['processing_metadata'] = {
+                            'model_used': self.openai_model,
+                            'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
+                            'input_length': len(transcription_text),
+                            'tokens_used': response.usage.total_tokens if response.usage else None,
+                            'cleaned_response': True
+                        }
+                        
+                        logger.info("Successfully parsed cleaned JSON response")
+                        return analysis_result
+                        
+            except (json.JSONDecodeError, IndexError, AttributeError) as cleanup_error:
+                logger.error(f"Failed to clean and parse response: {cleanup_error}")
+            
             return {
                 "error": "Failed to parse AI response",
-                "summary": "Analysis failed - invalid response format",
+                "summary": response.choices[0].message.content,
                 "action_items": [],
                 "key_points": [],
                 "confidence": 0.0
@@ -429,14 +462,6 @@ def main():
                 else:
                     st.error("❌ OpenAI not initialized")
         
-        st.markdown("---")
-        st.markdown("""
-        **Supported Formats:**
-        - WAV (recommended)
-        - MP3, M4A, OGG, FLAC
-        - Max file size: 100MB
-        - Optimal: 16kHz mono
-        """)
     
     # Main content area
     col1, col2 = st.columns([2, 1])
