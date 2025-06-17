@@ -1,6 +1,6 @@
 name: captains-log-with-streamlit
 services:
   web:
-    project: ./app
-    language: py
+    project: .
+    language: docker
     host: appservice

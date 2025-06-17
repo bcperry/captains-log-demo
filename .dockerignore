@@ -1,0 +1,28 @@
+# Ignore Azure and deployment files
+.azure/
+infra/
+*.md
+*.yaml
+*.yml
+
+# Ignore git and IDE files
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.env
+.venv
+env/
+venv/
+
+# Ignore temporary files
+*.tmp
+*.temp

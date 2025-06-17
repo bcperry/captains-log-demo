@@ -16,7 +16,7 @@ from openai import AzureOpenAI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 class AudioTranscriber:
     def __init__(self):
