@@ -41,6 +41,6 @@ output AZURE_SPEECH_REGION string = location
 
 output AZURE_OPENAI_ENDPOINT string = resources.outputs.AZURE_OPENAI_ENDPOINT
 output AZURE_OPENAI_KEY string = resources.outputs.AZURE_OPENAI_KEY
-output AZURE_OPENAI_MODEL string = resources.outputs.AZURE_OPENAI_MODEL_NAME
+output AZURE_OPENAI_MODEL_NAME string = resources.outputs.AZURE_OPENAI_MODEL_NAME
 output AZURE_OPENAI_MODEL_VERSION string = resources.outputs.AZURE_OPENAI_MODEL_VERSION
 output AZURE_OPENAI_API_VERSION string = resources.outputs.AZURE_OPENAI_API_VERSION
