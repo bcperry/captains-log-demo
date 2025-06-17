@@ -10,9 +10,11 @@
     },
     "principalId": {
       "value": "${AZURE_PRINCIPAL_ID}"
-    },
-    "resourceGroupName": {
+    },      "resourceGroupName": {
       "value": "rg-${AZURE_ENV_NAME}"
+    },
+    "webContainerImage": {
+      "value": "${webContainerImage}"
     }
   }
 }

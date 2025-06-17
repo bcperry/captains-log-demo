@@ -23,6 +23,9 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
+@description('Container image for the web service')
+param webContainerImage string = ''
+
 module resources 'resources.bicep' = {
   name: 'resources'
   scope: resourceGroup
@@ -31,6 +34,7 @@ module resources 'resources.bicep' = {
     resourceToken: resourceToken
     tags: tags
     principalId: principalId
+    containerImage: !empty(webContainerImage) ? webContainerImage : ''
   }
 }
 
@@ -44,3 +48,8 @@ output AZURE_OPENAI_KEY string = resources.outputs.AZURE_OPENAI_KEY
 output AZURE_OPENAI_MODEL_NAME string = resources.outputs.AZURE_OPENAI_MODEL_NAME
 output AZURE_OPENAI_MODEL_VERSION string = resources.outputs.AZURE_OPENAI_MODEL_VERSION
 output AZURE_OPENAI_API_VERSION string = resources.outputs.AZURE_OPENAI_API_VERSION
+
+output RESOURCE_GROUP_ID string = resourceGroup.id
+
+output AZURE_CONTAINER_REGISTRY_NAME string = resources.outputs.AZURE_CONTAINER_REGISTRY_NAME
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
