@@ -1,15 +1,13 @@
 import streamlit as st
-import requests
 from azure.identity import DefaultAzureCredential
 import tempfile
 import os
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any
 import logging
 from pydub import AudioSegment
 from io import BytesIO
 import time
 import json
-import urllib.parse
 import azure.cognitiveservices.speech as speechsdk
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -18,6 +16,7 @@ from openai import AzureOpenAI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+VERSION = "0.2.0"
 
 class AudioTranscriber:
     def __init__(self):
@@ -182,9 +181,8 @@ class AudioTranscriber:
     
     def get_audio_duration_minutes(self, input_file):
         """Get the duration of audio file in minutes"""
-        audio = AudioSegment.from_file(input_file)
-        duration_seconds = len(audio) / 1000
-        return duration_seconds / 60
+        
+        return len(AudioSegment.from_file(input_file)) / 1000 / 60
 
 
 class AzureOpenAISummarizer:
@@ -419,13 +417,7 @@ def main():
           # Test connection button
         col_test1, col_test2 = st.columns(2)
         with col_test1:
-            if st.button("🔍 Test Speech", use_container_width=True):
-                success, message = st.session_state.transcriber.test_speech_service_connection()
-                if success:
-                    st.success(f"✅ {message}")
-                else:
-                    st.error(f"❌ {message}")
-        
+            st.write(f"Captain's Log Version: {VERSION}")
         with col_test2:
             if st.button("🤖 Test OpenAI", use_container_width=True):
                 if st.session_state.summarizer_available:
