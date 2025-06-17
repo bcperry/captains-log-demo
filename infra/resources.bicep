@@ -130,6 +130,12 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       AZURE_SPEECH_REGION: 'usgovvirginia'  // Hardcode for Azure Gov consistency
       AZURE_SPEECH_KEY: azureSpeechService.listKeys().key1
       AZURE_CLIENT_ID: userAssignedIdentity.properties.clientId
+      AZURE_OPENAI_KEY: azureOpenAI.listKeys().key1
+      AZURE_OPENAI_MODEL_NAME: deployments[0].name
+      AZURE_OPENAI_MODEL_VERSION: deployments[0].modelVersion
+      AZURE_OPENAI_API_VERSION: '2024-02-15-preview'
+      AZURE_OPENAI_EMBEDDING_MODEL_NAME: deployments[1].name
+      AZURE_OPENAI_EMBEDDING_MODEL_VERSION: deployments[1].modelVersion
     }
   }
 }
