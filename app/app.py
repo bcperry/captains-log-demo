@@ -70,6 +70,7 @@ class AudioTranscriber:
         full_transcription = ""
         # Transcribe each chunk
         for i, chunk in enumerate(audio_chunks, 1):
+            logger.info(f"Transcribing chunk {i}/{len(audio_chunks)}")
 
             # Create a temporary file to store the audio chunk
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio_file:
@@ -81,9 +82,9 @@ class AudioTranscriber:
                 transcription = speech_recognizer.recognize_once()
                 if transcription.reason == speechsdk.ResultReason.RecognizedSpeech:
                     text = transcription.text
-                    full_transcription += text + " "
+                    st.toast(f"Chunk {i} completed.")
                 elif transcription.reason == speechsdk.ResultReason.NoMatch:
-                    st.info(f"No speech could be recognized in chunk {i}: {transcription.no_match_details}")
+                    st.toast(f"No speech could be recognized in chunk {i}: {transcription.no_match_details}")
                 elif transcription.reason == speechsdk.ResultReason.Canceled:
                     cancellation_details = transcription.cancellation_details
                     st.warning(f"Speech Recognition canceled for chunk {i}: {cancellation_details.reason}")
@@ -276,7 +277,7 @@ def main():
         st.markdown("### 📁 Upload Audio File")
         uploaded_file = st.file_uploader(
             "Choose an audio file",
-            type=['wav', 'mp3', 'm4a', 'ogg', 'flac'],
+            type=['wav', 'mp3', 'm4a', 'ogg', 'flac', 'mp4'],
             help="Upload an audio file for transcription"
         )
         
