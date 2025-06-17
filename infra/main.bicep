@@ -34,7 +34,11 @@ module resources 'resources.bicep' = {
   }
 }
 
-output AZURE_OPENAI_ENDPOINT string = resources.outputs.AZURE_OPENAI_ENDPOINT
+
 output AZURE_SPEECH_ENDPOINT string = resources.outputs.AZURE_SPEECH_ENDPOINT
 output AZURE_SPEECH_KEY string = resources.outputs.AZURE_SPEECH_KEY
-output RESOURCE_GROUP_ID string = resourceGroup.id
+
+output AZURE_OPENAI_ENDPOINT string = resources.outputs.AZURE_OPENAI_ENDPOINT
+output AZURE_OPENAI_KEY string = resources.outputs.AZURE_OPENAI_KEY
+output AZURE_OPENAI_MODEL_NAME string = resources.outputs.AZURE_OPENAI_MODEL_NAME
+output AZURE_OPENAI_MODEL_VERSION string = resources.outputs.AZURE_OPENAI_MODEL_VERSION
