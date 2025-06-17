@@ -196,7 +196,7 @@ class AzureOpenAISummarizer:
         
         self.openai_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
         self.openai_api_key = os.getenv('AZURE_OPENAI_KEY')
-        self.openai_model = os.getenv('AZURE_OPENAI_MODEL')
+        self.openai_model = os.getenv('AZURE_OPENAI_MODEL_NAME')
         self.api_version = os.getenv('AZURE_OPENAI_API_VERSION')
         
         # Use managed identity if no API key is provided (preferred for Azure-hosted apps)
