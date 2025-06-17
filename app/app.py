@@ -46,8 +46,26 @@ class AudioTranscriber:
         )
         # self.speech_config.speech_recognition_language = "en-US"
     
-    def split_audio(self, input_file):
+    def trim_audio(self, input_file, duration_minutes):
+        """Trim audio file to specified duration in minutes"""
         audio = AudioSegment.from_file(input_file)
+        duration_ms = duration_minutes * 60 * 1000  # Convert minutes to milliseconds
+        
+        # If requested duration is longer than the audio, return the full audio
+        if duration_ms >= len(audio):
+            return audio
+        
+        # Trim audio to the specified duration
+        trimmed_audio = audio[:duration_ms]
+        return trimmed_audio
+    
+    def split_audio(self, input_file, duration_minutes=None):
+        if duration_minutes:
+            # Trim the audio first if duration is specified
+            audio = self.trim_audio(input_file, duration_minutes)
+        else:
+            audio = AudioSegment.from_file(input_file)
+        
         chunk_duration_ms = 30 * 1000  # 30 seconds in milliseconds
         num_chunks = (len(audio) // chunk_duration_ms) + 1
         if len(audio) == chunk_duration_ms:
@@ -60,12 +78,16 @@ class AudioTranscriber:
             chunks.append(chunk)
         return chunks
     
-    def transcribe(self, filename: str):
-        # Split audio file into chunks
-        audio_chunks = self.split_audio(filename)
+    def transcribe(self, filename: str, duration_minutes=None):
+        # Split audio file into chunks (with optional duration limit)
+        audio_chunks = self.split_audio(filename, duration_minutes)
         print("Number of audio chunks: {}".format(len(audio_chunks)))
         print(f"Transcribing {len(audio_chunks)} audio chunks from {filename}")
-        print(f"Audio duration: {len(AudioSegment.from_file(filename)) / 1000} seconds")
+        
+        if duration_minutes:
+            print(f"Transcribing first {duration_minutes} minutes of audio")
+        else:
+            print(f"Audio duration: {len(AudioSegment.from_file(filename)) / 1000} seconds")
 
         full_transcription = ""
         # Transcribe each chunk
@@ -87,11 +109,9 @@ class AudioTranscriber:
                     st.toast(f"No speech could be recognized in chunk {i}: {transcription.no_match_details}")
                 elif transcription.reason == speechsdk.ResultReason.Canceled:
                     cancellation_details = transcription.cancellation_details
-                    st.warning(f"Speech Recognition canceled for chunk {i}: {cancellation_details.reason}")
+                    st.toast(f"Speech Recognition canceled for chunk {i}: {cancellation_details.reason}")
                     if cancellation_details.reason == speechsdk.CancellationReason.Error:
-                        st.error(f"Error details: {cancellation_details.error_details}")
-                        st.warning("Did you set the speech resource key and endpoint values correctly?")
-                        # Don't raise exception immediately, try to continue with other chunks
+                        st.toast(f"Error in chunk {i}: {cancellation_details.error_details}")
 
             # return transcription
                 if isinstance(transcription, dict):
@@ -122,7 +142,7 @@ class AudioTranscriber:
         except Exception as e:
             return False, f"Connection failed: {str(e)}"
     
-    def transcribe_audio(self, audio_bytes, filename, language_code):
+    def transcribe_audio(self, audio_bytes, filename, language_code, duration_minutes=None):
         try:
             # Update language
             self.speech_config.speech_recognition_language = language_code
@@ -135,23 +155,35 @@ class AudioTranscriber:
             
                 start_time = time.time()
                 logger.info(f"Starting transcription for {filename} ({temp_file_path}) in {language_code}")
-                transcription = self.transcribe(temp_file_path)
+                if duration_minutes:
+                    logger.info(f"Transcribing first {duration_minutes} minutes of audio")
+                transcription = self.transcribe(temp_file_path, duration_minutes)
                 processing_time = round(time.time() - start_time, 2)
             
             # Clean up temp file
             # os.unlink(temp_file_path)
-            
-            # Create metadata
+              # Create metadata
             metadata = {
                 'processing_time': processing_time,
                 'characters': len(transcription),
                 'words': len(transcription.split()) if transcription else 0,
             }
+            
+            # Add duration information if it was limited
+            if duration_minutes:
+                metadata['transcribed_duration_minutes'] = duration_minutes
+            
             temp_file.close()  # Close the temp file
             return transcription, True, metadata
             
         except Exception as e:
             return f"Transcription failed: {str(e)}", False, {}
+    
+    def get_audio_duration_minutes(self, input_file):
+        """Get the duration of audio file in minutes"""
+        audio = AudioSegment.from_file(input_file)
+        duration_seconds = len(audio) / 1000
+        return duration_seconds / 60
 
 
 def main():
@@ -291,10 +323,53 @@ def main():
                 st.metric("File Size", f"{uploaded_file.size / 1024 / 1024:.2f} MB")
             with col_type:
                 st.metric("File Type", uploaded_file.type or "Unknown")
-            
-            # Audio player
+              # Audio player
             st.markdown("#### 🔊 Audio Preview")
             st.audio(uploaded_file, format=uploaded_file.type)
+            
+            # Audio duration controls
+            st.markdown("#### ⏱️ Duration Settings")
+            
+            # Get audio duration for the slider
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                temp_file.write(uploaded_file.getvalue())
+                temp_file_path = temp_file.name
+                
+                try:
+                    audio_duration_minutes = st.session_state.transcriber.get_audio_duration_minutes(temp_file_path)
+                    
+                    col_duration_info, col_duration_control = st.columns([1, 2])
+                    
+                    with col_duration_info:
+                        st.metric("Total Duration", f"{audio_duration_minutes:.1f} min")
+                    
+                    with col_duration_control:
+                        # Duration slider
+                        if audio_duration_minutes > 1:
+                            duration_to_transcribe = st.slider(
+                                "Duration to transcribe (minutes)",
+                                min_value=1.0,
+                                max_value=float(audio_duration_minutes),
+                                value=min(10.0, float(audio_duration_minutes)),  # Default to 10 minutes or less
+                                step=0.5,
+                                help="Select how many minutes from the beginning of the audio to transcribe"
+                            )
+                        else:
+                            duration_to_transcribe = audio_duration_minutes
+                            st.info(f"Audio is {audio_duration_minutes:.1f} minutes - will transcribe full duration")
+                    
+                    # Show what will be transcribed
+                    if duration_to_transcribe < audio_duration_minutes:
+                        st.info(f"📝 Will transcribe the first {duration_to_transcribe:.1f} minutes of {audio_duration_minutes:.1f} minutes total")
+                    else:
+                        st.info(f"📝 Will transcribe the entire audio file ({audio_duration_minutes:.1f} minutes)")
+                    
+                except Exception as e:
+                    st.warning(f"Could not determine audio duration: {str(e)}")
+                    duration_to_transcribe = None
+                
+                # Clean up temp file
+                # os.unlink(temp_file_path)
             
             # Transcription controls
             st.markdown("#### 🚀 Transcription")
@@ -304,8 +379,7 @@ def main():
                 transcribe_btn = st.button(
                     "🎯 Start Transcription", 
                     type="primary",
-                    use_container_width=True
-                )
+                    use_container_width=True                )
             with col_lang:
                 st.info(f"Language: {selected_language}")
             
@@ -313,10 +387,13 @@ def main():
                 # Create BytesIO object from uploaded file
                 audio_bytes = BytesIO(uploaded_file.read())
                 language_code = languages[selected_language]
+                  # Perform transcription with duration limit if specified
+                duration_param = None
+                if 'duration_to_transcribe' in locals() and duration_to_transcribe < audio_duration_minutes:
+                    duration_param = duration_to_transcribe
                 
-                # Perform transcription
                 transcription, success, metadata = st.session_state.transcriber.transcribe_audio(
-                    audio_bytes, uploaded_file.name, language_code
+                    audio_bytes, uploaded_file.name, language_code, duration_param
                 )
                 
                 # Store results in session state
@@ -332,6 +409,8 @@ def main():
             
             if 'processing_time' in metadata:
                 st.metric("⏱️ Processing Time", f"{metadata['processing_time']}s")
+            if 'transcribed_duration_minutes' in metadata:
+                st.metric("🎵 Transcribed Duration", f"{metadata['transcribed_duration_minutes']:.1f} min")
             if 'characters' in metadata:
                 st.metric("📝 Characters", metadata['characters'])
             if 'words' in metadata:
