@@ -180,7 +180,10 @@ resource cognitiveServicesSpeechUserForAppService 'Microsoft.Authorization/roleA
 
 // Outputs for environment variables
 output AZURE_OPENAI_ENDPOINT string = 'https://${azureOpenAI.name}.openai.azure.us/'
+output AZURE_OPENAI_KEY string = azureOpenAI.listKeys().key1
+output AZURE_OPENAI_MODEL_NAME string = deployments[0].name
+output AZURE_OPENAI_MODEL_VERSION string = deployments[0].modelVersion
+output AZURE_OPENAI_EMBEDDING_MODEL_NAME string = deployments[1].name
+output AZURE_OPENAI_EMBEDDING_MODEL_VERSION string = deployments[1].modelVersion
 output AZURE_SPEECH_ENDPOINT string = 'https://${azureSpeechService.name}.cognitiveservices.azure.us/'
-output AZURE_SPEECH_REGION string = 'usgovvirginia'  // Hardcode for Azure Gov consistency
-@secure()
 output AZURE_SPEECH_KEY string = azureSpeechService.listKeys().key1

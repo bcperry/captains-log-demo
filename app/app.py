@@ -3,7 +3,7 @@ import requests
 from azure.identity import DefaultAzureCredential
 import tempfile
 import os
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 import logging
 from pydub import AudioSegment
 from io import BytesIO
@@ -12,6 +12,7 @@ import json
 import urllib.parse
 import azure.cognitiveservices.speech as speechsdk
 from dotenv import load_dotenv
+from openai import AzureOpenAI
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -186,10 +187,127 @@ class AudioTranscriber:
         return duration_seconds / 60
 
 
+class AzureOpenAISummarizer:
+    """Class to handle Azure OpenAI interactions for text summarization and action item extraction."""
+    
+    def __init__(self):
+        # Load environment variables
+        load_dotenv('.azure/captainslog/.env')
+        
+        self.openai_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
+        self.openai_api_key = os.getenv('AZURE_OPENAI_KEY')
+        self.openai_model = os.getenv('AZURE_OPENAI_MODEL')
+        self.api_version = os.getenv('OPENAI_API_VERSION')
+        
+        # Use managed identity if no API key is provided (preferred for Azure-hosted apps)
+        self.client = AzureOpenAI(
+            api_key=self.openai_api_key,
+            api_version=self.api_version,
+            azure_endpoint=self.openai_endpoint
+        )
+        
+        
+        logger.info(f"Azure OpenAI configured with endpoint: {self.openai_endpoint}")
+        logger.info(f"Using model: {self.openai_model}")
+    
+    def summarize_transcription(self, transcription_text: str) -> Dict[str, Any]:
+        """
+        Summarize the transcription text and extract action items.
+        
+        Args:
+            transcription_text: The text to summarize
+            
+        Returns:
+            Dictionary containing summary, action items, and metadata
+        """
+        try:
+            system_prompt = """You are an AI assistant that specializes in analyzing meeting transcriptions and audio content. 
+            Your task is to provide a comprehensive summary and extract actionable items.
+            
+            Please analyze the provided transcription and return a JSON response with the following structure:
+            {
+                "summary": "A concise summary of the main topics and discussions",
+                "key_points": ["List of key points discussed"],
+                "action_items": [
+                    {
+                        "task": "Description of the action item",
+                        "assignee": "Person responsible (if mentioned)",
+                        "deadline": "Deadline if mentioned, otherwise null",
+                        "priority": "high|medium|low based on context"
+                    }
+                ],
+                "participants": ["List of participants mentioned"],
+                "topics": ["Main topics covered"],
+                "sentiment": "overall sentiment of the discussion (positive|neutral|negative)",
+                "confidence": "How confident you are in the analysis (0.0-1.0)"
+            }
+            
+            If no action items are found, return an empty array. Be specific and accurate in your analysis."""
+            
+            user_prompt = f"""Please analyze this transcription and provide a summary with action items:
+
+            Transcription:
+            {transcription_text}"""
+            
+            response = self.client.chat.completions.create(
+                model=self.openai_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000
+                            )
+            
+            # Parse the JSON response
+            analysis_result = json.loads(response.choices[0].message.content)
+            
+            # Add metadata
+            analysis_result['processing_metadata'] = {
+                'model_used': self.openai_model,
+                'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
+                'input_length': len(transcription_text),
+                'tokens_used': response.usage.total_tokens if response.usage else None
+            }
+            
+            return analysis_result
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse OpenAI response as JSON: {e}")
+            return {
+                "error": "Failed to parse AI response",
+                "summary": "Analysis failed - invalid response format",
+                "action_items": [],
+                "key_points": [],
+                "confidence": 0.0
+            }
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+            return {
+                "error": str(e),
+                "summary": f"Failed to analyze transcription: {str(e)}",
+                "action_items": [],
+                "key_points": [],
+                "confidence": 0.0
+            }
+    
+    def test_connection(self) -> Tuple[bool, str]:
+        """Test the Azure OpenAI connection."""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.openai_model,
+                messages=[{"role": "user", "content": "Hello, this is a test message."}],
+                max_tokens=10
+            )
+            return True, "Azure OpenAI connection successful"
+        except Exception as e:
+            return False, f"Azure OpenAI connection failed: {str(e)}"
+    
+
 def main():
     """Main Streamlit application."""
     st.set_page_config(
-        page_title="Audio Transcription App",
+        page_title="Captain's Log - Audio Transcription & AI Analysis",
         page_icon="🎤",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -220,18 +338,25 @@ def main():
     }
     </style>
     """, unsafe_allow_html=True)
-    
-    # Main header
+      # Main header
     st.markdown("""
     <div class="main-header">
-        <h1>🎤 Audio Transcription with Azure Speech-to-Text</h1>
-        <p>Upload an audio file to get an AI-powered transcription using Azure Cognitive Services</p>
+        <h1>🎤 Captain's Log - Audio Transcription & AI Analysis</h1>
+        <p>Upload an audio file to get AI-powered transcription and intelligent analysis using Azure Speech and OpenAI</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Initialize transcriber
+      # Initialize transcriber and summarizer
     if 'transcriber' not in st.session_state:
         st.session_state.transcriber = AudioTranscriber()
+    
+    if 'summarizer' not in st.session_state:
+        try:
+            st.session_state.summarizer = AzureOpenAISummarizer()
+            st.session_state.summarizer_available = True
+        except Exception as e:
+            logger.error(f"Failed to initialize Azure OpenAI: {e}")
+            st.session_state.summarizer_available = False
+            st.session_state.summarizer_error = str(e)
     
     # Sidebar configuration
     with st.sidebar:
@@ -259,8 +384,7 @@ def main():
         )
         
         st.markdown("---")
-        
-        # Service status
+          # Service status
         st.subheader("🔗 Service Status")
         if st.session_state.transcriber.stt_endpoint:
             st.success("✅ Azure Speech Service Connected")
@@ -271,6 +395,14 @@ def main():
                 st.info("☁️ Azure Commercial Cloud")
         else:
             st.error("❌ Azure Speech Service Not Configured")
+        
+        # Azure OpenAI status
+        if st.session_state.summarizer_available:
+            st.success("✅ Azure OpenAI Connected")
+        else:
+            st.error("❌ Azure OpenAI Not Available")
+            if hasattr(st.session_state, 'summarizer_error'):
+                st.error(f"Error: {st.session_state.summarizer_error}")
             
         # Environment info
         speech_region = st.session_state.transcriber.region or "Not Set"
@@ -284,14 +416,26 @@ def main():
             else:
                 masked_endpoint = endpoint
             st.info(f"Endpoint: {masked_endpoint}")
+          # Test connection button
+        col_test1, col_test2 = st.columns(2)
+        with col_test1:
+            if st.button("🔍 Test Speech", use_container_width=True):
+                success, message = st.session_state.transcriber.test_speech_service_connection()
+                if success:
+                    st.success(f"✅ {message}")
+                else:
+                    st.error(f"❌ {message}")
         
-        # Test connection button
-        if st.button("🔍 Test Connection", use_container_width=True):
-            success, message = st.session_state.transcriber.test_speech_service_connection()
-            if success:
-                st.success(f"✅ {message}")
-            else:
-                st.error(f"❌ {message}")
+        with col_test2:
+            if st.button("🤖 Test OpenAI", use_container_width=True):
+                if st.session_state.summarizer_available:
+                    success, message = st.session_state.summarizer.test_connection()
+                    if success:
+                        st.success(f"✅ {message}")
+                    else:
+                        st.error(f"❌ {message}")
+                else:
+                    st.error("❌ OpenAI not initialized")
         
         st.markdown("---")
         st.markdown("""
@@ -430,8 +574,7 @@ def main():
             st.markdown('<div class="success-card">', unsafe_allow_html=True)
             st.success("✅ Transcription completed successfully!")
             st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Display transcription
+              # Display transcription
             st.markdown("#### Transcribed Text:")
             transcription_text = st.text_area(
                 "Result:",
@@ -441,11 +584,99 @@ def main():
                 label_visibility="collapsed"
             )
             
-            # Action buttons
-            col1, col2, col3 = st.columns(3)
+            # AI Analysis Section
+            if st.session_state.summarizer_available:
+                st.markdown("#### 🤖 AI Analysis")
+                
+                col_analyze, col_status = st.columns([1, 2])
+                with col_analyze:
+                    analyze_btn = st.button(
+                        "📊 Analyze & Summarize",
+                        type="secondary",
+                        use_container_width=True,
+                        help="Generate summary and extract action items using Azure OpenAI"
+                    )
+                
+                with col_status:
+                    if analyze_btn:
+                        with st.spinner("🤖 Analyzing transcription with Azure OpenAI..."):
+                            analysis_result = st.session_state.summarizer.summarize_transcription(
+                                st.session_state.last_transcription
+                            )
+                            st.session_state.last_analysis = analysis_result
+                
+                # Display analysis results
+                if hasattr(st.session_state, 'last_analysis') and st.session_state.last_analysis:
+                    analysis = st.session_state.last_analysis
+                    
+                    if 'error' not in analysis:
+                        # Summary
+                        if 'summary' in analysis:
+                            st.markdown("##### 📋 Summary")
+                            st.info(analysis['summary'])
+                        
+                        # Key Points
+                        if 'key_points' in analysis and analysis['key_points']:
+                            st.markdown("##### 🔑 Key Points")
+                            for i, point in enumerate(analysis['key_points'], 1):
+                                st.markdown(f"• {point}")
+                        
+                        # Action Items
+                        if 'action_items' in analysis and analysis['action_items']:
+                            st.markdown("##### ✅ Action Items")
+                            for i, item in enumerate(analysis['action_items'], 1):
+                                with st.expander(f"Action {i}: {item.get('task', 'No description')[:50]}..."):
+                                    st.write(f"**Task:** {item.get('task', 'Not specified')}")
+                                    if item.get('assignee'):
+                                        st.write(f"**Assignee:** {item['assignee']}")
+                                    if item.get('deadline'):
+                                        st.write(f"**Deadline:** {item['deadline']}")
+                                    if item.get('priority'):
+                                        priority_color = {
+                                            'high': '🔴', 
+                                            'medium': '🟡', 
+                                            'low': '🟢'
+                                        }.get(item['priority'].lower(), '⚪')
+                                        st.write(f"**Priority:** {priority_color} {item['priority'].title()}")
+                        
+                        # Additional Information
+                        col_info1, col_info2, col_info3 = st.columns(3)
+                        
+                        with col_info1:
+                            if 'participants' in analysis and analysis['participants']:
+                                st.markdown("##### 👥 Participants")
+                                for participant in analysis['participants']:
+                                    st.markdown(f"• {participant}")
+                        
+                        with col_info2:
+                            if 'topics' in analysis and analysis['topics']:
+                                st.markdown("##### 📚 Topics")
+                                for topic in analysis['topics']:
+                                    st.markdown(f"• {topic}")
+                        
+                        with col_info3:
+                            if 'sentiment' in analysis:
+                                sentiment_emoji = {
+                                    'positive': '😊',
+                                    'neutral': '😐',
+                                    'negative': '😔'
+                                }.get(analysis['sentiment'].lower(), '🤔')
+                                st.markdown("##### 💭 Sentiment")
+                                st.markdown(f"{sentiment_emoji} {analysis['sentiment'].title()}")
+                            
+                            if 'confidence' in analysis:
+                                confidence_pct = round(float(analysis['confidence']) * 100, 1)
+                                st.markdown("##### 🎯 AI Confidence")
+                                st.markdown(f"{confidence_pct}%")
+                    else:
+                        st.error(f"❌ Analysis failed: {analysis.get('error', 'Unknown error')}")
+            else:
+                st.warning("🤖 Azure OpenAI not available for analysis")
+              # Action buttons
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.download_button(
-                    label="💾 Download as TXT",
+                    label="💾 Download TXT",
                     data=st.session_state.last_transcription,
                     file_name=f"{os.path.splitext(st.session_state.last_filename)[0]}_transcription.txt",
                     mime="text/plain",
@@ -460,15 +691,34 @@ def main():
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                 }
                 st.download_button(
-                    label="📊 Download as JSON",
+                    label="📊 Download JSON",
                     data=json.dumps(export_data, indent=2),
                     file_name=f"{os.path.splitext(st.session_state.last_filename)[0]}_transcription.json",
                     mime="application/json",
                     use_container_width=True
                 )
             with col3:
+                # Download analysis if available
+                if hasattr(st.session_state, 'last_analysis') and st.session_state.last_analysis:
+                    analysis_export = {
+                        "transcription": st.session_state.last_transcription,
+                        "analysis": st.session_state.last_analysis,
+                        "metadata": st.session_state.last_metadata,
+                        "filename": st.session_state.last_filename,
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    st.download_button(
+                        label="🤖 Download Analysis",
+                        data=json.dumps(analysis_export, indent=2),
+                        file_name=f"{os.path.splitext(st.session_state.last_filename)[0]}_analysis.json",
+                        mime="application/json",
+                        use_container_width=True
+                    )
+                else:
+                    st.button("🤖 Analysis N/A", disabled=True, use_container_width=True)
+            with col4:
                 if st.button("🔄 Clear Results", use_container_width=True):
-                    for key in ['last_transcription', 'last_success', 'last_metadata', 'last_filename']:
+                    for key in ['last_transcription', 'last_success', 'last_metadata', 'last_filename', 'last_analysis']:
                         if hasattr(st.session_state, key):
                             delattr(st.session_state, key)
                     st.rerun()
