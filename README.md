@@ -200,8 +200,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
   <p>
-    <a href="https://github.com/yourusername/captains-log-v2">⭐ Star this repo</a> |
-    <a href="https://github.com/yourusername/captains-log-v2/issues">🐛 Report Bug</a> |
-    <a href="https://github.com/yourusername/captains-log-v2/issues">💡 Request Feature</a>
+    <a href="https://github.com/bcperry/captains-log-demo">⭐ Star this repo</a> |
+    <a href="https://github.com/bcperry/captains-log-demo/issues">🐛 Report Bug</a> |
+    <a href="https://github.com/bcperry/captains-log-demo/issues">💡 Request Feature</a>
   </p>
 </div>
