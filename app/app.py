@@ -46,6 +46,9 @@ class AudioTranscriber:
         )
         # self.speech_config.speech_recognition_language = "en-US"
     
+    def __reduce__(self):
+        return AudioTranscriber, (self.speech_key, self.speech_region, self.speech_endpoint)
+
     def trim_audio(self, input_file, duration_minutes):
         """Trim audio file to specified duration in minutes"""
         audio = AudioSegment.from_file(input_file)
@@ -78,7 +81,8 @@ class AudioTranscriber:
             chunks.append(chunk)
         return chunks
     
-    def transcribe(self, filename: str, duration_minutes=None):
+    def transcribe_without_ui(self, filename: str, duration_minutes=None):
+        """Transcribe audio without UI elements (for caching)"""
         # Split audio file into chunks (with optional duration limit)
         audio_chunks = self.split_audio(filename, duration_minutes)
         print("Number of audio chunks: {}".format(len(audio_chunks)))
@@ -104,20 +108,22 @@ class AudioTranscriber:
                 transcription = speech_recognizer.recognize_once()
                 if transcription.reason == speechsdk.ResultReason.RecognizedSpeech:
                     text = transcription.text
-                    st.toast(f"Chunk {i} completed.")
                 elif transcription.reason == speechsdk.ResultReason.NoMatch:
-                    st.toast(f"No speech could be recognized in chunk {i}: {transcription.no_match_details}")
+                    logger.warning(f"No speech could be recognized in chunk {i}: {transcription.no_match_details}")
+                    text = ""
                 elif transcription.reason == speechsdk.ResultReason.Canceled:
                     cancellation_details = transcription.cancellation_details
-                    st.toast(f"Speech Recognition canceled for chunk {i}: {cancellation_details.reason}")
+                    logger.error(f"Speech Recognition canceled for chunk {i}: {cancellation_details.reason}")
                     if cancellation_details.reason == speechsdk.CancellationReason.Error:
-                        st.toast(f"Error in chunk {i}: {cancellation_details.error_details}")
+                        logger.error(f"Error in chunk {i}: {cancellation_details.error_details}")
+                    text = ""
 
-            # return transcription
+                # Extract text from transcription
                 if isinstance(transcription, dict):
-                    text = transcription['text']
+                    text = transcription.get('text', '')
                 else:
-                    text = transcription.text
+                    text = getattr(transcription, 'text', '')
+                
                 print(text)
                 full_transcription = full_transcription + text
                 
@@ -125,7 +131,8 @@ class AudioTranscriber:
             temp_audio_file.close()
             # os.unlink(temp_audio_file.name)
         return full_transcription
-    
+
+   
     @property
     def region(self):
         return self.speech_region
@@ -141,8 +148,9 @@ class AudioTranscriber:
             return True, "Connection successful"
         except Exception as e:
             return False, f"Connection failed: {str(e)}"
-    
-    def transcribe_audio(self, audio_bytes, filename, language_code, duration_minutes=None):
+    @st.cache_data(ttl=3600)
+    def transcribe_audio_cached(self, audio_bytes, filename, language_code, duration_minutes=None):
+        """Cached version of transcription without UI elements"""
         try:
             # Update language
             self.speech_config.speech_recognition_language = language_code
@@ -157,7 +165,7 @@ class AudioTranscriber:
                 logger.info(f"Starting transcription for {filename} ({temp_file_path}) in {language_code}")
                 if duration_minutes:
                     logger.info(f"Transcribing first {duration_minutes} minutes of audio")
-                transcription = self.transcribe(temp_file_path, duration_minutes)
+                transcription = self.transcribe_without_ui(temp_file_path, duration_minutes)
                 processing_time = round(time.time() - start_time, 2)
             
             # Clean up temp file
@@ -178,6 +186,10 @@ class AudioTranscriber:
             
         except Exception as e:
             return f"Transcription failed: {str(e)}", False, {}
+    
+    def transcribe_audio(self, audio_bytes, filename, language_code, duration_minutes=None):
+        """Non-cached wrapper that handles UI elements"""
+        return self.transcribe_audio_cached(audio_bytes, filename, language_code, duration_minutes)
     
     def get_audio_duration_minutes(self, input_file):
         """Get the duration of audio file in minutes"""
@@ -207,8 +219,10 @@ class AzureOpenAISummarizer:
         
         logger.info(f"Azure OpenAI configured with endpoint: {self.openai_endpoint}")
         logger.info(f"Using model: {self.openai_model}")
+
     
-    def summarize_transcription(self, transcription_text: str) -> Dict[str, Any]:
+    @st.cache_data(ttl=3600)
+    def summarize_transcription(_self, transcription_text: str) -> Dict[str, Any]:
         """
         Summarize the transcription text and extract action items.
         
@@ -247,8 +261,8 @@ class AzureOpenAISummarizer:
             Transcription:
             {transcription_text}"""
             
-            response = self.client.chat.completions.create(
-                model=self.openai_model,
+            response = _self.client.chat.completions.create(
+                model=_self.openai_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -262,7 +276,7 @@ class AzureOpenAISummarizer:
             
             # Add metadata
             analysis_result['processing_metadata'] = {
-                'model_used': self.openai_model,
+                'model_used': _self.openai_model,
                 'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
                 'input_length': len(transcription_text),
                 'tokens_used': response.usage.total_tokens if response.usage else None
@@ -292,7 +306,7 @@ class AzureOpenAISummarizer:
                         
                         # Add metadata
                         analysis_result['processing_metadata'] = {
-                            'model_used': self.openai_model,
+                            'model_used': _self.openai_model,
                             'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
                             'input_length': len(transcription_text),
                             'tokens_used': response.usage.total_tokens if response.usage else None,
@@ -553,9 +567,63 @@ def main():
                 if 'duration_to_transcribe' in locals() and duration_to_transcribe < audio_duration_minutes:
                     duration_param = duration_to_transcribe
                 
-                transcription, success, metadata = st.session_state.transcriber.transcribe_audio(
-                    audio_bytes, uploaded_file.name, language_code, duration_param
-                )
+                # Show progress during transcription
+                progress_placeholder = st.empty()
+                with progress_placeholder.container():
+                    st.info("🎯 Starting transcription...")
+                    
+                    # Calculate expected chunks for progress
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                        temp_file.write(uploaded_file.getvalue())
+                        temp_file_path = temp_file.name
+                        
+                        try:
+                            # Get audio chunks to estimate progress
+                            if duration_param:
+                                audio = st.session_state.transcriber.trim_audio(temp_file_path, duration_param)
+                            else:
+                                audio = AudioSegment.from_file(temp_file_path)
+                            
+                            chunk_duration_ms = 30 * 1000  # 30 seconds
+                            expected_chunks = (len(audio) // chunk_duration_ms) + 1
+                            if len(audio) == chunk_duration_ms:
+                                expected_chunks = 1
+                            
+                            # Show progress bar
+                            progress_bar = st.progress(0)
+                            progress_text = st.empty()
+                            
+                            # Start transcription
+                            start_time = time.time()
+                            
+                            def update_progress(current_chunk, total_chunks):
+                                progress = current_chunk / total_chunks
+                                progress_bar.progress(progress)
+                                progress_text.text(f"Processing chunk {current_chunk}/{total_chunks}")
+                            
+                            # Store progress callback in session state for the transcriber to use
+                            st.session_state.progress_callback = update_progress
+                            st.session_state.expected_chunks = expected_chunks
+                            
+                            transcription, success, metadata = st.session_state.transcriber.transcribe_audio(
+                                audio_bytes, uploaded_file.name, language_code, duration_param
+                            )
+                            
+                            # Complete progress
+                            progress_bar.progress(1.0)
+                            progress_text.text("Transcription completed!")
+                            
+                        except Exception as e:
+                            st.error(f"Error during transcription: {str(e)}")
+                            transcription, success, metadata = f"Transcription failed: {str(e)}", False, {}
+                        finally:
+                            # Clean up temp file
+                            # os.unlink(temp_file_path)
+                            pass
+                
+                # Clear progress display after a moment
+                time.sleep(1)
+                progress_placeholder.empty()
                 
                 # Store results in session state
                 st.session_state.last_transcription = transcription
@@ -588,9 +656,7 @@ def main():
         st.markdown("### 📝 Transcription Results")
         
         if st.session_state.last_success:
-            st.markdown('<div class="success-card">', unsafe_allow_html=True)
             st.success("✅ Transcription completed successfully!")
-            st.markdown('</div>', unsafe_allow_html=True)
               # Display transcription
             st.markdown("#### Transcribed Text:")
             transcription_text = st.text_area(

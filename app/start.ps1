@@ -50,7 +50,7 @@ Write-Host "Starting app"
 Write-Host ""
 Set-Location ../app
 
-$port = 50505
+$port = 8000
 $hostname = "localhost"
 Start-Process -FilePath $venvPythonPath -ArgumentList "-m streamlit run app.py --server.port $port" -Wait -NoNewWindow
 
