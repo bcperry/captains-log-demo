@@ -16,7 +16,7 @@ from openai import AzureOpenAI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-VERSION = "0.4.0"
+VERSION = "0.6.0"
 
 class AudioTranscriber:
     def __init__(self):
@@ -44,7 +44,17 @@ class AudioTranscriber:
             endpoint=self.stt_endpoint, 
             subscription=self.speech_key
         )
-        # self.speech_config.speech_recognition_language = "en-US"
+        
+        # Configure speech recognition settings for better accuracy
+        self.speech_config.speech_recognition_language = "en-US"  # Set default language
+        self.speech_config.enable_audio_logging = True  # Enable audio logging for debugging
+        self.speech_config.set_property(speechsdk.PropertyId.SpeechServiceConnection_EndSilenceTimeoutMs, "5000")
+        self.speech_config.set_property(speechsdk.PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs, "10000")
+        self.speech_config.set_property(speechsdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, "2000")
+        
+        print(f"Speech SDK configured with language: {self.speech_config.speech_recognition_language}")
+        print(f"Endpoint silence timeout: 5000ms")
+        print(f"Initial silence timeout: 10000ms")
     
     def __reduce__(self):
         return AudioTranscriber, (self.speech_key, self.speech_region, self.speech_endpoint)
@@ -70,15 +80,31 @@ class AudioTranscriber:
             audio = AudioSegment.from_file(input_file)
         
         chunk_duration_ms = 30 * 1000  # 30 seconds in milliseconds
-        num_chunks = (len(audio) // chunk_duration_ms) + 1
-        if len(audio) == chunk_duration_ms:
-            num_chunks = 1
+        
+        # Calculate number of chunks more accurately
+        audio_length_ms = len(audio)
+        num_chunks = (audio_length_ms + chunk_duration_ms - 1) // chunk_duration_ms  # Ceiling division
+        
+        print(f"Audio length: {audio_length_ms}ms ({audio_length_ms/1000:.1f}s)")
+        print(f"Chunk duration: {chunk_duration_ms}ms ({chunk_duration_ms/1000}s)")
+        print(f"Calculated chunks: {num_chunks}")
+        
         chunks = []
         for i in range(num_chunks):
             start = i * chunk_duration_ms
-            end = (i + 1) * chunk_duration_ms
+            end = min((i + 1) * chunk_duration_ms, audio_length_ms)  # Don't exceed audio length
             chunk = audio[start:end]
-            chunks.append(chunk)
+            
+            # Validate chunk has content and minimum duration
+            chunk_duration_s = len(chunk) / 1000
+            print(f"Chunk {i+1}: {start}ms-{end}ms ({chunk_duration_s:.1f}s)")
+            
+            # Only add chunks that have reasonable duration (at least 0.5 seconds)
+            if len(chunk) >= 500:  # 0.5 seconds minimum
+                chunks.append(chunk)
+            else:
+                print(f"Skipping chunk {i+1} - too short ({chunk_duration_s:.1f}s)")
+        
         return chunks
     
     def transcribe_without_ui(self, filename: str, duration_minutes=None):
@@ -97,40 +123,79 @@ class AudioTranscriber:
         # Transcribe each chunk
         for i, chunk in enumerate(audio_chunks, 1):
             logger.info(f"Transcribing chunk {i}/{len(audio_chunks)}")
+            
+            # Validate chunk has audio content
+            if len(chunk) < 500:  # Less than 0.5 seconds
+                logger.warning(f"Chunk {i} is too short ({len(chunk)}ms), skipping")
+                continue
+                
+            # Check if chunk has actual audio content (not just silence)
+            if chunk.max_possible_amplitude > 0 and chunk.rms > 100:  # Has some audio content
+                logger.info(f"Chunk {i} has audio content (RMS: {chunk.rms}, Max: {chunk.max_possible_amplitude})")
+            else:
+                logger.warning(f"Chunk {i} appears to be silent (RMS: {chunk.rms})")
 
             # Create a temporary file to store the audio chunk
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio_file:
-                chunk.export(temp_audio_file.name, format="wav")
-                temp_audio_file.flush()  # Ensure the file is written to disk
-                audio_config = speechsdk.audio.AudioConfig(filename=temp_audio_file.name)
-                speech_recognizer = speechsdk.SpeechRecognizer(speech_config=self.speech_config, audio_config=audio_config)
-                
-                transcription = speech_recognizer.recognize_once()
-                if transcription.reason == speechsdk.ResultReason.RecognizedSpeech:
-                    text = transcription.text
-                elif transcription.reason == speechsdk.ResultReason.NoMatch:
-                    logger.warning(f"No speech could be recognized in chunk {i}: {transcription.no_match_details}")
+                try:
+                    # Export chunk with proper audio settings
+                    chunk.export(
+                        temp_audio_file.name, 
+                        format="wav",
+                        parameters=["-ac", "1", "-ar", "16000"]  # Mono, 16kHz for better speech recognition
+                    )
+                    temp_audio_file.flush()  # Ensure the file is written to disk
+                    
+                    # Configure audio input
+                    audio_config = speechsdk.audio.AudioConfig(filename=temp_audio_file.name)
+                    speech_recognizer = speechsdk.SpeechRecognizer(
+                        speech_config=self.speech_config, 
+                        audio_config=audio_config
+                    )
+                    
+                    # Add timeout and retry logic
+                    logger.info(f"Starting recognition for chunk {i}")
+                    transcription = speech_recognizer.recognize_once()
+                    
+                    # Handle transcription results
                     text = ""
-                elif transcription.reason == speechsdk.ResultReason.Canceled:
-                    cancellation_details = transcription.cancellation_details
-                    logger.error(f"Speech Recognition canceled for chunk {i}: {cancellation_details.reason}")
-                    if cancellation_details.reason == speechsdk.CancellationReason.Error:
-                        logger.error(f"Error in chunk {i}: {cancellation_details.error_details}")
-                    text = ""
-
-                # Extract text from transcription
-                if isinstance(transcription, dict):
-                    text = transcription.get('text', '')
-                else:
-                    text = getattr(transcription, 'text', '')
-                
-                print(text)
-                full_transcription = full_transcription + text
-                
-            # Close and Delete the temporary audio file
-            temp_audio_file.close()
-            # os.unlink(temp_audio_file.name)
-        return full_transcription
+                    if transcription.reason == speechsdk.ResultReason.RecognizedSpeech:
+                        text = transcription.text
+                        logger.info(f"Chunk {i} transcribed successfully: {len(text)} characters")
+                    elif transcription.reason == speechsdk.ResultReason.NoMatch:
+                        logger.warning(f"No speech could be recognized in chunk {i}")
+                        if hasattr(transcription, 'no_match_details'):
+                            logger.warning(f"No match details: {transcription.no_match_details}")
+                        text = ""
+                    elif transcription.reason == speechsdk.ResultReason.Canceled:
+                        cancellation_details = transcription.cancellation_details
+                        logger.error(f"Speech Recognition canceled for chunk {i}: {cancellation_details.reason}")
+                        if cancellation_details.reason == speechsdk.CancellationReason.Error:
+                            logger.error(f"Error in chunk {i}: {cancellation_details.error_details}")
+                        text = ""
+                    else:
+                        logger.warning(f"Unexpected transcription result for chunk {i}: {transcription.reason}")
+                        text = ""
+                    
+                    # Add transcribed text to full transcription
+                    if text:
+                        print(f"Chunk {i}: {text}")
+                        full_transcription += text + " "
+                    else:
+                        print(f"Chunk {i}: [No speech detected]")
+                        
+                except Exception as e:
+                    logger.error(f"Error processing chunk {i}: {str(e)}")
+                    continue
+                finally:
+                    # Clean up temporary file
+                    try:
+                        temp_audio_file.close()
+                        # os.unlink(temp_audio_file.name)  # Uncomment to delete temp files
+                    except Exception as e:
+                        logger.warning(f"Failed to clean up temp file for chunk {i}: {str(e)}")
+                        
+        return full_transcription.strip()
 
    
     @property
@@ -165,6 +230,20 @@ class AudioTranscriber:
                 logger.info(f"Starting transcription for {filename} ({temp_file_path}) in {language_code}")
                 if duration_minutes:
                     logger.info(f"Transcribing first {duration_minutes} minutes of audio")
+                
+                # Add audio diagnostics
+                print(f"\n=== Transcription Debug Info ===")
+                print(f"File: {filename}")
+                print(f"Temp file: {temp_file_path}")
+                print(f"Language: {language_code}")
+                print(f"Duration limit: {duration_minutes} minutes")
+                
+                # Run audio diagnostics
+                try:
+                    self.diagnose_audio_chunks(temp_file_path, duration_minutes)
+                except Exception as e:
+                    print(f"Audio diagnostics failed: {e}")
+                
                 transcription = self.transcribe_without_ui(temp_file_path, duration_minutes)
                 processing_time = round(time.time() - start_time, 2)
             
@@ -185,6 +264,7 @@ class AudioTranscriber:
             return transcription, True, metadata
             
         except Exception as e:
+            logger.error(f"Transcription failed: {str(e)}")
             return f"Transcription failed: {str(e)}", False, {}
     
     def transcribe_audio(self, audio_bytes, filename, language_code, duration_minutes=None):
