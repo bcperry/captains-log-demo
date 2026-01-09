@@ -1,3 +1,6 @@
 export { ProtectedRoute } from './ProtectedRoute'
 export { UserInfo } from './UserInfo'
 export { LoginButton } from './LoginButton'
+export { Header } from './Header'
+export { Sidebar } from './Sidebar'
+export { Layout } from './Layout'
