@@ -3,7 +3,7 @@
 This module provides endpoints for managing stored transcriptions.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 

@@ -7,7 +7,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Optional
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from config.settings import get_settings

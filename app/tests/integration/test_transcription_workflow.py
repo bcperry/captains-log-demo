@@ -8,14 +8,8 @@ Tests the complete transcription workflow including:
 """
 
 import io
-from unittest.mock import MagicMock
 
-import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from auth import AuthenticatedUser
-from db.cosmos import InMemoryCosmosClient
 
 
 def create_test_audio(

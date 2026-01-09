@@ -11,6 +11,9 @@ Started: 2024-01-15
 - Testing: Use pytest fixtures, mock external services with `unittest.mock`
 - Testing FastAPI: Use `TestClient` from `fastapi.testclient` for HTTP testing
 - Type hints: Always annotate function signatures
+- Webapp Testing: Use Playwright MCP for E2E testing of frontend features
+- Playwright: Navigate, click, fill, screenshot - verify UI behavior end-to-end
+- Dev Server: Ensure app is running before Playwright tests (e.g., `npm run dev`, `uvicorn`)
 - Docker: Use multi-stage builds, copy uv from ghcr.io/astral-sh/uv:latest
 - Bicep: Use `@allowed` for param validation, conditional modules with `if (condition)`
 - Bicep Entra: Use `authsettingsV2` for App Service auth (app registrations require MS Graph API)
@@ -321,4 +324,26 @@ Started: 2024-01-15
   - Use markdown in `description` for rich API documentation
   - Security schemes in OpenAPI use `securitySchemes` under `components`
   - Apply security globally with `security` key at schema root
+---
+
+## 2026-01-09 - US-017
+- What was implemented: End-to-end testing with Playwright MCP for browser-based verification
+- Files changed:
+  - Updated `app/pyproject.toml` - Added uvicorn dependency for dev server
+  - Updated `app/uv.lock` - Locked uvicorn dependency
+  - Updated `app/tests/test_transcriptions.py` - Fixed mypy type error
+  - Applied ruff auto-fixes across test files
+- **E2E Tests Verified:**
+  - Swagger UI (/docs) - API title, features list, endpoint tables, Try it out functionality
+  - ReDoc (/redoc) - API documentation with download option
+  - Health endpoints (/health, /ready) - JSON responses with status
+  - Authentication flow - 401 Unauthorized with proper error message on protected endpoints
+- **Learnings:**
+  - Use Playwright MCP's `browser_navigate` to visit pages and `browser_snapshot` to inspect DOM
+  - Use `browser_click` with element refs from snapshot for interactive testing
+  - Use `browser_take_screenshot` for visual evidence of test results
+  - Start FastAPI server with `nohup uv run uvicorn main:app` for background execution
+  - Swagger UI "Try it out" button enables testing endpoints directly in browser
+  - Protected endpoints return 401 with `www-authenticate: Bearer` header
+  - Use `pgrep -f | xargs kill` pattern since `pkill` is not available
 ---

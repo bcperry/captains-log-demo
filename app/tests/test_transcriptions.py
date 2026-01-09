@@ -296,4 +296,4 @@ class TestTranscriptionRecordModel:
         )
         assert record.has_diarization is True
         assert record.speaker_count == 2
-        assert len(record.segments) == 2
+        assert record.segments is not None and len(record.segments) == 2

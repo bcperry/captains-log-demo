@@ -8,9 +8,9 @@ from speech.client import (
     SpeechClient,
     SpeechConfig,
     SpeechConfigurationError,
+    SpeechRecognitionError,
     SpeechServiceError,
     SpeechServiceUnavailableError,
-    SpeechRecognitionError,
     clear_speech_client_cache,
     get_speech_client,
 )
