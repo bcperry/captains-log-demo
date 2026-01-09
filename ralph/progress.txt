@@ -584,3 +584,23 @@ Started: 2024-01-15
   - Mock entire module with `vi.mock('../services/api', () => ({ ... }))` for isolated testing
   - Test expandable UI elements: click to expand, verify details appear
 ---
+
+## 2026-01-09 - US-026
+- What was implemented: React frontend testing suite with coverage
+- Files changed:
+  - Created `frontend/src/__tests__/api.test.ts` - 26 API service tests
+  - Updated `frontend/vite.config.ts` - Coverage config with thresholds and exclusions
+  - Updated `frontend/eslint.config.js` - Exclude coverage folder
+  - Updated `frontend/.gitignore` - Add coverage folder
+  - Updated `frontend/package.json` - Added @vitest/coverage-v8
+- **Learnings:**
+  - Use `@vitest/coverage-v8` for coverage in Vitest (install separately)
+  - Configure coverage.exclude for hard-to-test code (MSAL auth, browser APIs)
+  - Mock fetch globally with `vi.fn()` and `global.fetch = mockFetch`
+  - Use `mockFetch.mockResolvedValueOnce()` for each expected API call
+  - Create Headers with `new Headers({ 'content-type': 'application/json' })`
+  - MSAL components are difficult to unit test - use E2E tests instead
+  - Index files and re-exports can be excluded from coverage
+  - Coverage thresholds: 70% lines realistic for component-heavy React apps
+  - FormData in tests: access via `callArgs[1].body as FormData`, use `.get(key)`
+---
