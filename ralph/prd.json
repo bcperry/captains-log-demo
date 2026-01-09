@@ -872,7 +872,7 @@
         "PLAYWRIGHT: Verify favicon is not the default Vite logo"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Screenshot shows browser tab with 'frontend' title and likely default Vite favicon. Should show 'Captain's Log' with branded icon."
     },
     {
