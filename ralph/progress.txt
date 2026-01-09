@@ -736,3 +736,29 @@ Started: 2024-01-15
   - Backend .env needs AZURE_TENANT_ID and AZURE_CLIENT_ID (not VITE_ prefix)
   - Type annotations: use `user: AuthenticatedUser = request.state.user` to avoid Any return type
 ---
+
+## 2026-01-09 - US-031
+- What was implemented: Verified existing fastapi-azure-auth integration with Playwright E2E testing
+- Files verified (already implemented):
+  - `app/auth/azure_auth.py` - SingleTenantAzureAuthorizationCodeBearer with Azure Gov support
+  - `app/auth/dependencies.py` - get_current_user_azure dependency
+  - `app/main.py` - Swagger UI OAuth2 configuration with PKCE
+  - `app/config/settings.py` - Azure cloud endpoint configuration
+- **Playwright Verification:**
+  - Pages tested: `/docs` (Swagger UI)
+  - Verified Authorize button visible
+  - Verified OAuth2 modal displays with:
+    - Authorization URL: login.microsoftonline.us (Azure Gov)
+    - Token URL: login.microsoftonline.us (Azure Gov)
+    - Flow: authorizationCode with PKCE
+    - client_id pre-populated
+    - client_secret optional (blank)
+    - Scope: api://<client_id>/user_impersonation
+  - Clicked Authorize - verified redirect to Microsoft login page
+  - Screenshots: swagger-oauth2-modal.png, microsoft-login-azure-gov.png
+- **Learnings:**
+  - fastapi-azure-auth supports custom openapi_authorization_url and openapi_token_url for Gov cloud
+  - Override openid_config.config_url for Government JWKS endpoint
+  - Use Security(azure_scheme) at router level for OAuth2 OpenAPI schema
+  - swagger_ui_init_oauth configures PKCE and scopes for Swagger UI
+---
