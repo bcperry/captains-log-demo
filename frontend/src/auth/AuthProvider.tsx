@@ -8,6 +8,7 @@ import {
 import type { AccountInfo } from '@azure/msal-browser'
 import { EventType } from '@azure/msal-browser'
 import { msalInstance } from './msalInstance'
+import { loginRequest } from './msalConfig'
 import { setAccessToken } from '../services/api'
 
 interface AuthProviderProps {
@@ -31,7 +32,19 @@ export function AuthProvider({ children }: AuthProviderProps): ReactNode {
           // If no redirect response, check for active account
           const accounts = msalInstance.getAllAccounts()
           if (accounts.length > 0) {
-            msalInstance.setActiveAccount(accounts[0])
+            const activeAccount = accounts[0]
+            msalInstance.setActiveAccount(activeAccount)
+            // Acquire token silently for existing session
+            try {
+              const tokenResponse = await msalInstance.acquireTokenSilent({
+                ...loginRequest,
+                account: activeAccount,
+              })
+              setAccessToken(tokenResponse.accessToken)
+            } catch (tokenError) {
+              console.warn('Silent token acquisition failed:', tokenError)
+              // Token will be acquired on next API call or user action
+            }
           }
         }
 

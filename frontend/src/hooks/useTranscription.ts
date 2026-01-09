@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { transcribeAudio as transcribeAudioApi } from '../services/api'
+import { useAuthenticatedApi } from './useAuthenticatedApi'
 import type {
   FileInfo,
   TranscriptionProgress,
@@ -47,6 +48,7 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
   const { language = 'en-US', onComplete, onError } = options
   const [state, setState] = useState<TranscriptionState>(initialState)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const { withAuth } = useAuthenticatedApi()
 
   const selectFile = useCallback((file: File) => {
     // Create FileInfo from File object
@@ -109,8 +111,8 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
         },
       }))
 
-      // Call API
-      const response = await transcribeAudioApi(state.file.file, language)
+      // Call API with authentication
+      const response = await withAuth(() => transcribeAudioApi(state.file!.file, language))
 
       // Check if cancelled
       if (abortControllerRef.current?.signal.aborted) {
@@ -157,7 +159,7 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
     } finally {
       abortControllerRef.current = null
     }
-  }, [state.file, language, onComplete, onError])
+  }, [state.file, language, onComplete, onError, withAuth])
 
   const cancelTranscription = useCallback(() => {
     if (abortControllerRef.current) {
