@@ -18,6 +18,10 @@ Started: 2024-01-15
 - Bicep: Use `@allowed` for param validation, conditional modules with `if (condition)`
 - Bicep Entra: Use `authsettingsV2` for App Service auth (app registrations require MS Graph API)
 - fastapi-azure-auth: Add `Security(azure_scheme)` to routes for OAuth2 OpenAPI schema generation
+- Azure Gov Auth: Set `accessTokenAcceptedVersion: 2` in app manifest (Portal → App Registration → Manifest)
+- Azure Gov Auth: Must set `scheme.openid_config.config_url` to `.microsoftonline.us` URL before `load_config()`
+- Azure Gov Auth: v1 tokens use issuer `sts.windows.net`, v2 tokens use `login.microsoftonline.us`
+- fastapi-azure-auth User: Has `tid` not `tenant_id`, `sub` not `oid` - convert to AuthenticatedUser
 
 ## Key Files
 - `app/pyproject.toml` - Project dependencies and configuration
@@ -36,6 +40,26 @@ Started: 2024-01-15
 - `infra/entra-auth.bicep` - App Service Entra ID authentication settings
 - `docs/entra-id-setup.md` - Azure Entra ID app registration setup guide
 
+---
+
+## 2026-01-09 - US-040 (In Progress)
+- What was implemented: Fixed Azure Government authentication "invalid token claims" error
+- Root cause: Azure app registration was issuing v1 tokens (issuer: sts.windows.net) but fastapi-azure-auth expected v2 tokens (issuer: login.microsoftonline.us)
+- Files changed:
+  - `app/auth/azure_auth.py` - Always set openid_config.config_url for proper Azure Gov endpoint
+  - `app/auth/entra.py` - Enhanced `from_claims()` with better fallbacks for various token formats
+  - `app/auth/dependencies.py` - Fixed type checking for AuthenticatedUser vs fastapi-azure-auth User, improved logging
+  - `app/main.py` - Added logging configuration and OpenID config debug logging
+- **Azure Portal Fix Required:**
+  - Go to App Registration → Manifest
+  - Change `"accessTokenAcceptedVersion": null` to `"accessTokenAcceptedVersion": 2`
+  - Save and get new token (sign out/sign in)
+- **Learnings:**
+  - Azure v1 tokens have issuer `https://sts.windows.net/{tenant}/` - incompatible with fastapi-azure-auth
+  - Azure v2 tokens have issuer `https://login.microsoftonline.us/{tenant}/v2.0` - required for fastapi-azure-auth
+  - fastapi-azure-auth User object has `tid` (not `tenant_id`), `sub` (always present), `oid` (may be None)
+  - Must check type when converting fastapi-azure-auth User to custom AuthenticatedUser
+  - Security(azure_scheme) runs before route dependencies and sets request.state.user
 ---
 
 ## 2026-01-09 - US-016

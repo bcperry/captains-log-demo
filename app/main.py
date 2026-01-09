@@ -12,6 +12,7 @@ Features:
 - React frontend served as static files
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -25,6 +26,14 @@ from fastapi.staticfiles import StaticFiles
 from api import auth_router, health_router, transcribe_router, transcriptions_router
 from auth.azure_auth import get_azure_scheme
 from config.settings import get_settings
+
+# Configure logging - set level from LOG_LEVEL env var (default INFO)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # API metadata for OpenAPI documentation
 API_TITLE = "Captain's Log API"
@@ -113,7 +122,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Loads OpenID configuration on startup for faster first authentication.
     """
     if azure_scheme is not None:
+        # Log the OpenID config URL to verify it's correct for Azure Government
+        logger.info(f"OpenID config URL: {azure_scheme.openid_config.config_url}")
         await azure_scheme.openid_config.load_config()
+        # Log the loaded issuer to verify it's from the correct cloud
+        logger.info(f"Loaded issuer: {azure_scheme.openid_config.issuer}")
     yield
 
 
