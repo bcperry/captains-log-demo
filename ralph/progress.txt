@@ -254,3 +254,19 @@ Started: 2024-01-15
   - For pagination, slice the list: `[start:end]` where `start = (page - 1) * per_page`
   - Test helpers with `async def` can be called directly in async test functions
 ---
+
+## 2026-01-09 - US-015
+- What was implemented: Health check and monitoring endpoints for container orchestration
+- Files changed:
+  - Created `app/api/health.py` - GET /health and GET /ready endpoints
+  - Updated `app/api/__init__.py` - Exported health_router
+  - Created `app/tests/test_health.py` - 15 comprehensive tests
+- **Learnings:**
+  - Use /health for liveness probe (always returns 200 if app is running)
+  - Use /ready for readiness probe (checks dependencies before accepting traffic)
+  - Python logging module provides structured logging out of the box
+  - Use `logger.info()` for normal events, `logger.warning()` for issues, `logger.error()` for failures
+  - DependencyStatus model with `healthy: bool` and optional `message: str` is flexible
+  - Health checks should be non-blocking and not fail the entire service on dependency issues
+  - Mark unconfigured dependencies as "healthy" if they're optional (e.g., Speech Services)
+---
