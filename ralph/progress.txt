@@ -921,3 +921,22 @@ Started: 2024-01-15
   - Add logging at DEBUG level for token claims to aid troubleshooting
   - Handle missing optional claims gracefully - not all tokens have all claims
 ---
+
+## 2026-01-09 - US-041
+- What was implemented: Verified frontend sign-in flow is working correctly
+- Root cause: The scope issue was fixed in US-040 (changed from .default to user_impersonation)
+- Files changed:
+  - No additional changes needed - US-040 fixes resolved this issue
+- **Playwright Verification:**
+  - Navigated to http://localhost:3000 - frontend loaded
+  - Clicked Sign In button - redirected to Azure login
+  - After authentication, returned to app as authenticated user "Blaine Perry"
+  - User info displayed in header with Sign out button
+  - Upload Audio File interface accessible after authentication
+  - Screenshot taken: us041-authenticated-state.png
+- **Learnings:**
+  - MSAL scope must match Azure app registration's exposed API scopes
+  - user_impersonation is the correct scope for delegated permissions
+  - .default scope is for client credentials flow, not user login
+  - MSAL redirect flow works correctly when configuration matches app registration
+---

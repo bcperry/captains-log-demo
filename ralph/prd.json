@@ -826,8 +826,8 @@
         "PLAYWRIGHT: Click Sign In, complete Microsoft login, verify user is authenticated on return"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Sign-in was fixed by scope change in US-040 (user_impersonation). Playwright verification shows successful authentication flow."
     }
   ]
 }
