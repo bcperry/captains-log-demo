@@ -762,3 +762,25 @@ Started: 2024-01-15
   - Use Security(azure_scheme) at router level for OAuth2 OpenAPI schema
   - swagger_ui_init_oauth configures PKCE and scopes for Swagger UI
 ---
+
+## 2026-01-09 - US-032
+- What was verified: React app loads and renders correctly with Playwright E2E testing
+- **Playwright Verification:**
+  - Pages tested: `http://localhost:3000` (Vite dev server)
+  - Verified Captain's Log header/branding visible
+  - Verified blue gradient header background (#0078d4 to #00bcf2)
+  - Verified microphone icon in header
+  - Verified Sign in button with Microsoft logo
+  - Verified footer with version info
+  - Tested responsive viewports:
+    - Mobile (375px) - ✅ Responsive layout
+    - Tablet (768px) - ✅ Responsive layout
+    - Desktop (1280px) - ✅ Full sidebar visible
+  - No 404 errors for static assets (all 200 OK)
+  - Console errors: Only expected ERR_CONNECTION_REFUSED to localhost:8001 (backend on 8000)
+  - Screenshots: react-app-desktop.png, react-app-mobile-375.png, react-app-tablet-768.png, react-app-desktop-1280.png
+- **Learnings:**
+  - Vite dev server runs on port 3000 (not 5173) per vite.config.ts
+  - MSAL React initializes on page load with handleRedirectPromise
+  - Service status panel shows API availability
+---
