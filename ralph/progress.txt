@@ -234,3 +234,23 @@ Started: 2024-01-15
   - For type safety with dict[str, object], convert values explicitly: `int(str(value))`
   - FastAPI Query parameter validation: use `ge=MIN` and `le=MAX` for range constraints
 ---
+
+## 2026-01-09 - US-008
+- What was implemented: Transcription history storage with Cosmos DB and InMemory fallback
+- Files changed:
+  - Updated `app/models/transcription.py` - Added TranscriptionRecord and TranscriptionListResponse models
+  - Updated `app/models/__init__.py` - Exported new models
+  - Updated `app/db/cosmos.py` - Added transcription CRUD methods to CosmosClient and InMemoryCosmosClient
+  - Updated `app/api/transcribe.py` - Store transcriptions after processing (optional via `store` param)
+  - Created `app/api/transcriptions.py` - GET /transcriptions, GET /transcriptions/{id}, DELETE endpoints
+  - Updated `app/api/__init__.py` - Exported transcriptions_router
+  - Created `app/tests/test_transcriptions.py` - 15 comprehensive tests
+- **Learnings:**
+  - Partition key strategy: use `user_id` for efficient per-user queries
+  - Use `model_dump(mode="json")` for Pydantic v2 to serialize datetimes properly for storage
+  - InMemory storage uses nested dict: `user_id -> transcription_id -> record`
+  - Add `store: bool = True` parameter to allow skipping storage if needed
+  - Use `uuid.uuid4()` to generate unique transcription IDs
+  - For pagination, slice the list: `[start:end]` where `start = (page - 1) * per_page`
+  - Test helpers with `async def` can be called directly in async test functions
+---
