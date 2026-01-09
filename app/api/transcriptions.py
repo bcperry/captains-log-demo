@@ -7,7 +7,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from db import get_cosmos_client
 from db.cosmos import CosmosClient
 from models.transcription import TranscriptionListResponse, TranscriptionRecord
@@ -29,7 +30,7 @@ def get_db() -> CosmosClient:
 async def list_transcriptions(
     page: Annotated[int, Query(description="Page number", ge=1)] = 1,
     per_page: Annotated[int, Query(description="Results per page", ge=1, le=100)] = 20,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user_azure),
     db: CosmosClient = Depends(get_db),
 ) -> TranscriptionListResponse:
     """List transcriptions for the authenticated user.
@@ -64,7 +65,7 @@ async def list_transcriptions(
 )
 async def get_transcription(
     transcription_id: Annotated[str, Path(description="Transcription ID")],
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user_azure),
     db: CosmosClient = Depends(get_db),
 ) -> TranscriptionRecord:
     """Get a specific transcription by ID.
@@ -102,7 +103,7 @@ async def get_transcription(
 )
 async def delete_transcription(
     transcription_id: Annotated[str, Path(description="Transcription ID")],
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user_azure),
     db: CosmosClient = Depends(get_db),
 ) -> None:
     """Delete a specific transcription by ID.

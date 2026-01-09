@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.auth import get_db, router
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from db.cosmos import InMemoryCosmosClient, clear_in_memory_storage
 from models.user import UserPreferences, UserProfile
 
@@ -43,8 +44,8 @@ def mock_db() -> InMemoryCosmosClient:
 @pytest.fixture
 def client(app: FastAPI, mock_user: AuthenticatedUser, mock_db: InMemoryCosmosClient) -> TestClient:
     """Create a test client with mocked dependencies."""
-    # Override the get_current_user dependency to return our mock user
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    # Override the get_current_user_azure dependency to return our mock user
+    app.dependency_overrides[get_current_user_azure] = lambda: mock_user
     app.dependency_overrides[get_db] = lambda: mock_db
     return TestClient(app)
 
@@ -124,7 +125,7 @@ class TestAuthenticationRequired:
         # Override only the DB, not the auth
         app.dependency_overrides[get_db] = lambda: mock_db
         # Remove any auth override
-        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_user_azure, None)
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/auth/me")
@@ -137,7 +138,7 @@ class TestAuthenticationRequired:
     ) -> None:
         """Test that 401 response includes WWW-Authenticate header."""
         app.dependency_overrides[get_db] = lambda: mock_db
-        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_user_azure, None)
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/auth/me")
@@ -196,7 +197,7 @@ class TestUpdateUserPreferences:
     ) -> None:
         """Test that preferences endpoint requires authentication."""
         app.dependency_overrides[get_db] = lambda: mock_db
-        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_user_azure, None)
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.patch(
@@ -253,7 +254,7 @@ class TestDifferentUsers:
         app.dependency_overrides[get_db] = lambda: mock_db
 
         # User 1 creates profile
-        app.dependency_overrides[get_current_user] = lambda: user1
+        app.dependency_overrides[get_current_user_azure] = lambda: user1
         client1 = TestClient(app)
         response1 = client1.get("/auth/me")
         assert response1.status_code == 200
@@ -261,7 +262,7 @@ class TestDifferentUsers:
         assert response1.json()["name"] == "User One"
 
         # User 2 creates different profile
-        app.dependency_overrides[get_current_user] = lambda: user2
+        app.dependency_overrides[get_current_user_azure] = lambda: user2
         client2 = TestClient(app)
         response2 = client2.get("/auth/me")
         assert response2.status_code == 200

@@ -10,7 +10,8 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from db import get_cosmos_client
 from db.cosmos import CosmosClient
 from models.transcription import (
@@ -145,7 +146,7 @@ async def transcribe_audio(
     file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, or M4A)")],
     language: Annotated[str, Query(description="Language code for transcription")] = "en-US",
     store: Annotated[bool, Query(description="Store transcription in history")] = True,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
     db: CosmosClient = Depends(get_db),
 ) -> TranscriptionResponse:
@@ -260,7 +261,7 @@ async def transcribe_audio_with_diarization(
     max_speakers: Annotated[
         int, Query(description=f"Maximum number of speakers ({MIN_SPEAKERS}-{MAX_SPEAKERS})", ge=MIN_SPEAKERS, le=MAX_SPEAKERS)
     ] = DEFAULT_MAX_SPEAKERS,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
 ) -> DiarizedTranscriptionResponse:
     """Transcribe an uploaded audio file with speaker diarization.

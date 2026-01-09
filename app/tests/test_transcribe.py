@@ -8,7 +8,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.transcribe import get_speech_service, router
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from models.transcription import (
     ALLOWED_EXTENSIONS,
     MAX_FILE_SIZE_BYTES,
@@ -57,7 +58,7 @@ def client(
     app: FastAPI, mock_user: AuthenticatedUser, mock_speech_client: MagicMock
 ) -> TestClient:
     """Create a test client with mocked dependencies."""
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_current_user_azure] = lambda: mock_user
     app.dependency_overrides[get_speech_service] = lambda: mock_speech_client
     return TestClient(app)
 
@@ -207,7 +208,7 @@ class TestFileValidation:
         self, app: FastAPI, mock_user: AuthenticatedUser, mock_speech_client: MagicMock
     ) -> None:
         """Test rejection of files exceeding size limit."""
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_speech_client
         client = TestClient(app)
 
@@ -260,7 +261,7 @@ class TestSpeechServiceErrors:
             "Service unavailable"
         )
 
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
         client = TestClient(app)
 
@@ -280,7 +281,7 @@ class TestSpeechServiceErrors:
         mock_client.create_audio_config_from_file.return_value = MagicMock()
         mock_client.recognize_once.side_effect = SpeechRecognitionError("No speech detected")
 
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
         client = TestClient(app)
 
@@ -300,7 +301,7 @@ class TestSpeechServiceErrors:
         mock_client.create_audio_config_from_file.return_value = MagicMock()
         mock_client.recognize_once.side_effect = SpeechConfigurationError("Missing key")
 
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
         client = TestClient(app)
 
@@ -320,7 +321,7 @@ class TestSpeechServiceDependency:
         self, app: FastAPI, mock_user: AuthenticatedUser
     ) -> None:
         """Test that 503 is returned when Speech Services is not configured."""
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         # Don't override get_speech_service - let it try to get real client
 
         with patch("api.transcribe.get_speech_client", return_value=None):
@@ -396,7 +397,7 @@ class TestTempFileCleanup:
         mock_client.create_audio_config_from_file.return_value = MagicMock()
         mock_client.recognize_once.side_effect = SpeechRecognitionError("Error")
 
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
         client = TestClient(app)
 
@@ -441,7 +442,7 @@ class TestDiarizeEndpoint:
         mock_speech_client_diarize: MagicMock,
     ) -> TestClient:
         """Create a test client with diarization mock."""
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_speech_client_diarize
         return TestClient(app)
 
@@ -576,7 +577,7 @@ class TestDiarizeEndpoint:
             SpeechServiceUnavailableError("Diarization failed")
         )
 
-        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
         client = TestClient(app)
 

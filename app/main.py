@@ -15,9 +15,9 @@ Features:
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List, Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -131,6 +131,7 @@ def custom_openapi() -> dict:
     """Generate custom OpenAPI schema with enhanced documentation.
 
     Adds security schemes, contact info, and license to the OpenAPI spec.
+    OAuth2 security scheme is added by fastapi-azure-auth when azure_scheme is used.
     """
     if app.openapi_schema:
         return app.openapi_schema
@@ -144,23 +145,6 @@ def custom_openapi() -> dict:
         routes=app.routes,
         tags=OPENAPI_TAGS,
     )
-
-    # Ensure components exists
-    if "components" not in openapi_schema:
-        openapi_schema["components"] = {}
-
-    # Add security scheme for Azure Entra ID (Bearer token for fallback/programmatic access)
-    openapi_schema["components"]["securitySchemes"] = {
-        "AzureEntraID": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-            "description": "Azure Entra ID Bearer token",
-        }
-    }
-
-    # Apply security globally to all endpoints
-    openapi_schema["security"] = [{"AzureEntraID": []}]
 
     # Add contact and license info
     openapi_schema["info"]["contact"] = {
@@ -206,10 +190,19 @@ app.add_middleware(
 app.openapi = custom_openapi  # type: ignore[method-assign]
 
 # Include API routers
+# Health router has no authentication
 app.include_router(health_router)
-app.include_router(auth_router)
-app.include_router(transcribe_router)
-app.include_router(transcriptions_router)
+
+# Build security dependencies for authenticated routes
+# When azure_scheme is configured, Security(azure_scheme) adds OAuth2 to OpenAPI
+auth_dependencies: List[Any] = []
+if azure_scheme is not None:
+    auth_dependencies = [Security(azure_scheme)]
+
+# Authenticated routers with OAuth2 security
+app.include_router(auth_router, dependencies=auth_dependencies)
+app.include_router(transcribe_router, dependencies=auth_dependencies)
+app.include_router(transcriptions_router, dependencies=auth_dependencies)
 
 # Static files and SPA routing
 # Check if frontend dist directory exists (production build)

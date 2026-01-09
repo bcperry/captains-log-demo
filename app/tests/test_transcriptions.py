@@ -5,7 +5,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.transcriptions import get_db, router
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from db.cosmos import InMemoryCosmosClient, clear_in_memory_storage
 from models.transcription import SpeakerSegment, TranscriptionRecord
 
@@ -43,7 +44,7 @@ def client(
     app: FastAPI, mock_user: AuthenticatedUser, mock_db: InMemoryCosmosClient
 ) -> TestClient:
     """Create a test client with mocked dependencies."""
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_current_user_azure] = lambda: mock_user
     app.dependency_overrides[get_db] = lambda: mock_db
     return TestClient(app)
 

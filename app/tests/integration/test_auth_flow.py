@@ -11,7 +11,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from db.cosmos import InMemoryCosmosClient
 
 
@@ -100,7 +101,7 @@ class TestUserIsolation:
         integration_app.dependency_overrides[get_db] = lambda: mock_db
 
         # User 1 creates profile
-        integration_app.dependency_overrides[get_current_user] = lambda: test_user
+        integration_app.dependency_overrides[get_current_user_azure] = lambda: test_user
         client1 = TestClient(integration_app)
         response1 = client1.get("/auth/me")
         assert response1.status_code == 200
@@ -108,7 +109,7 @@ class TestUserIsolation:
         assert response1.json()["email"] == test_user.email
 
         # User 2 creates profile
-        integration_app.dependency_overrides[get_current_user] = lambda: another_test_user
+        integration_app.dependency_overrides[get_current_user_azure] = lambda: another_test_user
         client2 = TestClient(integration_app)
         response2 = client2.get("/auth/me")
         assert response2.status_code == 200
@@ -144,7 +145,7 @@ class TestUserIsolation:
         await mock_db.create_transcription(test_user.oid, record)
 
         # User 2 tries to access it
-        integration_app.dependency_overrides[get_current_user] = lambda: another_test_user
+        integration_app.dependency_overrides[get_current_user_azure] = lambda: another_test_user
         client2 = TestClient(integration_app)
         response = client2.get("/transcriptions/user1-transcription")
 

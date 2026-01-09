@@ -1,12 +1,13 @@
 """Authentication API endpoints.
 
 This module provides endpoints for user authentication and profile management
-using Azure Entra ID.
+using Azure Entra ID with fastapi-azure-auth for OAuth2 Swagger UI integration.
 """
 
 from fastapi import APIRouter, Depends
 
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from db import get_cosmos_client
 from db.cosmos import CosmosClient
 from models.user import UserPreferences, UserProfileCreate, UserProfileResponse
@@ -26,7 +27,7 @@ def get_db() -> CosmosClient:
     description="Returns the authenticated user's profile. Creates a new profile on first login.",
 )
 async def get_current_user_profile(
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user_azure),
     db: CosmosClient = Depends(get_db),
 ) -> UserProfileResponse:
     """Get the current authenticated user's profile.
@@ -74,7 +75,7 @@ async def get_current_user_profile(
 )
 async def update_user_preferences(
     preferences: UserPreferences,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user_azure),
     db: CosmosClient = Depends(get_db),
 ) -> UserProfileResponse:
     """Update the current user's preferences.
