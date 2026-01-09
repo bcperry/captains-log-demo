@@ -980,8 +980,8 @@
         "PLAYWRIGHT: Upload large audio file, verify batch transcription initiates and completes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "Depends on US-046. Uses Azure Speech Batch Transcription API for processing audio files stored in Blob Storage. Better for large files and async processing."
+      "passes": true,
+      "notes": "Depends on US-046. Uses Azure Speech Batch Transcription API for processing audio files stored in Blob Storage. Better for large files and async processing. Implemented BatchTranscriptionClient with Azure Speech REST API v3.1, POST/GET endpoints for batch jobs, InMemoryBatchTranscriptionClient for testing, and comprehensive test suite (18 tests)."
     }
   ]
 }

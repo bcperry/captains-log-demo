@@ -1079,3 +1079,36 @@ Started: 2024-01-15
   - Set content type based on audio format (audio/wav, audio/mpeg, audio/mp4)
   - InMemoryBlobClient pattern useful for testing without real Azure resources
 ---
+
+## 2026-01-09 - US-047
+- What was implemented: Azure Speech Batch Transcription from Blob Storage
+- Files changed:
+  - Created `app/speech/batch.py` - BatchTranscriptionClient with Azure Speech REST API v3.1
+    - create_transcription_job() for submitting batch transcription jobs
+    - get_transcription_status() for polling job status (NotStarted, Running, Succeeded, Failed)
+    - get_transcription_result() for retrieving transcription with speaker diarization
+    - Support for Azure Government and Commercial cloud endpoints
+    - InMemoryBatchTranscriptionClient for development/testing
+  - Updated `app/speech/__init__.py` - Export batch transcription classes
+  - Updated `app/models/transcription.py` - Added BatchTranscriptionJobStatus enum, BatchTranscriptionJobResponse, BatchTranscriptionStatusResponse, BatchTranscriptionResultResponse models
+  - Updated `app/api/transcribe.py` - Added batch transcription endpoints:
+    - POST /transcribe/batch - Submit batch transcription job
+    - GET /transcribe/batch/{job_id}/status - Poll job status
+    - GET /transcribe/batch/{job_id}/result - Retrieve completed transcription
+  - Created `app/tests/test_batch_transcription.py` - 18 tests for batch transcription client and API
+- **Playwright Verification:**
+  - Navigated to /docs Swagger UI
+  - Verified batch transcription endpoints visible in Transcription section
+  - Expanded POST /transcribe/batch endpoint
+  - Verified parameters (language, enable_diarization, max_speakers) and file upload
+  - Verified response schema shows job_id, status, display_name, created_at, blob_url
+  - Screenshots captured showing endpoint documentation
+- **Learnings:**
+  - Azure Speech Batch Transcription uses REST API v3.1 (not SDK)
+  - Government cloud endpoint: {region}.api.cognitive.azure.us/speechtotext/v3.1
+  - Commercial cloud endpoint: {region}.api.cognitive.microsoft.com/speechtotext/v3.1
+  - Batch transcription accepts contentUrls (SAS URLs to blob storage)
+  - Job status polling returns NotStarted, Running, Succeeded, Failed
+  - Results include combinedRecognizedPhrases and recognizedPhrases with speaker info
+  - Duration in results uses ISO 8601 format (PT#H#M#.###S)
+---
