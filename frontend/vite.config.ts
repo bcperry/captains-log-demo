@@ -2,10 +2,13 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Load .env from project root (one level up from frontend/)
+  envDir: path.resolve(__dirname, '..'),
   test: {
     globals: true,
     environment: 'jsdom',
