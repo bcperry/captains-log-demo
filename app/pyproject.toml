@@ -12,6 +12,7 @@ keywords = ["audio", "transcription", "azure", "speech", "openai", "fastapi", "r
 
 dependencies = [
     "azure-identity>=1.15.0",
+    "azure-storage-blob>=12.19.0",
     "pydub>=0.25.1",
     "requests>=2.31.0",
     "urllib3>=2.0.0",
