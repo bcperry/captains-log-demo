@@ -295,6 +295,62 @@
       "priority": 1,
       "passes": true,
       "notes": "Playwright MCP E2E verification completed 2026-01-09"
+    },
+    {
+      "id": "US-018",
+      "title": "Streamlit frontend application",
+      "acceptanceCriteria": [
+        "Streamlit application serves as the main user interface",
+        "Integration with FastAPI backend via REST API calls",
+        "User authentication flow with Azure Entra ID",
+        "Audio file upload interface for transcription",
+        "Display transcription results with speaker diarization",
+        "Transcription history view and navigation",
+        "Responsive layout for desktop and tablet",
+        "Environment configuration for backend API URL",
+        "mypy type checking passes",
+        "pytest tests pass for Streamlit components",
+        "Playwright MCP tests verify Streamlit UI renders and functions correctly",
+        "Application loads without errors when started with streamlit run"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Playwright MCP E2E verification completed 2026-01-09"
+    },
+    {
+      "id": "US-019",
+      "title": "Streamlit application testing",
+      "acceptanceCriteria": [
+        "Unit tests for Streamlit page components and utilities",
+        "Integration tests for API client functions",
+        "Mocked backend responses for isolated testing",
+        "Session state management tests",
+        "Error handling and user feedback tests",
+        "pytest tests achieve minimum 80% coverage for Streamlit code",
+        "Playwright MCP end-to-end tests for complete user workflows",
+        "Tests run successfully in CI/CD pipeline",
+        "Application loads without errors when started with streamlit run"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Streamlit deployment and containerization",
+      "acceptanceCriteria": [
+        "Dockerfile for Streamlit application",
+        "Multi-stage build for optimized container image",
+        "Environment variable configuration for deployment",
+        "Health check endpoint for container orchestration",
+        "Bicep templates for Azure Container Apps deployment",
+        "CI/CD pipeline integration for Streamlit deployment",
+        "Playwright MCP tests verify deployed Streamlit application is accessible",
+        "Application loads without errors when started with streamlit run"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
