@@ -594,8 +594,158 @@
         "PLAYWRIGHT VERIFICATION: Navigate to /docs, click Authorize button, verify OAuth2 modal appears"
       ],
       "priority": 1,
-      "passes": true,
-      "notes": "Playwright MCP E2E verification completed 2026-01-09 - OAuth2 Authorize button works in Swagger UI"
+      "passes": false,
+      "notes": "REQUIRES PLAYWRIGHT VERIFICATION - Must test Swagger UI OAuth2 flow end-to-end"
+    },
+    {
+      "id": "US-032",
+      "title": "Playwright E2E: React app loads and renders correctly",
+      "acceptanceCriteria": [
+        "PLAYWRIGHT: Navigate to http://localhost:5173 (Vite dev) or http://localhost:8000 (FastAPI static)",
+        "PLAYWRIGHT: Verify page loads without JavaScript errors in console",
+        "PLAYWRIGHT: Verify Captain's Log header/branding is visible",
+        "PLAYWRIGHT: Verify header has blue gradient background (#0078d4 to #00bcf2)",
+        "PLAYWRIGHT: Verify microphone icon is present in header",
+        "PLAYWRIGHT: Take screenshot of initial page load",
+        "PLAYWRIGHT: Verify no 404 errors for static assets (JS, CSS)",
+        "PLAYWRIGHT: Verify page is responsive - test at mobile viewport (375px)",
+        "PLAYWRIGHT: Verify page is responsive - test at tablet viewport (768px)",
+        "PLAYWRIGHT: Verify page is responsive - test at desktop viewport (1280px)",
+        "Application loads without console errors"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "First Playwright verification - ensure React app actually loads and renders"
+    },
+    {
+      "id": "US-033",
+      "title": "Playwright E2E: React authentication UI flow",
+      "acceptanceCriteria": [
+        "PLAYWRIGHT: Navigate to React frontend",
+        "PLAYWRIGHT: Verify Login button is visible for unauthenticated users",
+        "PLAYWRIGHT: Click Login button",
+        "PLAYWRIGHT: Verify redirect to Microsoft login page OR popup appears",
+        "PLAYWRIGHT: Verify Microsoft login page loads (may show login.microsoftonline.us for Gov)",
+        "PLAYWRIGHT: Take screenshot of login page/popup",
+        "PLAYWRIGHT: Verify unauthenticated users cannot access protected routes",
+        "PLAYWRIGHT: Verify protected routes redirect to login",
+        "PLAYWRIGHT: Verify Logout button appears after authentication",
+        "PLAYWRIGHT: Verify user name/email displays in header after login",
+        "PLAYWRIGHT: Click Logout button and verify session is cleared",
+        "No JavaScript errors during auth flow"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Test MSAL React authentication flow end-to-end"
+    },
+    {
+      "id": "US-034",
+      "title": "Playwright E2E: Audio upload component functionality",
+      "acceptanceCriteria": [
+        "PLAYWRIGHT: Navigate to audio upload section",
+        "PLAYWRIGHT: Verify file upload input/dropzone is visible",
+        "PLAYWRIGHT: Verify drag-and-drop zone has proper styling and instructions",
+        "PLAYWRIGHT: Upload a test audio file (WAV, MP3, or M4A)",
+        "PLAYWRIGHT: Verify file name displays after upload",
+        "PLAYWRIGHT: Verify file size displays after upload",
+        "PLAYWRIGHT: Verify audio player preview appears after upload",
+        "PLAYWRIGHT: Verify audio player has play/pause controls",
+        "PLAYWRIGHT: Verify duration slider is visible and functional",
+        "PLAYWRIGHT: Verify Start Transcription button is visible",
+        "PLAYWRIGHT: Click Start Transcription and verify loading state",
+        "PLAYWRIGHT: Verify progress indicator appears during transcription",
+        "PLAYWRIGHT: Take screenshots of upload flow",
+        "No console errors during upload process"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Test audio upload UI and interactions"
+    },
+    {
+      "id": "US-035",
+      "title": "Playwright E2E: Transcription results display",
+      "acceptanceCriteria": [
+        "PLAYWRIGHT: After transcription completes, verify results section appears",
+        "PLAYWRIGHT: Verify transcription text displays in text area",
+        "PLAYWRIGHT: Verify text area is editable",
+        "PLAYWRIGHT: Verify quick stats panel shows processing time",
+        "PLAYWRIGHT: Verify quick stats panel shows duration",
+        "PLAYWRIGHT: Verify quick stats panel shows character count",
+        "PLAYWRIGHT: Verify quick stats panel shows word count",
+        "PLAYWRIGHT: Verify Analyze & Summarize button is visible",
+        "PLAYWRIGHT: Verify Download TXT button is functional",
+        "PLAYWRIGHT: Verify Download JSON button is functional",
+        "PLAYWRIGHT: Verify Clear Results button resets state",
+        "PLAYWRIGHT: Take screenshots of results display",
+        "No console errors when displaying results"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Test transcription results UI components"
+    },
+    {
+      "id": "US-036",
+      "title": "Playwright E2E: Layout and sidebar components",
+      "acceptanceCriteria": [
+        "PLAYWRIGHT: Verify sidebar is visible on desktop viewport",
+        "PLAYWRIGHT: Verify sidebar collapses on mobile viewport",
+        "PLAYWRIGHT: Verify language selection dropdown is present",
+        "PLAYWRIGHT: Click language dropdown and verify options appear",
+        "PLAYWRIGHT: Verify service status indicators are visible (Azure Speech, OpenAI)",
+        "PLAYWRIGHT: Verify region/endpoint information displays in sidebar",
+        "PLAYWRIGHT: Verify Test Connection buttons are present",
+        "PLAYWRIGHT: Click Test Connection and verify response (success or error message)",
+        "PLAYWRIGHT: Verify version number displays",
+        "PLAYWRIGHT: Verify sidebar toggle works on mobile",
+        "PLAYWRIGHT: Take screenshots of sidebar in open/closed states",
+        "No layout issues or overflow problems"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Test layout, sidebar, and configuration UI"
+    },
+    {
+      "id": "US-037",
+      "title": "Playwright E2E: Error handling and edge cases",
+      "acceptanceCriteria": [
+        "PLAYWRIGHT: Upload invalid file type and verify error message appears",
+        "PLAYWRIGHT: Upload file exceeding size limit and verify error message",
+        "PLAYWRIGHT: Attempt transcription without file and verify validation",
+        "PLAYWRIGHT: Simulate network error and verify user-friendly error message",
+        "PLAYWRIGHT: Verify 401 errors show authentication prompt",
+        "PLAYWRIGHT: Verify 500 errors show appropriate error message",
+        "PLAYWRIGHT: Verify error messages are dismissible",
+        "PLAYWRIGHT: Verify loading states don't hang indefinitely",
+        "PLAYWRIGHT: Verify timeout handling for long operations",
+        "PLAYWRIGHT: Take screenshots of error states",
+        "Error messages are clear and actionable"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Test error handling and edge cases in UI"
+    },
+    {
+      "id": "US-038",
+      "title": "Playwright E2E: FastAPI /docs Swagger UI verification",
+      "acceptanceCriteria": [
+        "PLAYWRIGHT: Navigate to http://localhost:8000/docs",
+        "PLAYWRIGHT: Verify Swagger UI loads without errors",
+        "PLAYWRIGHT: Verify API title 'Captain's Log API' is displayed",
+        "PLAYWRIGHT: Verify Authorize button is visible in top right",
+        "PLAYWRIGHT: Click Authorize button and verify OAuth2 modal opens",
+        "PLAYWRIGHT: Verify modal shows client_id field",
+        "PLAYWRIGHT: Verify modal shows scope checkboxes",
+        "PLAYWRIGHT: Verify modal has Authorize and Close buttons",
+        "PLAYWRIGHT: Expand /health endpoint and verify it's documented",
+        "PLAYWRIGHT: Expand /auth/me endpoint and verify it shows lock icon (protected)",
+        "PLAYWRIGHT: Expand /transcribe endpoint and verify file upload field",
+        "PLAYWRIGHT: Try It Out on /health endpoint and verify 200 response",
+        "PLAYWRIGHT: Take screenshots of Swagger UI",
+        "Swagger UI is fully functional"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Comprehensive Swagger UI verification with Playwright"
     }
   ]
 }
