@@ -923,8 +923,8 @@
         "Storage account is accessible from deployed Container App"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "Infrastructure story - adds Azure Blob Storage for storing uploaded audio files before batch transcription"
+      "passes": true,
+      "notes": "Infrastructure story - adds Azure Blob Storage for storing uploaded audio files before batch transcription. Added Storage Account, blob container, RBAC roles, environment variables, and documented in DEPLOYMENT.md."
     },
     {
       "id": "US-046",
