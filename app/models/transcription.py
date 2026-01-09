@@ -1,6 +1,7 @@
 """Transcription models for API requests and responses."""
 
 from datetime import UTC, datetime
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -161,3 +162,112 @@ class TranscriptionListResponse(BaseModel):
     total: int = Field(..., description="Total number of transcriptions")
     page: int = Field(default=1, description="Current page number")
     per_page: int = Field(default=20, description="Results per page")
+
+
+# Batch Transcription Models
+
+
+class BatchTranscriptionJobStatus(str, Enum):
+    """Status of a batch transcription job."""
+
+    NOT_STARTED = "NotStarted"
+    RUNNING = "Running"
+    SUCCEEDED = "Succeeded"
+    FAILED = "Failed"
+
+
+class BatchTranscriptionRequest(BaseModel):
+    """Request for batch transcription."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "language": "en-US",
+                "enable_diarization": True,
+                "max_speakers": 5,
+            }
+        }
+    )
+
+    language: str = Field(default="en-US", description="Language code for transcription")
+    enable_diarization: bool = Field(default=True, description="Enable speaker diarization")
+    max_speakers: int = Field(
+        default=DEFAULT_MAX_SPEAKERS,
+        ge=MIN_SPEAKERS,
+        le=MAX_SPEAKERS,
+        description="Maximum number of speakers for diarization",
+    )
+
+
+class BatchTranscriptionJobResponse(BaseModel):
+    """Response containing batch transcription job info."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "abc123-def456",
+                "status": "Running",
+                "display_name": "Audio transcription 2024-01-15",
+                "created_at": "2024-01-15T10:30:00Z",
+                "blob_url": "https://storage.blob.core.windows.net/audio/file.wav",
+            }
+        }
+    )
+
+    job_id: str = Field(..., description="Unique job ID for polling status")
+    status: BatchTranscriptionJobStatus = Field(..., description="Current job status")
+    display_name: str = Field(..., description="Display name for the job")
+    created_at: datetime = Field(..., description="When the job was created")
+    blob_url: Optional[str] = Field(default=None, description="URL of the audio file")
+    error_message: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+class BatchTranscriptionStatusResponse(BaseModel):
+    """Response for batch transcription status polling."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "abc123-def456",
+                "status": "Succeeded",
+                "display_name": "Audio transcription 2024-01-15",
+                "created_at": "2024-01-15T10:30:00Z",
+                "completed_at": "2024-01-15T10:32:00Z",
+                "progress_percent": 100,
+            }
+        }
+    )
+
+    job_id: str = Field(..., description="Unique job ID")
+    status: BatchTranscriptionJobStatus = Field(..., description="Current job status")
+    display_name: str = Field(..., description="Display name for the job")
+    created_at: datetime = Field(..., description="When the job was created")
+    completed_at: Optional[datetime] = Field(default=None, description="When the job completed")
+    error_message: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+class BatchTranscriptionResultResponse(BaseModel):
+    """Response containing completed batch transcription results."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "abc123-def456",
+                "segments": [
+                    {"speaker_id": "Speaker_1", "text": "Hello, how are you?", "start_time_ms": 0, "end_time_ms": 2000},
+                    {"speaker_id": "Speaker_2", "text": "I'm doing well, thanks!", "start_time_ms": 2100, "end_time_ms": 4000},
+                ],
+                "full_text": "Hello, how are you? I'm doing well, thanks!",
+                "language": "en-US",
+                "duration_ms": 4000,
+                "speaker_count": 2,
+            }
+        }
+    )
+
+    job_id: str = Field(..., description="Unique job ID")
+    segments: list[SpeakerSegment] = Field(..., description="Speaker segments with timestamps")
+    full_text: str = Field(..., description="Full transcribed text")
+    language: str = Field(..., description="Language used for transcription")
+    duration_ms: int = Field(..., description="Audio duration in milliseconds")
+    speaker_count: int = Field(..., description="Number of speakers detected")
