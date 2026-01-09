@@ -93,8 +93,8 @@
         "pytest tests pass"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Created POST /transcribe endpoint in app/api/transcribe.py with file validation (25MB limit, WAV/MP3/M4A formats), Speech Services integration, and JWT auth protection. Added TranscriptionResponse model and 20 tests in tests/test_transcribe.py. Added python-multipart dependency."
     },
     {
       "id": "US-007",
