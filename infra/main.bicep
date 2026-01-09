@@ -66,7 +66,14 @@ output AZURE_OPENAI_MODEL_NAME string = resources.outputs.AZURE_OPENAI_MODEL_NAM
 output AZURE_OPENAI_MODEL_VERSION string = resources.outputs.AZURE_OPENAI_MODEL_VERSION
 output AZURE_OPENAI_API_VERSION string = resources.outputs.AZURE_OPENAI_API_VERSION
 
+output AZURE_COSMOS_ENDPOINT string = resources.outputs.AZURE_COSMOS_ENDPOINT
+output AZURE_COSMOS_DATABASE string = resources.outputs.AZURE_COSMOS_DATABASE
+
 output RESOURCE_GROUP_ID string = resourceGroup.id
+
+output CONTAINER_APP_URL string = resources.outputs.CONTAINER_APP_URL
+output CONTAINER_APP_NAME string = resources.outputs.CONTAINER_APP_NAME
+output CONTAINER_ENVIRONMENT_NAME string = resources.outputs.CONTAINER_ENVIRONMENT_NAME
 
 output AZURE_CONTAINER_REGISTRY_NAME string = resources.outputs.AZURE_CONTAINER_REGISTRY_NAME
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
