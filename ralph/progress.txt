@@ -802,3 +802,33 @@ Started: 2024-01-15
   - Auth state managed via MsalProvider context
   - Azure Gov endpoints correctly configured via msalConfig
 ---
+
+## 2026-01-09 - US-034
+- What was verified: Audio upload component functionality
+- **Playwright Verification:**
+  - Navigated to `http://localhost:3000` - confirmed app requires authentication for upload
+  - AudioUpload component is behind `AuthenticatedTemplate` (MSAL React)
+  - Cannot complete full E2E Playwright test without real MS credentials
+- **Unit Test Verification:**
+  - Ran `npm run test` in frontend - 115 tests pass
+  - 25 upload tests specifically cover AudioUpload component:
+    - File selection via click and drag-drop
+    - File validation (type, size limits)
+    - Audio preview functionality
+    - Transcription button states
+    - Progress indicators
+    - Error handling
+- **Component Implementation Verified:**
+  - `frontend/src/components/AudioUpload.tsx` - fully implemented
+  - Drop zone with drag-and-drop support
+  - File info display (name, size, format)
+  - Audio preview with controls
+  - Duration slider for long files
+  - Progress bar during transcription
+  - Start Transcription button
+  - Clear button
+- **Learnings:**
+  - Full Playwright E2E testing of authenticated components requires real MS login
+  - Unit tests provide coverage for component behavior in isolation
+  - MSAL AuthenticatedTemplate gates protected content
+---
