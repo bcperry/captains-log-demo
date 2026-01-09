@@ -828,6 +828,52 @@
       "priority": 1,
       "passes": true,
       "notes": "Sign-in was fixed by scope change in US-040 (user_impersonation). Playwright verification shows successful authentication flow."
+    },
+    {
+      "id": "US-042",
+      "title": "Fix Speech Service status showing connected when not configured",
+      "acceptanceCriteria": [
+        "Investigate why Azure Speech Service shows green/connected status in sidebar when not configured",
+        "Review /ready endpoint to verify it correctly reports Speech Service health",
+        "Check if AZURE_SPEECH_KEY and AZURE_SPEECH_REGION environment variables are being validated",
+        "Service status should show disconnected/red when Speech key is missing or empty",
+        "Service status should show disconnected/red when Speech region is missing or empty",
+        "Service status should show disconnected/red when Speech Service connection test fails",
+        "Update Layout.tsx service status logic to correctly interpret /ready response",
+        "Add proper null/undefined checks for service configuration",
+        "Test Connection button should accurately test actual Speech Service connectivity",
+        "Error message should be descriptive (e.g., 'Not configured' vs 'Connection failed')",
+        "Verify /ready endpoint returns healthy: false when Speech Service is not configured",
+        "Match behavior: show green only when service is configured AND connection test succeeds",
+        "TypeScript compiles without errors",
+        "Unit tests pass",
+        "PLAYWRIGHT: Verify Speech Service shows red/disconnected when AZURE_SPEECH_KEY is not set"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG: Screenshot shows Speech Service with green checkmark and 'Connection successful' even though it's not configured. Should show red/failed status."
+    },
+    {
+      "id": "US-043",
+      "title": "Fix frontend favicon and page title",
+      "acceptanceCriteria": [
+        "Replace default Vite favicon (vite.svg) with Captain's Log branded favicon",
+        "Create favicon.ico or favicon.svg with microphone/audio wave design matching app branding",
+        "Update index.html <title> from 'frontend' to 'Captain's Log'",
+        "Add appropriate meta description for the application",
+        "Favicon should be visible in browser tab",
+        "Favicon should work in both development (Vite) and production (FastAPI static) modes",
+        "Consider adding multiple favicon sizes for different devices (16x16, 32x32, 180x180)",
+        "Add apple-touch-icon for iOS devices",
+        "Update manifest.json if PWA support is needed",
+        "Favicon colors should match app branding (blue gradient theme)",
+        "TypeScript compiles without errors",
+        "PLAYWRIGHT: Verify browser tab shows 'Captain's Log' title",
+        "PLAYWRIGHT: Verify favicon is not the default Vite logo"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Screenshot shows browser tab with 'frontend' title and likely default Vite favicon. Should show 'Captain's Log' with branded icon."
     }
   ]
 }
