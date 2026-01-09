@@ -298,7 +298,7 @@
     },
     {
       "id": "US-018",
-      "title": "Streamlit frontend application",
+      "title": "Streamlit frontend application [DEPRECATED]",
       "acceptanceCriteria": [
         "Streamlit application serves as the main user interface",
         "Integration with FastAPI backend via REST API calls",
@@ -315,11 +315,11 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Playwright MCP E2E verification completed 2026-01-09"
+      "notes": "DEPRECATED: Superseded by US-021 through US-028 (React frontend). Original work completed 2026-01-09."
     },
     {
       "id": "US-019",
-      "title": "Streamlit application testing",
+      "title": "Streamlit application testing [DEPRECATED]",
       "acceptanceCriteria": [
         "Unit tests for Streamlit page components and utilities",
         "Integration tests for API client functions",
@@ -333,11 +333,11 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Playwright MCP E2E verification completed 2026-01-09. 43 tests for Streamlit client/app, 96% coverage on streamlit_client."
+      "notes": "DEPRECATED: Superseded by US-026 (React testing). Original work completed 2026-01-09."
     },
     {
       "id": "US-020",
-      "title": "Streamlit deployment and containerization",
+      "title": "Streamlit deployment and containerization [DEPRECATED]",
       "acceptanceCriteria": [
         "Dockerfile for Streamlit application",
         "Multi-stage build for optimized container image",
@@ -350,7 +350,194 @@
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Playwright MCP E2E verification completed 2026-01-09"
+      "notes": "DEPRECATED: Superseded by US-027 and US-028 (React static deployment). Original work completed 2026-01-09."
+    },
+    {
+      "id": "US-021",
+      "title": "React frontend project setup and configuration",
+      "acceptanceCriteria": [
+        "Initialize React project with Vite for fast development and builds",
+        "TypeScript configuration for type safety",
+        "Configure ESLint and Prettier for code quality",
+        "Set up project structure following React best practices (components, hooks, services, types)",
+        "Environment configuration for backend API URL and Azure Entra ID",
+        "Tailwind CSS or similar utility-first CSS framework for styling",
+        "Create frontend/ directory at project root level",
+        "Package.json with build, dev, and test scripts",
+        "Vite configuration for production builds and development server",
+        "TypeScript compiles without errors",
+        "ESLint passes with no errors",
+        "Application starts in development mode without errors"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed 2026-01-09 - Vite + React + TypeScript + Tailwind CSS v4"
+    },
+    {
+      "id": "US-022",
+      "title": "React Azure Entra ID one-click authentication",
+      "acceptanceCriteria": [
+        "Integrate @azure/msal-react for Azure Entra ID authentication",
+        "One-click login experience - user clicks Login button and is redirected to Microsoft login",
+        "NO manual JWT entry or token pasting required",
+        "Automatic redirect back to app after successful Microsoft login",
+        "Configure MSAL with Azure Government endpoints support",
+        "Protected route wrapper component redirects unauthenticated users to login",
+        "Logout button clears session and redirects to Microsoft logout",
+        "Authentication context providing user info and access token",
+        "Automatic silent token refresh for long sessions",
+        "Access token automatically included in API requests via axios/fetch interceptor",
+        "Display authenticated user name and email in header",
+        "Graceful handling of authentication errors with user-friendly messages",
+        "Support for popup or redirect login flow (configurable)",
+        "TypeScript compiles without errors",
+        "Unit tests for auth components pass"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed 2026-01-09 - MSAL React integration with Vitest testing"
+    },
+    {
+      "id": "US-023",
+      "title": "React main layout and header component",
+      "acceptanceCriteria": [
+        "Main application layout matching app.py visual design",
+        "Header with gradient background (blue gradient #0078d4 to #00bcf2)",
+        "Captain's Log branding with microphone icon",
+        "Responsive sidebar for configuration settings",
+        "Language selection dropdown (same languages as app.py)",
+        "Service status indicators for Azure Speech and OpenAI",
+        "Region and endpoint display in sidebar",
+        "Test connection buttons for services",
+        "Version number display",
+        "Mobile-responsive layout",
+        "TypeScript compiles without errors",
+        "Component unit tests pass"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed 2026-01-09 - Header, Sidebar, Layout components with tests"
+    },
+    {
+      "id": "US-024",
+      "title": "React audio upload and transcription component",
+      "acceptanceCriteria": [
+        "File upload component supporting WAV, MP3, M4A, OGG, FLAC, MP4 formats",
+        "Drag-and-drop file upload support",
+        "Display file information (name, size, type) after upload",
+        "Audio player preview for uploaded file",
+        "Duration slider to limit transcription length (matching app.py behavior)",
+        "Start Transcription button with loading state",
+        "Progress bar showing transcription progress",
+        "Real-time chunk progress updates during transcription",
+        "Error handling with user-friendly messages",
+        "Integration with FastAPI /transcribe endpoint",
+        "TypeScript compiles without errors",
+        "Component unit tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "React transcription results and AI analysis component",
+      "acceptanceCriteria": [
+        "Display transcription text in editable text area",
+        "Quick stats panel showing processing time, duration, characters, words",
+        "Analyze & Summarize button to trigger OpenAI analysis",
+        "Display AI analysis results: summary, key points, action items",
+        "Action items displayed with task, assignee, deadline, priority",
+        "Participants and topics list display",
+        "Sentiment indicator with emoji",
+        "AI confidence score display",
+        "Download buttons: TXT, JSON, Analysis JSON",
+        "Clear Results button to reset state",
+        "Styling matches app.py success/info cards",
+        "TypeScript compiles without errors",
+        "Component unit tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "React frontend testing suite",
+      "acceptanceCriteria": [
+        "Jest and React Testing Library configured for unit tests",
+        "Unit tests for all major components (Layout, Upload, Results, Auth)",
+        "Unit tests for custom hooks (useAuth, useTranscription, useAnalysis)",
+        "Unit tests for API service functions",
+        "Mocked API responses for isolated testing",
+        "Minimum 80% code coverage",
+        "Playwright end-to-end tests for complete user workflows",
+        "Tests run successfully in CI/CD pipeline",
+        "All TypeScript types properly tested"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "React static build and FastAPI integration",
+      "acceptanceCriteria": [
+        "Vite production build generates optimized static assets",
+        "FastAPI configured to serve React static files from /static directory",
+        "FastAPI serves index.html for SPA client-side routing",
+        "API routes (/api/*) properly separated from static file serving",
+        "Environment variables injected at build time or runtime",
+        "CORS configuration for development mode",
+        "Single Dockerfile serving both FastAPI and React static files",
+        "Build artifacts included in Docker image",
+        "Application works correctly when accessed via FastAPI",
+        "All API endpoints accessible from React frontend"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "React frontend deployment and CI/CD",
+      "acceptanceCriteria": [
+        "GitHub Actions workflow builds React frontend",
+        "Frontend build integrated into existing CI/CD pipeline",
+        "Static assets included in Docker image",
+        "Bicep templates updated for unified deployment",
+        "Environment-specific configuration for Government endpoints",
+        "Build-time optimization (minification, tree-shaking)",
+        "Source maps generated for debugging in non-production",
+        "Deployment validation with smoke tests",
+        "Playwright MCP tests verify deployed React application is accessible",
+        "Application loads without errors in production"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-029",
+      "title": "Remove Streamlit frontend codebase",
+      "acceptanceCriteria": [
+        "Delete app/streamlit_app.py file",
+        "Delete app/streamlit_client/ directory and all contents",
+        "Delete app/app.py file (standalone Streamlit app)",
+        "Delete Dockerfile.streamlit file",
+        "Remove Streamlit-related tests from app/tests/ (test_streamlit_app.py, test_streamlit_client.py)",
+        "Remove streamlit dependency from pyproject.toml",
+        "Remove Streamlit-related Bicep resources from infra/ templates",
+        "Update CI/CD pipeline to remove Streamlit build and deploy steps",
+        "Update README.md to remove Streamlit references and document React frontend",
+        "Update azure.yaml to remove Streamlit service definition",
+        "Verify FastAPI backend still works correctly after cleanup",
+        "All remaining tests pass",
+        "No orphaned imports or references to Streamlit code"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Execute after US-027 (React integration) is complete and verified working"
     }
   ]
 }

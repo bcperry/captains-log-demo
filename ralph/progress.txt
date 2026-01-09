@@ -458,3 +458,84 @@ Started: 2024-01-15
   - Pass backend URL as environment variable to Streamlit container
   - Multi-stage Docker builds reduce image size significantly
 ---
+
+## 2026-01-09 - US-021
+- What was implemented: React frontend project setup with Vite, TypeScript, Tailwind CSS
+- Files changed:
+  - Created `frontend/` directory with complete React project
+  - Created `frontend/package.json` - Project dependencies and scripts
+  - Created `frontend/vite.config.ts` - Vite with Tailwind plugin and API proxy
+  - Created `frontend/tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json` - TypeScript config
+  - Created `frontend/eslint.config.js` - ESLint with TypeScript and React plugins
+  - Created `frontend/.prettierrc` - Prettier code formatting
+  - Created `frontend/.env.example` - Environment variable documentation
+  - Created `frontend/src/config.ts` - App configuration with Azure cloud support
+  - Created `frontend/src/types/api.ts` - TypeScript interfaces for API models
+  - Created `frontend/src/services/api.ts` - API client with typed methods
+  - Created `frontend/src/App.tsx` - Main app component with header and layout
+  - Created directory structure: components/, hooks/, services/, types/, pages/
+- **Learnings:**
+  - Tailwind CSS v4 uses CSS-based config (`@import "tailwindcss"`) not JS config file
+  - Use `@tailwindcss/vite` plugin for Vite integration with Tailwind v4
+  - TypeScript `erasableSyntaxOnly` disallows `public` in constructor params
+  - Use Vite proxy config for API routing in dev mode
+  - Environment variables must be prefixed with `VITE_` for Vite to expose them
+  - Use `import.meta.env.VITE_*` to access environment variables
+  - Government cloud uses `.us` TLD for Azure endpoints
+---
+
+## 2026-01-09 - US-022
+- What was implemented: React Azure Entra ID one-click authentication with MSAL React
+- Files changed:
+  - Created `frontend/src/auth/msalConfig.ts` - MSAL configuration with Government cloud support
+  - Created `frontend/src/auth/msalInstance.ts` - PublicClientApplication singleton
+  - Created `frontend/src/auth/AuthProvider.tsx` - MSAL initialization and React context provider
+  - Created `frontend/src/auth/useAuth.ts` - Hook for login/logout/token management
+  - Created `frontend/src/auth/index.ts` - Auth module exports
+  - Created `frontend/src/components/LoginButton.tsx` - Microsoft sign-in button
+  - Created `frontend/src/components/UserInfo.tsx` - Authenticated user display with sign-out
+  - Created `frontend/src/components/ProtectedRoute.tsx` - Route protection wrapper
+  - Updated `frontend/src/components/index.ts` - Component exports
+  - Updated `frontend/src/hooks/index.ts` - Hook exports
+  - Updated `frontend/src/main.tsx` - Wrap App with AuthProvider
+  - Updated `frontend/src/App.tsx` - Add auth UI with AuthenticatedTemplate/UnauthenticatedTemplate
+  - Created `frontend/src/__tests__/auth.test.tsx` - 19 unit tests for auth modules
+  - Created `frontend/src/__tests__/setup.ts` - Vitest setup with jest-dom
+  - Updated `frontend/vite.config.ts` - Add Vitest configuration
+  - Updated `frontend/package.json` - Add test scripts and dependencies
+- **Learnings:**
+  - Use `@azure/msal-browser` and `@azure/msal-react` for Microsoft authentication
+  - Import from `vitest/config` instead of `vite` when using Vitest test configuration
+  - Split hooks and components into separate files to satisfy react-refresh ESLint rules
+  - Use `type` keyword for TypeScript type imports with `verbatimModuleSyntax`
+  - MSAL `allowNativeBroker` property doesn't exist in browser version - remove it
+  - Use `AuthenticatedTemplate` and `UnauthenticatedTemplate` for conditional rendering
+  - MSAL instance must be initialized before use with `initialize()` method
+  - Use `handleRedirectPromise()` to handle redirect flow after login
+  - Store access token in module-level variable for API interceptor pattern
+  - Configure knownAuthorities for Government cloud: `login.microsoftonline.us`
+  - Use `loginRedirect` for seamless UX, `loginPopup` as fallback option
+  - Vitest with jsdom environment works well for React component testing
+---
+
+## 2026-01-09 - US-023
+- What was implemented: React main layout and header component matching app.py design
+- Files changed:
+  - Created `frontend/src/components/Header.tsx` - Header with gradient, branding, auth controls
+  - Created `frontend/src/components/Sidebar.tsx` - Responsive sidebar with language selection, service status
+  - Created `frontend/src/components/Layout.tsx` - Main layout wrapper composing Header, Sidebar, content area
+  - Created `frontend/src/types/layout.ts` - Type definitions for layout (Language, ServiceStatus, SidebarProps)
+  - Created `frontend/src/__tests__/layout.test.tsx` - 17 unit tests for layout components
+  - Updated `frontend/src/components/index.ts` - Export new layout components
+  - Updated `frontend/src/types/index.ts` - Export layout types
+  - Updated `frontend/src/App.tsx` - Use new Layout component instead of inline JSX
+- **Learnings:**
+  - Initialize state from localStorage using a function: `useState(getInitialLanguage)` instead of calling in useEffect
+  - ESLint react-hooks/set-state-in-effect rule prohibits setState calls directly in useEffect for synchronous state
+  - Use `useMemo` for computed values like endpoint parsing to avoid recalculation
+  - Keep layout components separate: Header handles auth, Sidebar handles config, Layout composes them
+  - Use callback pattern for state initialization functions to avoid SSR issues: `typeof window !== 'undefined'`
+  - SUPPORTED_LANGUAGES constant matches app.py language list exactly for consistency
+  - Service status fetched via /ready endpoint which returns dependency health info
+  - Mobile-first responsive design: sidebar transforms using translate-x classes for off-canvas pattern
+---
