@@ -65,6 +65,9 @@ python_files = ["test_*.py", "*_test.py"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 
+[tool.coverage.run]
+omit = ["app.py", "tests/*"]
+
 [dependency-groups]
 dev = [
     "mypy>=1.19.1",
