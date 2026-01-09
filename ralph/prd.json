@@ -1,0 +1,251 @@
+{
+  "branchName": "ralph/feature",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Azure Entra ID authentication integration",
+      "acceptanceCriteria": [
+        "Integrate Azure Entra ID (Azure AD) for user authentication",
+        "Support Azure Government Entra ID endpoints",
+        "Configure app registration in Azure Entra ID",
+        "Validate Azure Entra ID access tokens on protected endpoints",
+        "Extract user claims (oid, email, name) from validated tokens",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Azure Entra ID app registration configuration",
+      "acceptanceCriteria": [
+        "Bicep template for Azure Entra ID app registration",
+        "Configure API permissions and scopes",
+        "Set up redirect URIs for frontend authentication",
+        "Configure token claims for user identification",
+        "Support both Azure Commercial and Government clouds",
+        "Document app registration setup process"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "User profile endpoint with Entra ID",
+      "acceptanceCriteria": [
+        "GET /auth/me endpoint returns authenticated user profile",
+        "Extracts user info from Azure Entra ID token claims",
+        "Stores user profile in Cosmos DB on first login",
+        "Returns user preferences and settings",
+        "Protected by Entra ID authentication",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Azure Entra ID token validation middleware",
+      "acceptanceCriteria": [
+        "FastAPI dependency for Azure Entra ID token validation",
+        "Validates Bearer token from Authorization header against Entra ID JWKS",
+        "Supports Azure Government Entra ID endpoints",
+        "Caches JWKS keys for performance",
+        "Returns 401 Unauthorized for missing/invalid/expired tokens",
+        "Injects authenticated user claims into request state",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Azure Speech Services integration",
+      "acceptanceCriteria": [
+        "Integration with Azure Speech Services SDK",
+        "Support for Azure Government endpoints",
+        "Configuration via environment variables for Speech resource key and region",
+        "Proper error handling for service unavailability",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Audio transcription endpoint",
+      "acceptanceCriteria": [
+        "POST /transcribe endpoint accepting audio file upload",
+        "Supports WAV, MP3, and M4A audio formats",
+        "Returns transcribed text from Azure Speech Services",
+        "Validates file size and format before processing",
+        "Protected by JWT authentication",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Speaker diarization support",
+      "acceptanceCriteria": [
+        "Enable speaker diarization in Azure Speech Services requests",
+        "Returns transcription with speaker labels and timestamps",
+        "Configurable maximum number of speakers",
+        "JSON response includes speaker segments with start/end times",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Transcription history storage",
+      "acceptanceCriteria": [
+        "Store transcription results in Azure Cosmos DB",
+        "Associate transcriptions with authenticated user",
+        "GET /transcriptions endpoint to list user's transcriptions",
+        "GET /transcriptions/{id} endpoint to retrieve specific transcription",
+        "Partition key strategy for efficient queries",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Unit test suite",
+      "acceptanceCriteria": [
+        "pytest test suite with minimum 80% code coverage",
+        "Unit tests for all authentication endpoints",
+        "Unit tests for transcription endpoints with mocked Azure services",
+        "Unit tests for Pydantic models and validation",
+        "Tests run successfully in CI/CD pipeline",
+        "mypy type checking passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Integration test suite",
+      "acceptanceCriteria": [
+        "Integration tests for full authentication flow",
+        "Integration tests for transcription workflow",
+        "Tests use test fixtures and database isolation",
+        "Configurable to run against Azure Speech Services or mocks",
+        "Tests run successfully in CI/CD pipeline",
+        "mypy type checking passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Azure Government Bicep infrastructure",
+      "acceptanceCriteria": [
+        "Bicep templates support Azure Government cloud endpoints",
+        "Parameterized cloud environment selection (Commercial vs Government)",
+        "Azure Speech Services resource provisioned for Government",
+        "Azure Cosmos DB resource provisioned for Government",
+        "Azure Container Apps environment for hosting",
+        "All resources tagged appropriately for compliance"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "CI/CD pipeline for Azure Government deployment",
+      "acceptanceCriteria": [
+        "GitHub Actions workflow for build and test",
+        "Automated deployment to Azure Government using azd",
+        "Environment-specific configuration for Government endpoints",
+        "Secrets management via GitHub Actions secrets",
+        "Deployment validation and smoke tests"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Environment configuration management",
+      "acceptanceCriteria": [
+        "Support for .env files and environment variables",
+        "Pydantic Settings for configuration validation",
+        "Separate configurations for local, commercial, and government environments",
+        "Documentation for required environment variables",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "API documentation and OpenAPI spec",
+      "acceptanceCriteria": [
+        "FastAPI auto-generated OpenAPI documentation",
+        "All endpoints documented with descriptions and examples",
+        "Request and response schemas documented via Pydantic models",
+        "Swagger UI available at /docs endpoint",
+        "ReDoc available at /redoc endpoint"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Health check and monitoring endpoints",
+      "acceptanceCriteria": [
+        "GET /health endpoint for container health checks",
+        "GET /ready endpoint for readiness probe",
+        "Includes dependency health status (Cosmos DB, Speech Services)",
+        "Structured logging for observability",
+        "mypy type checking passes",
+        "pytest tests pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Migrate package management to uv",
+      "acceptanceCriteria": [
+        "Replace pip/pip-tools with uv for package management",
+        "Create pyproject.toml with project dependencies",
+        "Generate uv.lock file for reproducible builds",
+        "Update Dockerfile to use uv for dependency installation",
+        "Update CI/CD pipeline to use uv",
+        "Remove requirements.txt in favor of pyproject.toml",
+        "Document uv usage in README",
+        "All existing tests continue to pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

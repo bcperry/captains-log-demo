@@ -4,6 +4,7 @@
 [![Azure](https://img.shields.io/badge/Azure-Speech%20%26%20OpenAI-blue)](https://azure.microsoft.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red)](https://streamlit.io/)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue)](https://www.python.org/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 A modern, AI-powered audio transcription and analysis application built with Streamlit, Azure Speech Services, and Azure OpenAI. Perfect for transcribing meetings, interviews, lectures, and other audio content with intelligent summarization and action item extraction.
 
@@ -30,12 +31,22 @@ A modern, AI-powered audio transcription and analysis application built with Str
 
 1. **Clone the repository**
 
-2. **Install dependencies**
+2. **Install uv (Python package manager)**
    ```bash
-   pip install -r app/requirements.txt
+   # macOS/Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Windows (PowerShell)
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
 
-3. **Set up environment variables**
+3. **Install dependencies**
+   ```bash
+   cd app
+   uv sync
+   ```
+
+4. **Set up environment variables**
    Create a `.env` file in the `.azure/captainslog/` directory:
    ```env
    AZURE_SPEECH_KEY=your_speech_service_key
@@ -47,13 +58,13 @@ A modern, AI-powered audio transcription and analysis application built with Str
    AZURE_OPENAI_API_VERSION=2024-02-01
    ```
 
-4. **Run the application**
+5. **Run the application**
    ```bash
    cd app
-   streamlit run app.py
+   uv run streamlit run app.py
    ```
 
-5. **Open your browser** to `http://localhost:8501`
+6. **Open your browser** to `http://localhost:8501`
 
 ### Using Docker
 
