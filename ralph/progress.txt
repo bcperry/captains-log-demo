@@ -623,3 +623,26 @@ Started: 2024-01-15
   - Empty apiBaseUrl in production when serving from same origin (relative paths)
   - Exclude test files from build: `"exclude": ["src/__tests__"]` in tsconfig.app.json
 ---
+
+## 2026-01-09 - US-029
+- What was implemented: Removed Streamlit frontend codebase
+- Files changed:
+  - Deleted `app/app.py` - Streamlit standalone application
+  - Deleted `app/streamlit_app.py` - Streamlit integration
+  - Deleted `app/streamlit_client/` - API client for Streamlit
+  - Deleted `Dockerfile.streamlit` - Streamlit container build
+  - Deleted `app/tests/test_streamlit_app.py` - Streamlit app tests
+  - Deleted `app/tests/test_streamlit_client.py` - API client tests
+  - Updated `app/pyproject.toml` - Removed streamlit dependency, version 1.0.0
+  - Updated `app/uv.lock` - Regenerated without Streamlit packages
+  - Updated `infra/resources.bicep` - Removed Streamlit Container App
+  - Updated `azure.yaml` - Renamed to captains-log, changed host to containerapp
+  - Updated `README.md` - React + FastAPI architecture documentation
+- **Learnings:**
+  - Remove dependencies with `uv lock` after editing pyproject.toml
+  - Check for orphaned imports with `grep -r "import streamlit"` pattern
+  - Remove Bicep resources carefully - remove outputs that reference deleted resources
+  - Update azure.yaml azd-service-name when removing services
+  - Test count should decrease (274 → 231) after removing test files
+  - Verify no Streamlit references in keywords, comments, or documentation
+---
