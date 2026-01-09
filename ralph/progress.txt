@@ -646,3 +646,16 @@ Started: 2024-01-15
   - Test count should decrease (274 → 231) after removing test files
   - Verify no Streamlit references in keywords, comments, or documentation
 ---
+
+## 2026-01-09 - US-030
+- What was implemented: CORS configuration for local development
+- Files changed:
+  - Updated `app/main.py` - Enhanced CORS middleware configuration
+- **Learnings:**
+  - Default CORS_ORIGINS should include both localhost:3000 and localhost:5173 (Vite defaults)
+  - Specify explicit HTTP methods instead of "*" for security clarity
+  - Include PATCH method for partial update endpoints
+  - Specify explicit allowed headers for security audit compliance
+  - Use `os.getenv("CORS_ORIGINS", "default").split(",")` for list from env var
+  - In production (same origin), CORS middleware has no effect but doesn't hurt
+---

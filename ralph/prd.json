@@ -558,8 +558,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "Required for local development with Vite frontend running on separate port from FastAPI backend"
+      "passes": true,
+      "notes": "Completed 2026-01-09 - CORS middleware with explicit methods/headers, configurable via env"
     }
   ]
 }
