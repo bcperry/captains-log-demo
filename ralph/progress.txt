@@ -5,9 +5,11 @@ Started: 2024-01-15
 - Package manager: Prefer `uv` over pip (e.g., `uv add`, `uv run`, `uv sync`)
 - Migrations: Use alembic with `op.create_table` idempotent checks
 - FastAPI: Use `Depends()` for dependency injection
+- FastAPI Auth: Use `get_current_user` dependency for protected endpoints, `request.state.user` for access
 - Pydantic: Inherit from BaseModel, use Field() for validation
 - Async: Use `async def` with `await` for I/O operations
 - Testing: Use pytest fixtures, mock external services with `unittest.mock`
+- Testing FastAPI: Use `TestClient` from `fastapi.testclient` for HTTP testing
 - Type hints: Always annotate function signatures
 - Docker: Use multi-stage builds, copy uv from ghcr.io/astral-sh/uv:latest
 
@@ -17,6 +19,7 @@ Started: 2024-01-15
 - `app/app.py` - Main Streamlit application (AudioTranscriber, AzureOpenAISummarizer)
 - `app/config/settings.py` - Centralized configuration with Pydantic Settings
 - `app/auth/entra.py` - Azure Entra ID JWT token validation
+- `app/auth/dependencies.py` - FastAPI auth dependencies (get_current_user, get_optional_user)
 - `Dockerfile` - Container build using uv for package management
 
 ---
@@ -70,4 +73,24 @@ Started: 2024-01-15
   - Use dataclass for AuthenticatedUser to hold parsed claims
   - Always verify: signature, exp, nbf, iat, aud, iss
   - Use `@lru_cache` on get_entra_validator() for singleton pattern
+---
+
+## 2026-01-09 - US-004
+- What was implemented: FastAPI dependencies for Azure Entra ID token validation middleware
+- Files changed:
+  - Created `app/auth/dependencies.py` - FastAPI dependencies (get_current_user, get_optional_user)
+  - Updated `app/auth/__init__.py` - Export new dependencies and exceptions
+  - Updated `app/auth/entra.py` - Removed unused httpx import (ruff fix)
+  - Created `app/tests/test_dependencies.py` - 19 comprehensive tests
+  - Updated `app/pyproject.toml` - Added fastapi dependency
+  - Updated `app/uv.lock` - Locked new dependencies
+- **Learnings:**
+  - Use `Depends()` from fastapi for dependency injection in route handlers
+  - Use `Header(default=None, alias="Authorization")` to extract Authorization header
+  - Return `HTTPException` with status_code=401 for authentication errors
+  - Include `WWW-Authenticate` header in 401 responses per RFC 6750
+  - For expired tokens, include `error_description` in WWW-Authenticate header
+  - Store user in `request.state.user` for access in route handlers
+  - Use `get_optional_user` for endpoints that work with or without auth (returns None instead of 401)
+  - FastAPI TestClient is great for testing HTTP responses and headers
 ---
