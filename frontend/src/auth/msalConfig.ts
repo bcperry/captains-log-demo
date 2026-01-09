@@ -50,8 +50,10 @@ export const msalConfig: Configuration = {
 }
 
 // Scopes for the API access
+// Use user_impersonation scope to match backend configuration
+// .default is only valid for client credentials flow
 export const apiScopes = config.azure.clientId
-  ? [`api://${config.azure.clientId}/.default`]
+  ? [`api://${config.azure.clientId}/user_impersonation`]
   : []
 
 // Login request configuration
