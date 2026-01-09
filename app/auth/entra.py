@@ -43,7 +43,7 @@ class MissingTokenError(EntraAuthError):
 class AuthenticatedUser:
     """Represents an authenticated user from Azure Entra ID token claims."""
 
-    oid: str  # Object ID (unique user identifier)
+    oid: str  # Object ID (unique user identifier) - uses sub as fallback
     email: Optional[str] = None
     name: Optional[str] = None
     preferred_username: Optional[str] = None
@@ -54,17 +54,52 @@ class AuthenticatedUser:
     def from_claims(cls, claims: dict[str, Any]) -> "AuthenticatedUser":
         """Create AuthenticatedUser from JWT claims.
 
+        Handles various Azure token formats (v1, v2, ID tokens, access tokens)
+        by checking multiple possible claim locations.
+
         Args:
             claims: Decoded JWT token claims
 
         Returns:
             AuthenticatedUser instance with extracted user information
+
+        Note:
+            - oid: Object ID is preferred, but sub (subject) is always present
+            - email: May be in email, preferred_username, or upn claims
+            - name: May need to be constructed from given_name + family_name
         """
+        # User identifier: prefer oid, fall back to sub (always present in Azure tokens)
+        user_id = claims.get("oid") or claims.get("sub") or ""
+
+        # Email: try multiple sources - Azure tokens vary in which claims are present
+        email = (
+            claims.get("email")
+            or claims.get("preferred_username")
+            or claims.get("upn")  # User Principal Name - common in Azure Gov
+            or claims.get("unique_name")  # v1 tokens
+            or None
+        )
+
+        # Name: may be in name claim or need to be constructed
+        name = claims.get("name")
+        if not name:
+            given_name = claims.get("given_name", "")
+            family_name = claims.get("family_name", "")
+            if given_name or family_name:
+                name = f"{given_name} {family_name}".strip()
+
+        # Preferred username: try multiple sources
+        preferred_username = (
+            claims.get("preferred_username")
+            or claims.get("upn")
+            or email
+        )
+
         return cls(
-            oid=claims.get("oid", claims.get("sub", "")),
-            email=claims.get("email") or claims.get("preferred_username"),
-            name=claims.get("name"),
-            preferred_username=claims.get("preferred_username"),
+            oid=user_id,
+            email=email,
+            name=name,
+            preferred_username=preferred_username,
             tenant_id=claims.get("tid"),
             roles=claims.get("roles"),
         )

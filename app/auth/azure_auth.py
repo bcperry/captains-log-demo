@@ -106,10 +106,13 @@ def create_azure_scheme(settings: Optional[Settings] = None) -> SingleTenantAzur
     cloud = settings.azure_cloud
     tenant_id = settings.azure_tenant_id
 
+    # Get the OpenID config URL for the appropriate cloud
+    # This is critical for Azure Government - without it, the library defaults to .com
+    openid_config_url = get_openid_config_url(tenant_id, cloud)
+
     # Create the scheme with Government cloud support
-    # The key insight: we must override openapi_authorization_url and openapi_token_url
-    # for Swagger UI to use the correct endpoints, AND use openid_config_url for
-    # token validation via the parent class
+    # Pass openid_config_url via the openid_config object to ensure issuer is loaded correctly
+    # Also override openapi_authorization_url and openapi_token_url for Swagger UI
     scheme = SingleTenantAzureAuthorizationCodeBearer(
         app_client_id=settings.azure_client_id,
         tenant_id=tenant_id,
@@ -120,10 +123,9 @@ def create_azure_scheme(settings: Optional[Settings] = None) -> SingleTenantAzur
         allow_guest_users=False,
     )
 
-    # Override the OpenID config URL for Government cloud
-    # This ensures token validation uses the correct JWKS endpoint
-    if cloud == AzureCloud.GOVERNMENT:
-        scheme.openid_config.config_url = get_openid_config_url(tenant_id, cloud)
+    # Set the OpenID config URL BEFORE load_config() is called
+    # This ensures the library fetches the correct issuer from Azure Government
+    scheme.openid_config.config_url = openid_config_url
 
     return scheme
 

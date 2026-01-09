@@ -211,11 +211,19 @@ npm run test -- --coverage
    - Check client ID and tenant ID
    - Ensure redirect URI is configured correctly
 
-3. **API connection errors**
-   - Check if backend is running on port 8001
+3. **"Invalid token claims" or "Invalid issuer" error**
+   - **Root cause**: App registration is issuing v1 tokens instead of v2 tokens
+   - **Fix**: Go to Azure Portal → App Registrations → Your App → Manifest
+   - Change `"accessTokenAcceptedVersion": null` to `"accessTokenAcceptedVersion": 2`
+   - Save the manifest
+   - Sign out and sign back in to get a new token
+   - v2 tokens use issuer format `https://login.microsoftonline.us/{tenant}/v2.0` which is required
+
+4. **API connection errors**
+   - Check if backend is running on port 8000
    - Verify CORS configuration
 
-4. **Long processing times**
+5. **Long processing times**
    - Large files take more time to process
    - Consider using duration limits for testing
 

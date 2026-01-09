@@ -191,9 +191,11 @@ async def get_current_user_azure(
         HTTPException: 401 Unauthorized if authentication is not configured or no user
     """
     # Check if user was already set by Security(azure_scheme) at router level
+    # and is already converted to our AuthenticatedUser type
     if hasattr(request.state, "user") and request.state.user is not None:
-        user: AuthenticatedUser = request.state.user
-        return user
+        if isinstance(request.state.user, AuthenticatedUser):
+            return request.state.user
+        # If it's a fastapi-azure-auth User, we need to convert it below
 
     # Try to get user from fastapi-azure-auth User if set
     # This happens when Security(azure_scheme) is used
@@ -205,41 +207,52 @@ async def get_current_user_azure(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Extract token from Authorization header and validate manually
-    # This is needed when the dependency is called directly without Security() wrapper
-    from fastapi.security import SecurityScopes
+    # Check if Security(azure_scheme) already validated the token and set the user
+    # The fastapi-azure-auth library sets the user in request.state.user
+    azure_user = getattr(request.state, "user", None)
+    
+    if azure_user is None:
+        # Extract token from Authorization header and validate manually
+        # This is needed when the dependency is called directly without Security() wrapper
+        from fastapi.security import SecurityScopes
 
-    try:
-        # Call the scheme with an empty SecurityScopes - token validation happens here
-        azure_user = await azure_scheme(request, SecurityScopes(scopes=[]))
-    except HTTPException:
-        # Re-raise HTTP exceptions (401, 403, etc)
-        raise
-    except Exception as e:
-        # Any other error during token validation
-        logger.error(f"Token validation failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token validation failed: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from e
+        try:
+            # Call the scheme with an empty SecurityScopes - token validation happens here
+            azure_user = await azure_scheme(request, SecurityScopes(scopes=[]))
+        except HTTPException:
+            # Re-raise HTTP exceptions (401, 403, etc)
+            raise
+        except Exception as e:
+            # Any other error during token validation
+            logger.error(f"Token validation failed: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Token validation failed: {str(e)}",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
 
-    # Log the claims for debugging
-    logger.debug(f"Azure user claims: {azure_user.claims}")
-    logger.debug(f"Azure user oid: {azure_user.oid}, sub: {azure_user.sub}")
-    logger.debug(f"Azure user name: {azure_user.name}")
-    logger.debug(f"Azure user email: {azure_user.email}")
-    logger.debug(f"Azure user preferred_username: {azure_user.preferred_username}")
-    logger.debug(f"Azure user tid: {azure_user.tid}")
+    # Log all claims for debugging - helps identify what's in the token
+    logger.info(f"Azure user claims available: {list(azure_user.claims.keys())}")
+    logger.debug(f"Azure user full claims: {azure_user.claims}")
+    logger.info(f"Azure user oid: {azure_user.oid}")
+    logger.info(f"Azure user sub: {azure_user.sub}")
+    logger.info(f"Azure user name: {azure_user.name}")
+    logger.info(f"Azure user email: {azure_user.email}")
+    logger.info(f"Azure user preferred_username: {azure_user.preferred_username}")
+    logger.info(f"Azure user tid: {azure_user.tid}")
 
     # Extract user identifier - prefer oid, fall back to sub
-    # oid is the stable object ID in Azure AD, sub is always present
-    user_id = azure_user.oid or azure_user.sub
+    # oid is the stable object ID in Azure AD, sub is always present in access tokens
+    # In some Azure Gov configurations, oid may be missing but sub is always there
+    user_id = azure_user.oid or azure_user.sub or azure_user.claims.get("oid") or azure_user.claims.get("sub") or ""
+    
     if not user_id:
-        logger.error("No oid or sub claim found in token")
+        # Log all claims to help debug
+        logger.error(f"No oid or sub claim found in token. Available claims: {list(azure_user.claims.keys())}")
+        logger.error(f"Full claims for debugging: {azure_user.claims}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: missing user identifier (oid or sub)",
+            detail=f"Invalid token: missing user identifier. Available claims: {list(azure_user.claims.keys())}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

@@ -127,7 +127,39 @@ Configure optional claims for user identification:
    - `upn` (User Principal Name)
 5. Repeat for **Access** token type if needed
 
-## Step 5: Configure Redirect URIs
+## Step 5: Configure Access Token Version (CRITICAL)
+
+**This step is required for Azure Government and fastapi-azure-auth to work correctly.**
+
+The app must be configured to issue v2.0 access tokens. Without this, you will get "Invalid issuer" or "Invalid token claims" errors.
+
+### Portal Method
+
+1. Go to **App registrations** > Your app > **Manifest**
+2. Find the `accessTokenAcceptedVersion` property (it will be `null` by default)
+3. Change it to `2`:
+   ```json
+   "accessTokenAcceptedVersion": 2,
+   ```
+4. Click **Save**
+
+### Why This Matters
+
+| Token Version | Issuer Format | Compatible |
+|--------------|---------------|------------|
+| v1 (default) | `https://sts.windows.net/{tenant}/` | ❌ No |
+| v2 | `https://login.microsoftonline.us/{tenant}/v2.0` | ✅ Yes |
+
+The fastapi-azure-auth library validates tokens against the v2.0 OpenID configuration endpoint, which expects the v2 issuer format. If your app issues v1 tokens, the issuer won't match and authentication will fail.
+
+### After Changing
+
+After changing the manifest:
+1. Sign out of the application
+2. Clear browser cache/cookies if needed
+3. Sign back in to get a new token with the correct issuer
+
+## Step 6: Configure Redirect URIs
 
 Add all required redirect URIs for your environments:
 
@@ -149,7 +181,7 @@ http://localhost:8000/auth/callback  # FastAPI default
    
 4. Set **Supported account types** as needed
 
-## Step 6: Create Client Secret (Optional)
+## Step 7: Create Client Secret (Optional)
 
 If your backend needs to call Microsoft Graph or validate tokens server-side:
 
@@ -159,7 +191,7 @@ If your backend needs to call Microsoft Graph or validate tokens server-side:
 4. Click **Add**
 5. **Copy the secret value immediately** (it won't be shown again)
 
-## Step 7: Configure Application Settings
+## Step 8: Configure Application Settings
 
 Set the following environment variables in your application:
 
@@ -175,7 +207,7 @@ AZURE_CLIENT_SECRET=<your-client-secret>
 AZURE_CLOUD=government  # or 'commercial'
 ```
 
-## Step 8: Deploy Bicep Infrastructure
+## Step 9: Deploy Bicep Infrastructure
 
 The `entra-auth.bicep` module configures App Service authentication:
 
