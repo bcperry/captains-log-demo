@@ -169,8 +169,8 @@
         "All resources tagged appropriately for compliance"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Updated resources.bicep with parameterized cloud selection (azureCloud param), Cosmos DB with serverless, Container Apps environment with Log Analytics, compliance tags (FedRAMP for government, standard for commercial). All resources use cloud-specific endpoints."
     },
     {
       "id": "US-012",
