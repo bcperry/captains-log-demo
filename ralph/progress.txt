@@ -270,3 +270,21 @@ Started: 2024-01-15
   - Health checks should be non-blocking and not fail the entire service on dependency issues
   - Mark unconfigured dependencies as "healthy" if they're optional (e.g., Speech Services)
 ---
+
+## 2026-01-09 - US-010
+- What was implemented: Integration test suite for end-to-end workflow testing
+- Files changed:
+  - Created `app/tests/integration/__init__.py` - Integration test package
+  - Created `app/tests/integration/conftest.py` - Shared fixtures (integration_app, test_user, mock_db, isolate_database)
+  - Created `app/tests/integration/test_auth_flow.py` - 8 tests for authentication workflows and user isolation
+  - Created `app/tests/integration/test_transcription_workflow.py` - 10 tests for transcription and history workflows
+- **Learnings:**
+  - Use separate `tests/integration/` directory for integration tests
+  - Create `integration_app` fixture to provide fresh FastAPI app instance per test
+  - Use `isolate_database` fixture to clear in-memory storage between tests
+  - For async operations in pytest, use `@pytest.mark.asyncio` decorator and `async def`
+  - Don't use `asyncio.get_event_loop().run_until_complete()` - use async test functions instead
+  - Create helper fixtures for common test users (`test_user`, `another_test_user`)
+  - Group related tests into classes (TestAuthenticationFlow, TestUserIsolation, etc.)
+  - Integration tests should test complete workflows, not individual functions
+---
