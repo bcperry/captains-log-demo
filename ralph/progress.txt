@@ -784,3 +784,21 @@ Started: 2024-01-15
   - MSAL React initializes on page load with handleRedirectPromise
   - Service status panel shows API availability
 ---
+
+## 2026-01-09 - US-033
+- What was verified: React authentication UI flow with Playwright E2E testing
+- **Playwright Verification:**
+  - Pages tested: `http://localhost:3000` (React app)
+  - Verified Sign in button visible for unauthenticated users (both header and main content)
+  - Clicked Sign in button
+  - Verified redirect to Microsoft login: `login.microsoftonline.us` (Azure Government)
+  - URL contains PKCE parameters: code_challenge, code_challenge_method=S256
+  - MSAL React uses @azure/msal-browser@4.27.0
+  - Screenshots: react-auth-login-redirect.png
+  - No JavaScript errors during auth flow (only expected backend connection errors)
+- **Learnings:**
+  - MSAL React uses redirect flow by default (not popup)
+  - handleRedirectPromise is called on page load
+  - Auth state managed via MsalProvider context
+  - Azure Gov endpoints correctly configured via msalConfig
+---
