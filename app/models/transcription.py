@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TranscriptionRequest(BaseModel):
@@ -14,6 +14,19 @@ class TranscriptionRequest(BaseModel):
 
 class TranscriptionResponse(BaseModel):
     """Response from transcription endpoint."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "text": "Hello, this is a sample transcription from the audio file.",
+                "language": "en-US",
+                "audio_format": "wav",
+                "file_size_bytes": 1024000,
+                "transcribed_at": "2024-01-15T10:30:00Z",
+                "duration_ms": 5000,
+            }
+        }
+    )
 
     text: str = Field(..., description="Transcribed text from audio")
     language: str = Field(..., description="Language used for transcription")
@@ -31,6 +44,17 @@ class TranscriptionResponse(BaseModel):
 class SpeakerSegment(BaseModel):
     """A segment of speech from a specific speaker."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "speaker_id": "Speaker_1",
+                "text": "Hello, how are you today?",
+                "start_time_ms": 0,
+                "end_time_ms": 2500,
+            }
+        }
+    )
+
     speaker_id: str = Field(..., description="Unique identifier for the speaker")
     text: str = Field(..., description="Transcribed text for this segment")
     start_time_ms: int = Field(..., description="Start time of segment in milliseconds")
@@ -39,6 +63,25 @@ class SpeakerSegment(BaseModel):
 
 class DiarizedTranscriptionResponse(BaseModel):
     """Response from diarized transcription endpoint."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "segments": [
+                    {"speaker_id": "Speaker_1", "text": "Hello, how are you?", "start_time_ms": 0, "end_time_ms": 2000},
+                    {"speaker_id": "Speaker_2", "text": "I'm doing well, thanks!", "start_time_ms": 2100, "end_time_ms": 4000},
+                ],
+                "full_text": "Hello, how are you? I'm doing well, thanks!",
+                "language": "en-US",
+                "audio_format": "wav",
+                "file_size_bytes": 2048000,
+                "speaker_count": 2,
+                "max_speakers": 5,
+                "transcribed_at": "2024-01-15T10:30:00Z",
+                "duration_ms": 4000,
+            }
+        }
+    )
 
     segments: list[SpeakerSegment] = Field(
         ..., description="List of speaker segments with timestamps"
