@@ -215,3 +215,22 @@ Started: 2024-01-15
   - For Government cloud, use `usgovvirginia` as the region
   - Resource abbreviations: `cosmos-` for Cosmos DB, `cae-` for Container Apps Environment, `ca-` for Container App
 ---
+
+## 2026-01-09 - US-007
+- What was implemented: Speaker diarization support for multi-speaker transcription
+- Files changed:
+  - Updated `app/speech/client.py` - Added `recognize_continuous_with_diarization()` method using ConversationTranscriber
+  - Updated `app/models/transcription.py` - Added SpeakerSegment and DiarizedTranscriptionResponse models
+  - Updated `app/models/__init__.py` - Exported new diarization models
+  - Updated `app/api/transcribe.py` - Added POST /transcribe/diarize endpoint
+  - Updated `app/tests/test_transcribe.py` - Added 12 tests for diarization
+- **Learnings:**
+  - Azure Speech SDK uses `ConversationTranscriber` for speaker diarization
+  - Diarization is asynchronous - use threading.Event() to wait for completion
+  - Result offset is in "ticks" (100 nanoseconds) - divide by 10000 to get milliseconds
+  - Connect event handlers: `transcribed`, `canceled`, `session_stopped`
+  - Use `start_transcribing_async().get()` to start and `stop_transcribing_async().get()` to stop
+  - Speaker ID comes from `evt.result.speaker_id` attribute
+  - For type safety with dict[str, object], convert values explicitly: `int(str(value))`
+  - FastAPI Query parameter validation: use `ge=MIN` and `le=MAX` for range constraints
+---

@@ -108,8 +108,8 @@
         "pytest tests pass"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Added POST /transcribe/diarize endpoint using ConversationTranscriber. Returns DiarizedTranscriptionResponse with SpeakerSegment list. Configurable max_speakers (1-10). Added 12 diarization tests."
     },
     {
       "id": "US-008",
