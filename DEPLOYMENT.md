@@ -94,9 +94,29 @@ The deployment creates these Azure resources:
 |----------|---------|---------------|
 | **Resource Group** | Container for all resources | Named with environment name |
 | **Speech Service** | Azure AI Speech-to-Text | S0 tier, multi-language |
+| **Storage Account** | Audio file storage for batch transcription | Standard_LRS, blob versioning enabled |
 | **App Service Plan** | Hosting infrastructure | Linux, B1 tier, auto-scaling |
 | **App Service** | Web application hosting | Python 3.11, Streamlit configured |
 | **Managed Identity** | Secure authentication | No keys stored in code |
+
+### Storage Account Configuration
+
+The deployment creates an Azure Storage Account with:
+
+- **Container**: `audio-uploads` - stores uploaded audio files for batch transcription
+- **SKU**: Standard_LRS (locally redundant storage) - use Standard_GRS for production geo-redundancy
+- **Access Tier**: Hot - optimized for frequently accessed data
+- **Security Features**:
+  - HTTPS only (TLS 1.2 minimum)
+  - Public blob access disabled
+  - Managed identity authentication via Storage Blob Data Contributor role
+- **Versioning**: Enabled for audit trail
+- **Soft Delete**: 7-day retention for blob recovery
+
+**Environment Variables for Storage**:
+- `AZURE_STORAGE_ACCOUNT`: Storage account name
+- `AZURE_STORAGE_CONTAINER`: Container name (audio-uploads)
+- `AZURE_STORAGE_ENDPOINT`: Blob service endpoint URL
 
 ### Environment-Specific Deployments
 
