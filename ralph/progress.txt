@@ -1026,3 +1026,27 @@ Started: 2024-01-15
   - Tests need to mock useAuthenticatedApi hook since it uses MSAL hooks internally
   - setAccessToken() in api.ts stores token in module-level variable for use by request()
 ---
+
+## 2026-01-09 - US-045
+- What was implemented: Added Azure Blob Storage to infrastructure deployment
+- Files changed:
+  - `infra/resources.bicep` - Added Storage Account, blob service, audio-uploads container, RBAC role assignments
+  - `infra/main.bicep` - Added storage outputs (AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_CONTAINER, AZURE_STORAGE_ENDPOINT)
+  - `DEPLOYMENT.md` - Documented storage account configuration and environment variables
+- **Key Additions:**
+  - Storage Account with Standard_LRS SKU, HTTPS-only, TLS 1.2 minimum
+  - Blob versioning enabled for audit trail
+  - 7-day soft delete retention for blob recovery
+  - `audio-uploads` container with private access
+  - Storage Blob Data Contributor role for both user and managed identity
+  - Azure Government cloud support (core.usgovcloudapi.net endpoint)
+- **Playwright Verification:**
+  - N/A - Infrastructure story with no UI components
+  - Bicep templates are syntactically valid (verified structure manually - az bicep has WSL path issues)
+- **Learnings:**
+  - Azure Gov blob endpoint suffix: `core.usgovcloudapi.net` (vs `core.windows.net` for commercial)
+  - Storage Blob Data Contributor role GUID: `ba92f5b4-2d11-453d-a403-e96b0029c9fe`
+  - Use parent-child resource pattern for blob services and containers
+  - Container App env vars use object format with name/value pairs
+  - App Service appsettings use simple key:value format
+---
