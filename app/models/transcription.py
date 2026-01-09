@@ -86,3 +86,34 @@ MAX_FILE_SIZE_BYTES: int = 25 * 1024 * 1024
 DEFAULT_MAX_SPEAKERS: int = 5
 MIN_SPEAKERS: int = 1
 MAX_SPEAKERS: int = 10
+
+
+class TranscriptionRecord(BaseModel):
+    """Transcription record stored in Cosmos DB."""
+
+    id: str = Field(..., description="Unique transcription ID")
+    user_id: str = Field(..., description="User ID (partition key)")
+    text: str = Field(..., description="Transcribed text")
+    language: str = Field(..., description="Language used for transcription")
+    audio_format: str = Field(..., description="Audio file format")
+    file_size_bytes: int = Field(..., description="Size of original audio file")
+    duration_ms: Optional[int] = Field(default=None, description="Audio duration in milliseconds")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="Timestamp when transcription was created",
+    )
+    # Optional diarization data
+    has_diarization: bool = Field(default=False, description="Whether transcription has speaker diarization")
+    speaker_count: Optional[int] = Field(default=None, description="Number of speakers if diarized")
+    segments: Optional[list[SpeakerSegment]] = Field(
+        default=None, description="Speaker segments if diarized"
+    )
+
+
+class TranscriptionListResponse(BaseModel):
+    """Response for listing transcriptions."""
+
+    transcriptions: list[TranscriptionRecord] = Field(..., description="List of transcriptions")
+    total: int = Field(..., description="Total number of transcriptions")
+    page: int = Field(default=1, description="Current page number")
+    per_page: int = Field(default=20, description="Results per page")

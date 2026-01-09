@@ -3,6 +3,7 @@
 This module provides async operations for Cosmos DB using the Azure SDK.
 """
 
+import uuid
 from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Any, Optional
@@ -10,6 +11,7 @@ from typing import Any, Optional
 import httpx
 
 from config.settings import Settings, get_settings
+from models.transcription import TranscriptionRecord
 from models.user import UserProfile, UserProfileCreate
 
 
@@ -32,6 +34,7 @@ class CosmosClient:
     """
 
     USERS_CONTAINER = "users"
+    TRANSCRIPTIONS_CONTAINER = "transcriptions"
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         """Initialize the Cosmos DB client.
@@ -152,9 +155,80 @@ class CosmosClient:
         profile = await self.create_user_profile(user_data)
         return profile, True
 
+    # Transcription storage methods
+
+    async def create_transcription(
+        self, user_id: str, transcription: TranscriptionRecord
+    ) -> TranscriptionRecord:
+        """Store a new transcription.
+
+        Args:
+            user_id: User ID (partition key)
+            transcription: Transcription record to store
+
+        Returns:
+            Created TranscriptionRecord with generated ID
+        """
+        if not transcription.id:
+            transcription.id = str(uuid.uuid4())
+        transcription.user_id = user_id
+        # In production, this would persist to Cosmos DB
+        return transcription
+
+    async def get_transcription(
+        self, user_id: str, transcription_id: str
+    ) -> Optional[TranscriptionRecord]:
+        """Get a specific transcription by ID.
+
+        Args:
+            user_id: User ID (partition key)
+            transcription_id: Transcription ID
+
+        Returns:
+            TranscriptionRecord if found, None otherwise
+        """
+        if not self.is_configured():
+            return None
+        # In production, this would query Cosmos DB
+        return None
+
+    async def list_transcriptions(
+        self, user_id: str, page: int = 1, per_page: int = 20
+    ) -> tuple[list[TranscriptionRecord], int]:
+        """List transcriptions for a user.
+
+        Args:
+            user_id: User ID (partition key)
+            page: Page number (1-indexed)
+            per_page: Results per page
+
+        Returns:
+            Tuple of (transcriptions, total_count)
+        """
+        if not self.is_configured():
+            return [], 0
+        # In production, this would query Cosmos DB with pagination
+        return [], 0
+
+    async def delete_transcription(self, user_id: str, transcription_id: str) -> bool:
+        """Delete a transcription.
+
+        Args:
+            user_id: User ID (partition key)
+            transcription_id: Transcription ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        if not self.is_configured():
+            return False
+        # In production, this would delete from Cosmos DB
+        return False
+
 
 # In-memory storage for development/testing (when Cosmos DB is not configured)
 _in_memory_profiles: dict[str, dict[str, Any]] = {}
+_in_memory_transcriptions: dict[str, dict[str, dict[str, Any]]] = {}  # user_id -> id -> record
 
 
 class InMemoryCosmosClient(CosmosClient):
@@ -190,10 +264,67 @@ class InMemoryCosmosClient(CosmosClient):
             return UserProfile(**_in_memory_profiles[user_id])
         return None
 
+    # Transcription methods for in-memory storage
+
+    async def create_transcription(
+        self, user_id: str, transcription: TranscriptionRecord
+    ) -> TranscriptionRecord:
+        """Store a new transcription in memory."""
+        if not transcription.id:
+            transcription.id = str(uuid.uuid4())
+        transcription.user_id = user_id
+
+        if user_id not in _in_memory_transcriptions:
+            _in_memory_transcriptions[user_id] = {}
+
+        _in_memory_transcriptions[user_id][transcription.id] = transcription.model_dump(
+            mode="json"
+        )
+        return transcription
+
+    async def get_transcription(
+        self, user_id: str, transcription_id: str
+    ) -> Optional[TranscriptionRecord]:
+        """Get a specific transcription from in-memory storage."""
+        if user_id in _in_memory_transcriptions:
+            if transcription_id in _in_memory_transcriptions[user_id]:
+                return TranscriptionRecord(
+                    **_in_memory_transcriptions[user_id][transcription_id]
+                )
+        return None
+
+    async def list_transcriptions(
+        self, user_id: str, page: int = 1, per_page: int = 20
+    ) -> tuple[list[TranscriptionRecord], int]:
+        """List transcriptions from in-memory storage with pagination."""
+        if user_id not in _in_memory_transcriptions:
+            return [], 0
+
+        all_records = list(_in_memory_transcriptions[user_id].values())
+        # Sort by created_at descending
+        all_records.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+        total = len(all_records)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated = all_records[start:end]
+
+        transcriptions = [TranscriptionRecord(**record) for record in paginated]
+        return transcriptions, total
+
+    async def delete_transcription(self, user_id: str, transcription_id: str) -> bool:
+        """Delete a transcription from in-memory storage."""
+        if user_id in _in_memory_transcriptions:
+            if transcription_id in _in_memory_transcriptions[user_id]:
+                del _in_memory_transcriptions[user_id][transcription_id]
+                return True
+        return False
+
 
 def clear_in_memory_storage() -> None:
     """Clear in-memory storage. Useful for tests."""
     _in_memory_profiles.clear()
+    _in_memory_transcriptions.clear()
 
 
 @lru_cache
