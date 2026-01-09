@@ -95,11 +95,15 @@ class Settings(BaseSettings):
     )
     azure_client_id: Optional[str] = Field(
         default=None,
-        description="Azure Entra ID application (client) ID",
+        description="Azure Entra ID application (client) ID (backend API)",
     )
     azure_client_secret: Optional[str] = Field(
         default=None,
         description="Azure Entra ID client secret (for service-to-service auth)",
+    )
+    openapi_client_id: Optional[str] = Field(
+        default=None,
+        description="Azure Entra ID client ID for Swagger UI OAuth (defaults to azure_client_id)",
     )
 
     # Application Settings
@@ -172,6 +176,22 @@ class Settings(BaseSettings):
 
         # Cannot auto-generate Cosmos endpoint - must be provided
         return None
+
+    @property
+    def effective_openapi_client_id(self) -> Optional[str]:
+        """Get the effective client ID for OpenAPI/Swagger UI OAuth.
+
+        Returns openapi_client_id if set, otherwise falls back to azure_client_id.
+        """
+        return self.openapi_client_id or self.azure_client_id
+
+    @property
+    def api_scope(self) -> str:
+        """Get the API scope for token requests.
+
+        Returns the user_impersonation scope in format: api://<client_id>/user_impersonation
+        """
+        return f"api://{self.azure_client_id}/user_impersonation"
 
     def is_speech_configured(self) -> bool:
         """Check if Azure Speech Services is properly configured."""
