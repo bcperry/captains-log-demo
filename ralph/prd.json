@@ -798,8 +798,8 @@
         "PLAYWRIGHT: Navigate to app, login via MSAL, verify /auth/me returns user profile without errors"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Fixed claim extraction with fallbacks. Added logging. Fixed frontend scope."
     },
     {
       "id": "US-041",
