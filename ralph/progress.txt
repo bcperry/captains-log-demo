@@ -964,3 +964,23 @@ Started: 2024-01-15
   - .default scope is for client credentials flow, not user login
   - MSAL redirect flow works correctly when configuration matches app registration
 ---
+
+## 2026-01-09 - US-042
+- What was implemented: Fixed Speech Service status showing green when not configured
+- Root cause: `check_speech_health()` in `app/api/health.py` returned `healthy: True` when speech was not configured, causing frontend to display green checkmark
+- Files changed:
+  - `app/api/health.py` - Return `healthy: False` and `configured: False` when AZURE_SPEECH_KEY is not set
+  - `app/tests/test_health.py` - Updated tests to expect `healthy: False` for unconfigured speech service
+  - `frontend/src/types/api.ts` - Added optional `configured` field to DependencyStatus type
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (main app)
+  - Interactions verified: Service Status panel in sidebar, Test Speech button
+  - Screenshots: us-042-speech-connected.png, us-042-speech-not-configured.png
+  - Verified ❌ red status shows with message "Not configured (AZURE_SPEECH_KEY not set)"
+  - Verified ✅ green status shows with message "🏛️ Azure Government Cloud" when configured
+- **Learnings:**
+  - Health check functions should return `healthy: false` for unconfigured required services
+  - Added `configured` boolean field to distinguish "not configured" vs "configured but failed"
+  - Frontend uses `speechDep.healthy` to determine green vs red status display
+  - Pydantic Settings loads from .env file even when env var is unset - use explicit empty string to override
+---
