@@ -5,11 +5,14 @@ This module provides endpoints for audio transcription using Azure Speech Servic
 
 import os
 import tempfile
+import uuid
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
 from auth import AuthenticatedUser, get_current_user
+from db import get_cosmos_client
+from db.cosmos import CosmosClient
 from models.transcription import (
     ALLOWED_CONTENT_TYPES,
     ALLOWED_EXTENSIONS,
@@ -19,6 +22,7 @@ from models.transcription import (
     MIN_SPEAKERS,
     DiarizedTranscriptionResponse,
     SpeakerSegment,
+    TranscriptionRecord,
     TranscriptionResponse,
 )
 from speech import get_speech_client
@@ -31,6 +35,11 @@ from speech.client import (
 )
 
 router = APIRouter(prefix="/transcribe", tags=["Transcription"])
+
+
+def get_db() -> CosmosClient:
+    """FastAPI dependency for getting database client."""
+    return get_cosmos_client()
 
 
 def get_speech_service() -> SpeechClient:
@@ -135,19 +144,24 @@ async def _read_and_validate_file_size(file: UploadFile) -> bytes:
 async def transcribe_audio(
     file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, or M4A)")],
     language: Annotated[str, Query(description="Language code for transcription")] = "en-US",
+    store: Annotated[bool, Query(description="Store transcription in history")] = True,
     user: AuthenticatedUser = Depends(get_current_user),
     speech_client: SpeechClient = Depends(get_speech_service),
+    db: CosmosClient = Depends(get_db),
 ) -> TranscriptionResponse:
     """Transcribe an uploaded audio file.
 
     Accepts WAV, MP3, and M4A audio formats.
     Protected by JWT authentication.
+    Optionally stores transcription in history.
 
     Args:
         file: Uploaded audio file
         language: Language code for transcription (default: en-US)
+        store: Whether to store transcription in history (default: True)
         user: Authenticated user from Entra ID token
         speech_client: Azure Speech Services client
+        db: Database client
 
     Returns:
         TranscriptionResponse with transcribed text and metadata
@@ -176,12 +190,27 @@ async def transcribe_audio(
         audio_config = speech_client.create_audio_config_from_file(temp_file_path)
         transcribed_text = speech_client.recognize_once(audio_config, language)
 
-        return TranscriptionResponse(
+        response = TranscriptionResponse(
             text=transcribed_text,
             language=language,
             audio_format=audio_format,
             file_size_bytes=len(content),
         )
+
+        # Store transcription in history if requested
+        if store:
+            record = TranscriptionRecord(
+                id=str(uuid.uuid4()),
+                user_id=user.oid,
+                text=transcribed_text,
+                language=language,
+                audio_format=audio_format,
+                file_size_bytes=len(content),
+                has_diarization=False,
+            )
+            await db.create_transcription(user.oid, record)
+
+        return response
 
     except SpeechConfigurationError as e:
         raise HTTPException(

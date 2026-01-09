@@ -10,6 +10,8 @@ from models.transcription import (
     DiarizedTranscriptionResponse,
     SpeakerSegment,
     TranscriptionError,
+    TranscriptionListResponse,
+    TranscriptionRecord,
     TranscriptionRequest,
     TranscriptionResponse,
 )
@@ -25,6 +27,8 @@ __all__ = [
     "MIN_SPEAKERS",
     "SpeakerSegment",
     "TranscriptionError",
+    "TranscriptionListResponse",
+    "TranscriptionRecord",
     "TranscriptionRequest",
     "TranscriptionResponse",
     "UserPreferences",
