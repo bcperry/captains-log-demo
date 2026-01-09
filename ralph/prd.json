@@ -29,8 +29,8 @@
         "Document app registration setup process"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Created infra/entra-auth.bicep for App Service auth settings, updated main.bicep and resources.bicep with Entra ID parameters, created comprehensive docs/entra-id-setup.md with setup guide for both Commercial and Government clouds."
     },
     {
       "id": "US-003",
@@ -45,8 +45,8 @@
         "pytest tests pass"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Created GET /auth/me endpoint in app/api/auth.py with UserProfile models and Cosmos DB storage (InMemory fallback for dev). Added 12 tests in tests/test_auth_api.py."
     },
     {
       "id": "US-004",

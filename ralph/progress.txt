@@ -12,6 +12,8 @@ Started: 2024-01-15
 - Testing FastAPI: Use `TestClient` from `fastapi.testclient` for HTTP testing
 - Type hints: Always annotate function signatures
 - Docker: Use multi-stage builds, copy uv from ghcr.io/astral-sh/uv:latest
+- Bicep: Use `@allowed` for param validation, conditional modules with `if (condition)`
+- Bicep Entra: Use `authsettingsV2` for App Service auth (app registrations require MS Graph API)
 
 ## Key Files
 - `app/pyproject.toml` - Project dependencies and configuration
@@ -20,7 +22,12 @@ Started: 2024-01-15
 - `app/config/settings.py` - Centralized configuration with Pydantic Settings
 - `app/auth/entra.py` - Azure Entra ID JWT token validation
 - `app/auth/dependencies.py` - FastAPI auth dependencies (get_current_user, get_optional_user)
+- `app/api/auth.py` - User profile endpoints (GET /auth/me, PATCH /auth/me/preferences)
+- `app/models/user.py` - User profile Pydantic models
+- `app/db/cosmos.py` - Cosmos DB client with in-memory fallback
 - `Dockerfile` - Container build using uv for package management
+- `infra/entra-auth.bicep` - App Service Entra ID authentication settings
+- `docs/entra-id-setup.md` - Azure Entra ID app registration setup guide
 
 ---
 
@@ -93,4 +100,42 @@ Started: 2024-01-15
   - Store user in `request.state.user` for access in route handlers
   - Use `get_optional_user` for endpoints that work with or without auth (returns None instead of 401)
   - FastAPI TestClient is great for testing HTTP responses and headers
+---
+
+## 2026-01-09 - US-002
+- What was implemented: Azure Entra ID app registration configuration with Bicep templates and documentation
+- Files changed:
+  - Created `infra/entra-auth.bicep` - Bicep module for App Service Entra ID authentication
+  - Updated `infra/main.bicep` - Added Entra ID parameters (tenantId, clientId, azureCloud, enableEntraAuth)
+  - Updated `infra/main.parameters.json` - Added Entra ID parameter bindings
+  - Updated `infra/resources.bicep` - Added Entra auth module call
+  - Created `docs/entra-id-setup.md` - Comprehensive setup guide
+- **Learnings:**
+  - Azure Entra ID app registrations cannot be created via Bicep/ARM - requires Microsoft Graph API
+  - Use Bicep to configure App Service authentication settings (authsettingsV2) instead
+  - Government cloud uses `login.microsoftonline.us`, commercial uses `login.microsoftonline.com`
+  - Token audiences should include both `api://<client-id>` and the raw client ID
+  - Conditional module deployment: `module x = if (condition) { ... }`
+  - Use `@allowed` decorator for parameter validation in Bicep
+---
+
+## 2026-01-09 - US-003
+- What was implemented: User profile endpoint with Entra ID authentication
+- Files changed:
+  - Created `app/api/__init__.py` - API routers module exports
+  - Created `app/api/auth.py` - GET /auth/me and PATCH /auth/me/preferences endpoints
+  - Created `app/models/__init__.py` - Pydantic models module exports
+  - Created `app/models/user.py` - UserProfile, UserPreferences, UserProfileResponse models
+  - Created `app/db/__init__.py` - Database module exports
+  - Created `app/db/cosmos.py` - CosmosClient and InMemoryCosmosClient for storage
+  - Created `app/tests/test_auth_api.py` - 12 comprehensive tests for auth endpoints
+- **Learnings:**
+  - Use FastAPI `APIRouter` with prefix and tags for organized endpoint groups
+  - Use `Depends()` to inject both auth and database dependencies
+  - Use `InMemoryCosmosClient` as fallback when Cosmos DB is not configured (dev/test)
+  - Use `datetime.now(UTC)` instead of deprecated `datetime.utcnow()`
+  - For Pydantic Field with dynamic defaults, use `default_factory=lambda: datetime.now(UTC)`
+  - Use `clear_in_memory_storage()` in test fixtures to reset state between tests
+  - FastAPI TestClient with `dependency_overrides` simplifies authentication testing
+  - User profiles should use oid (object ID) from Entra tokens as the unique identifier
 ---
