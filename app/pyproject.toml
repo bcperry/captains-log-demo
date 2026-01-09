@@ -1,6 +1,6 @@
 [project]
 name = "captains-log"
-version = "0.6.0"
+version = "1.0.0"
 description = "AI-Powered Audio Transcription & Analysis using Azure Speech Services and OpenAI"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -8,10 +8,9 @@ license = { text = "MIT" }
 authors = [
     { name = "bcperry" }
 ]
-keywords = ["audio", "transcription", "azure", "speech", "openai", "streamlit"]
+keywords = ["audio", "transcription", "azure", "speech", "openai", "fastapi", "react"]
 
 dependencies = [
-    "streamlit>=1.28.0",
     "azure-identity>=1.15.0",
     "pydub>=0.25.1",
     "requests>=2.31.0",
@@ -67,7 +66,7 @@ python_functions = ["test_*"]
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-omit = ["app.py", "tests/*"]
+omit = ["tests/*"]
 
 [dependency-groups]
 dev = [
