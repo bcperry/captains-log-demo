@@ -1,2 +1,1 @@
-// Hook exports will be added here
-export {}
+export { useAuth } from '../auth'

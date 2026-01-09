@@ -1,2 +1,3 @@
-// Component exports will be added here
-export {}
+export { ProtectedRoute } from './ProtectedRoute'
+export { UserInfo } from './UserInfo'
+export { LoginButton } from './LoginButton'
