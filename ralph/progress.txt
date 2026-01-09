@@ -25,6 +25,7 @@ Started: 2024-01-15
 - `app/api/auth.py` - User profile endpoints (GET /auth/me, PATCH /auth/me/preferences)
 - `app/models/user.py` - User profile Pydantic models
 - `app/db/cosmos.py` - Cosmos DB client with in-memory fallback
+- `app/speech/client.py` - Azure Speech Services client with Government cloud support
 - `Dockerfile` - Container build using uv for package management
 - `infra/entra-auth.bicep` - App Service Entra ID authentication settings
 - `docs/entra-id-setup.md` - Azure Entra ID app registration setup guide
@@ -138,4 +139,22 @@ Started: 2024-01-15
   - Use `clear_in_memory_storage()` in test fixtures to reset state between tests
   - FastAPI TestClient with `dependency_overrides` simplifies authentication testing
   - User profiles should use oid (object ID) from Entra tokens as the unique identifier
+---
+
+## 2026-01-09 - US-005
+- What was implemented: Azure Speech Services SDK integration with Government cloud support
+- Files changed:
+  - Created `app/speech/__init__.py` - Speech module exports
+  - Created `app/speech/client.py` - SpeechClient, SpeechConfig, exception classes
+  - Created `app/tests/test_speech.py` - 28 comprehensive tests for speech module
+- **Learnings:**
+  - Government cloud uses `.azure.us` domain, commercial uses `.microsoft.com`
+  - For Government cloud, use endpoint-based SpeechConfig, not region-based
+  - Set `SpeechServiceConnection_Region` property explicitly for Government cloud
+  - Use `OutputFormat.Detailed` for rich recognition results
+  - Handle three result reasons: RecognizedSpeech, NoMatch, Canceled
+  - CancellationReason.Error indicates service unavailability
+  - Use `is_available()` method to check service health
+  - Cannot use `@lru_cache` with Settings parameter (unhashable); use global singleton instead
+  - clear_speech_client_cache() allows test isolation
 ---
