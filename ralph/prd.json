@@ -12,11 +12,12 @@
         "Extract user claims (oid, email, name) from validated tokens",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify authentication UI flows work correctly"
+        "Playwright MCP tests verify authentication UI flows work correctly",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Created auth/entra.py with EntraTokenValidator, AuthenticatedUser, and exception classes. Added 28 tests in tests/test_entra.py."
+      "notes": ""
     },
     {
       "id": "US-002",
@@ -28,11 +29,12 @@
         "Configure token claims for user identification",
         "Support both Azure Commercial and Government clouds",
         "Document app registration setup process",
-        "Playwright MCP tests verify redirect URIs and authentication flows work in browser"
+        "Playwright MCP tests verify redirect URIs and authentication flows work in browser",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Created infra/entra-auth.bicep for App Service auth settings, updated main.bicep and resources.bicep with Entra ID parameters, created comprehensive docs/entra-id-setup.md with setup guide for both Commercial and Government clouds."
+      "notes": ""
     },
     {
       "id": "US-003",
@@ -45,11 +47,12 @@
         "Protected by Entra ID authentication",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify user profile displays correctly in the UI"
+        "Playwright MCP tests verify user profile displays correctly in the UI",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Completed. Created GET /auth/me endpoint in app/api/auth.py with UserProfile models and Cosmos DB storage (InMemory fallback for dev). Added 12 tests in tests/test_auth_api.py."
+      "notes": ""
     },
     {
       "id": "US-004",
@@ -63,11 +66,12 @@
         "Injects authenticated user claims into request state",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify unauthorized access shows proper error pages"
+        "Playwright MCP tests verify unauthorized access shows proper error pages",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Created auth/dependencies.py with get_current_user, get_optional_user, and get_token_validator dependencies. Added 19 tests in tests/test_dependencies.py. Added FastAPI as project dependency."
+      "notes": ""
     },
     {
       "id": "US-005",
@@ -79,11 +83,12 @@
         "Proper error handling for service unavailability",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify speech service status displays in UI"
+        "Playwright MCP tests verify speech service status displays in UI",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Created speech/client.py with SpeechClient, SpeechConfig, and exception classes. Added 28 tests in tests/test_speech.py. Supports Government and Commercial cloud endpoints."
+      "notes": ""
     },
     {
       "id": "US-006",
@@ -96,11 +101,12 @@
         "Protected by JWT authentication",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify file upload UI and transcription result display"
+        "Playwright MCP tests verify file upload UI and transcription result display",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Created POST /transcribe endpoint in app/api/transcribe.py with file validation (25MB limit, WAV/MP3/M4A formats), Speech Services integration, and JWT auth protection. Added TranscriptionResponse model and 20 tests in tests/test_transcribe.py. Added python-multipart dependency."
+      "notes": ""
     },
     {
       "id": "US-007",
@@ -112,11 +118,12 @@
         "JSON response includes speaker segments with start/end times",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify speaker labels and timestamps display correctly in UI"
+        "Playwright MCP tests verify speaker labels and timestamps display correctly in UI",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Completed. Added POST /transcribe/diarize endpoint using ConversationTranscriber. Returns DiarizedTranscriptionResponse with SpeakerSegment list. Configurable max_speakers (1-10). Added 12 diarization tests."
+      "notes": ""
     },
     {
       "id": "US-008",
@@ -129,11 +136,12 @@
         "Partition key strategy for efficient queries",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify transcription history list and detail views render correctly"
+        "Playwright MCP tests verify transcription history list and detail views render correctly",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Completed. Added TranscriptionRecord model with user_id partition key. Created GET /transcriptions and GET /transcriptions/{id} endpoints. Updated POST /transcribe to store results. Added InMemory storage for dev/test. 15 tests added."
+      "notes": ""
     },
     {
       "id": "US-009",
@@ -145,11 +153,12 @@
         "Unit tests for Pydantic models and validation",
         "Tests run successfully in CI/CD pipeline",
         "mypy type checking passes",
-        "Playwright MCP tests included in test suite for UI coverage"
+        "Playwright MCP tests included in test suite for UI coverage",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. 157 tests total with 93% coverage. Added 28 tests for Cosmos DB client in tests/test_cosmos.py. Excluded app.py (Streamlit) from coverage. Tests cover auth endpoints (12), dependencies (19), entra (28), settings (22), speech (28), transcribe (20), cosmos (28)."
+      "notes": ""
     },
     {
       "id": "US-010",
@@ -161,11 +170,12 @@
         "Configurable to run against Azure Speech Services or mocks",
         "Tests run successfully in CI/CD pipeline",
         "mypy type checking passes",
-        "Playwright MCP end-to-end tests verify complete user workflows in browser"
+        "Playwright MCP end-to-end tests verify complete user workflows in browser",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Completed. Created tests/integration with conftest.py (shared fixtures, database isolation), test_auth_flow.py (8 tests for auth workflows, user isolation), test_transcription_workflow.py (10 tests for transcription and history). Total 18 integration tests, 217 tests overall."
+      "notes": ""
     },
     {
       "id": "US-011",
@@ -177,11 +187,12 @@
         "Azure Cosmos DB resource provisioned for Government",
         "Azure Container Apps environment for hosting",
         "All resources tagged appropriately for compliance",
-        "Playwright MCP tests verify deployed application is accessible and functional"
+        "Playwright MCP tests verify deployed application is accessible and functional",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Updated resources.bicep with parameterized cloud selection (azureCloud param), Cosmos DB with serverless, Container Apps environment with Log Analytics, compliance tags (FedRAMP for government, standard for commercial). All resources use cloud-specific endpoints."
+      "notes": ""
     },
     {
       "id": "US-012",
@@ -192,11 +203,12 @@
         "Environment-specific configuration for Government endpoints",
         "Secrets management via GitHub Actions secrets",
         "Deployment validation and smoke tests",
-        "Playwright MCP tests run as part of deployment validation"
+        "Playwright MCP tests run as part of deployment validation",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Completed. Created .github/workflows/ci-cd.yml with build/test, Docker build, Azure Commercial auto-deploy, and Azure Government manual deploy. Uses OIDC federated credentials. Smoke tests hit /health endpoint. Documentation in docs/ci-cd-setup.md."
+      "notes": ""
     },
     {
       "id": "US-013",
@@ -208,11 +220,12 @@
         "Documentation for required environment variables",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify application behaves correctly with different configurations"
+        "Playwright MCP tests verify application behaves correctly with different configurations",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Created config/settings.py with Pydantic Settings, tests in tests/test_settings.py, updated .env.example."
+      "notes": ""
     },
     {
       "id": "US-014",
@@ -223,11 +236,12 @@
         "Request and response schemas documented via Pydantic models",
         "Swagger UI available at /docs endpoint",
         "ReDoc available at /redoc endpoint",
-        "Playwright MCP tests verify /docs and /redoc endpoints are accessible and render correctly"
+        "Playwright MCP tests verify /docs and /redoc endpoints are accessible and render correctly",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 3,
       "passes": true,
-      "notes": "Completed. Created main.py with FastAPI app, OpenAPI metadata, security schemes, and tag groupings. Added JSON Schema examples to Pydantic models. Swagger UI at /docs, ReDoc at /redoc, OpenAPI JSON at /openapi.json. 14 tests verify documentation endpoints."
+      "notes": ""
     },
     {
       "id": "US-015",
@@ -239,11 +253,12 @@
         "Structured logging for observability",
         "mypy type checking passes",
         "pytest tests pass",
-        "Playwright MCP tests verify health status page displays correctly"
+        "Playwright MCP tests verify health status page displays correctly",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Completed. Created GET /health (liveness) and GET /ready (readiness) endpoints. Ready endpoint checks Cosmos DB and Speech Services dependencies. Uses Python logging for structured logs. 15 tests added."
+      "notes": ""
     },
     {
       "id": "US-016",
@@ -257,11 +272,12 @@
         "Remove requirements.txt in favor of pyproject.toml",
         "Document uv usage in README",
         "All existing tests continue to pass",
-        "Playwright MCP tests verify application runs correctly with uv-managed dependencies"
+        "Playwright MCP tests verify application runs correctly with uv-managed dependencies",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. No CI/CD pipeline exists yet (US-012), so that criterion will be addressed when the pipeline is created."
+      "notes": ""
     },
     {
       "id": "US-017",
@@ -273,11 +289,12 @@
         "End-to-end tests for transcription history navigation",
         "End-to-end tests for API documentation pages",
         "Tests run in CI/CD pipeline",
-        "All Playwright MCP tests pass"
+        "All Playwright MCP tests pass",
+        "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed. Verified Playwright MCP E2E tests: Swagger UI (/docs), ReDoc (/redoc), health endpoints (/health, /ready), authentication flow (401 on protected endpoints). Added uvicorn dependency. Fixed ruff and mypy issues. 231 tests pass."
+      "notes": ""
     }
   ]
 }
