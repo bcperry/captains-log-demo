@@ -377,3 +377,27 @@ Started: 2024-01-15
   - browser_wait_for to handle async page loading
   - JSON endpoints render as raw text in browser snapshot
 ---
+
+## 2026-01-09 - US-018
+- What was implemented: Streamlit frontend application with FastAPI backend integration
+- Files changed:
+  - Created `app/streamlit_app.py` - Main Streamlit application with authentication, transcription, and history pages
+  - Created `app/streamlit_client/__init__.py` - API client module exports
+  - Created `app/streamlit_client/api_client.py` - Typed HTTP client for FastAPI backend communication
+  - Created `app/tests/test_streamlit_client.py` - 23 comprehensive tests for API client
+  - Updated `app/.env.example` - Added BACKEND_API_URL configuration
+  - Updated `app/.streamlit/config.toml` - Changed port to 8501 to avoid conflict with FastAPI
+- **E2E Tests Verified:**
+  - Streamlit app loads with title "Captain's Log"
+  - Authentication section displays with token input form
+  - Backend Status shows "Backend Ready" with Cosmos DB and Speech Services
+  - Navigation between Transcribe, History, and Settings pages works
+  - Unauthenticated users see appropriate warning messages
+- **Learnings:**
+  - Streamlit port (8501) must differ from FastAPI port (8001) when running together
+  - Use `httpx.Client` for synchronous HTTP requests in Streamlit (not async)
+  - API health response `dependencies` is a list, not a dict - iterate with `for dep in deps`
+  - Use `st.session_state` to persist API client and access token across reruns
+  - Type annotations with explicit cast needed for session state: `client: APIClient = st.session_state.api_client`
+  - Test API client methods by mocking `_client` (httpx.Client) methods
+---
