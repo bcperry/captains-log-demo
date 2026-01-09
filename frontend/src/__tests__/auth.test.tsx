@@ -50,7 +50,7 @@ describe('apiScopes', () => {
 
   it('generates api scope from clientId when configured', () => {
     if (config.azure.clientId) {
-      expect(apiScopes).toContain(`api://${config.azure.clientId}/.default`)
+      expect(apiScopes).toContain(`api://${config.azure.clientId}/user_impersonation`)
     } else {
       expect(apiScopes).toHaveLength(0)
     }

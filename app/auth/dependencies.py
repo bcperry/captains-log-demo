@@ -13,6 +13,7 @@ The modern approach (get_current_user_azure) is preferred as it provides:
 - Better integration with fastapi-azure-auth library features
 """
 
+import logging
 from typing import Any, Optional
 
 from fastapi import Depends, Header, HTTPException, Request, Security, status
@@ -26,6 +27,8 @@ from auth.entra import (
     get_entra_validator,
 )
 from config.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_token_validator() -> EntraTokenValidator:
@@ -214,20 +217,73 @@ async def get_current_user_azure(
         raise
     except Exception as e:
         # Any other error during token validation
+        logger.error(f"Token validation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token validation failed: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
+    # Log the claims for debugging
+    logger.debug(f"Azure user claims: {azure_user.claims}")
+    logger.debug(f"Azure user oid: {azure_user.oid}, sub: {azure_user.sub}")
+    logger.debug(f"Azure user name: {azure_user.name}")
+    logger.debug(f"Azure user email: {azure_user.email}")
+    logger.debug(f"Azure user preferred_username: {azure_user.preferred_username}")
+    logger.debug(f"Azure user tid: {azure_user.tid}")
+
+    # Extract user identifier - prefer oid, fall back to sub
+    # oid is the stable object ID in Azure AD, sub is always present
+    user_id = azure_user.oid or azure_user.sub
+    if not user_id:
+        logger.error("No oid or sub claim found in token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: missing user identifier (oid or sub)",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Extract email - try multiple claim sources
+    # Azure tokens may have email in different places depending on token version
+    email = (
+        azure_user.email
+        or azure_user.preferred_username
+        or azure_user.claims.get("email")
+        or azure_user.claims.get("preferred_username")
+        or azure_user.claims.get("upn")  # User Principal Name
+        or ""
+    )
+
+    # Extract name - try name claim first, then construct from given/family name
+    name = azure_user.name
+    if not name:
+        given_name = azure_user.claims.get("given_name", "")
+        family_name = azure_user.claims.get("family_name", "")
+        if given_name or family_name:
+            name = f"{given_name} {family_name}".strip()
+        else:
+            # Fall back to email/username as display name
+            name = email or user_id
+
+    # Extract preferred_username
+    preferred_username = (
+        azure_user.preferred_username
+        or azure_user.claims.get("preferred_username")
+        or azure_user.claims.get("upn")
+        or email
+        or ""
+    )
+
     # Convert fastapi-azure-auth User to our AuthenticatedUser for compatibility
     user = AuthenticatedUser(
-        oid=azure_user.oid or "",
-        email=azure_user.claims.get("email", azure_user.claims.get("preferred_username", "")),
-        name=azure_user.name or "",
-        preferred_username=azure_user.claims.get("preferred_username", ""),
-        tenant_id=azure_user.tid or "",
+        oid=user_id,
+        email=email if email else None,
+        name=name if name else None,
+        preferred_username=preferred_username if preferred_username else None,
+        tenant_id=azure_user.tid or azure_user.claims.get("tid") or None,
     )
+
+    logger.info(f"Authenticated user: oid={user.oid}, email={user.email}, name={user.name}")
 
     # Store user in request state for access in route handlers
     request.state.user = user
