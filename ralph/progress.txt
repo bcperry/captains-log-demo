@@ -305,3 +305,20 @@ Started: 2024-01-15
   - Use `needs:` to chain jobs (test -> build -> deploy)
   - Use `if:` conditions to control when deployment jobs run
 ---
+
+## 2026-01-09 - US-014
+- What was implemented: API documentation and OpenAPI spec with Swagger UI and ReDoc
+- Files changed:
+  - Created `app/main.py` - FastAPI application with OpenAPI configuration
+  - Updated `app/models/transcription.py` - Added JSON Schema examples via `model_config`
+  - Created `app/tests/test_main.py` - 14 tests for OpenAPI documentation
+- **Learnings:**
+  - Use `FastAPI()` with `title`, `version`, `description` for API metadata
+  - Use `openapi_tags` list with `name` and `description` dicts for endpoint grouping
+  - Override `app.openapi` function to add custom security schemes and contact info
+  - Use Pydantic `ConfigDict` with `json_schema_extra` for model examples
+  - FastAPI automatically serves Swagger UI at `/docs` and ReDoc at `/redoc`
+  - Use markdown in `description` for rich API documentation
+  - Security schemes in OpenAPI use `securitySchemes` under `components`
+  - Apply security globally with `security` key at schema root
+---
