@@ -13,7 +13,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api import auth_router, health_router, transcribe_router, transcriptions_router
-from auth import AuthenticatedUser, get_current_user
+from auth import AuthenticatedUser
+from auth.dependencies import get_current_user_azure
 from db.cosmos import InMemoryCosmosClient, clear_in_memory_storage
 
 
@@ -89,7 +90,7 @@ def authenticated_client(
     from api.auth import get_db as auth_get_db
     from api.transcriptions import get_db as transcriptions_get_db
 
-    integration_app.dependency_overrides[get_current_user] = lambda: test_user
+    integration_app.dependency_overrides[get_current_user_azure] = lambda: test_user
     integration_app.dependency_overrides[auth_get_db] = lambda: mock_db
     integration_app.dependency_overrides[transcriptions_get_db] = lambda: mock_db
 
@@ -134,7 +135,7 @@ def authenticated_client_with_speech(
     from api.transcribe import get_speech_service
     from api.transcriptions import get_db as transcriptions_get_db
 
-    integration_app.dependency_overrides[get_current_user] = lambda: test_user
+    integration_app.dependency_overrides[get_current_user_azure] = lambda: test_user
     integration_app.dependency_overrides[auth_get_db] = lambda: mock_db
     integration_app.dependency_overrides[transcribe_get_db] = lambda: mock_db
     integration_app.dependency_overrides[transcriptions_get_db] = lambda: mock_db

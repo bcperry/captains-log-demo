@@ -20,6 +20,7 @@ from auth.azure_auth import (
 from auth.dependencies import (
     CurrentUser,
     get_current_user,
+    get_current_user_azure,
     get_optional_user,
     get_token_validator,
 )
@@ -45,6 +46,7 @@ __all__ = [
     # Dependencies for FastAPI
     "CurrentUser",
     "get_current_user",
+    "get_current_user_azure",
     "get_optional_user",
     "get_token_validator",
     # Token validation (legacy)

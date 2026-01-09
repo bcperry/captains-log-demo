@@ -2,11 +2,20 @@
 
 This module provides FastAPI dependencies for protecting endpoints with
 Azure Entra ID token validation, supporting both Commercial and Government clouds.
+
+Two authentication approaches are available:
+1. Legacy: get_current_user - uses custom EntraTokenValidator (PyJWT-based)
+2. Modern: get_current_user_azure - uses fastapi-azure-auth with OAuth2/Swagger UI
+
+The modern approach (get_current_user_azure) is preferred as it provides:
+- Full OAuth2 Authorization Code flow with PKCE in Swagger UI
+- Automatic JWKS caching and OpenID configuration loading
+- Better integration with fastapi-azure-auth library features
 """
 
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, Security, status
 
 from auth.entra import (
     AuthenticatedUser,
@@ -16,6 +25,7 @@ from auth.entra import (
     TokenValidationError,
     get_entra_validator,
 )
+from config.settings import get_settings
 
 
 def get_token_validator() -> EntraTokenValidator:
@@ -116,3 +126,69 @@ async def get_optional_user(
 
 # Type alias for dependency injection
 CurrentUser = AuthenticatedUser
+
+
+def get_azure_scheme_dependency():  # type: ignore[no-untyped-def]
+    """Get the Azure scheme for use as a dependency.
+
+    This is a factory function that lazily imports and returns the azure_scheme.
+    This avoids circular imports between auth modules.
+
+    Returns:
+        SingleTenantAzureAuthorizationCodeBearer or None if not configured
+    """
+    settings = get_settings()
+    if not settings.is_entra_configured():
+        return None
+
+    from auth.azure_auth import get_azure_scheme
+
+    return get_azure_scheme()
+
+
+async def get_current_user_azure(
+    request: Request,
+) -> AuthenticatedUser:
+    """FastAPI dependency for authenticating requests with fastapi-azure-auth.
+
+    This is the preferred authentication method as it provides full OAuth2
+    Authorization Code flow with PKCE support in Swagger UI.
+
+    The azure_scheme validates the Bearer token using fastapi-azure-auth library,
+    which handles JWKS caching and OpenID configuration automatically.
+
+    Args:
+        request: FastAPI request object for storing user in state
+
+    Returns:
+        AuthenticatedUser: Authenticated user with claims extracted from token
+
+    Raises:
+        HTTPException: 401 Unauthorized if authentication is not configured
+    """
+    azure_scheme = get_azure_scheme_dependency()
+    if azure_scheme is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication is not configured",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Call the azure_scheme as a dependency - it validates the token and returns User
+    from fastapi_azure_auth.user import User
+
+    azure_user: User = await azure_scheme(request)
+
+    # Convert fastapi-azure-auth User to our AuthenticatedUser for compatibility
+    user = AuthenticatedUser(
+        oid=azure_user.oid or "",
+        email=azure_user.claims.get("email", azure_user.claims.get("preferred_username", "")),
+        name=azure_user.name or "",
+        preferred_username=azure_user.claims.get("preferred_username", ""),
+        tenant_id=azure_user.tid or "",
+    )
+
+    # Store user in request state for access in route handlers
+    request.state.user = user
+
+    return user
