@@ -539,3 +539,27 @@ Started: 2024-01-15
   - Service status fetched via /ready endpoint which returns dependency health info
   - Mobile-first responsive design: sidebar transforms using translate-x classes for off-canvas pattern
 ---
+
+## 2026-01-09 - US-024
+- What was implemented: React audio upload and transcription component
+- Files changed:
+  - Created `frontend/src/types/transcription.ts` - FileInfo, TranscriptionProgress, TranscriptionResult, TranscriptionState types
+  - Created `frontend/src/hooks/useTranscription.ts` - Hook for managing transcription state and API calls
+  - Created `frontend/src/components/AudioUpload.tsx` - Full-featured upload component with drag-drop
+  - Created `frontend/src/__tests__/upload.test.tsx` - 25 comprehensive unit tests
+  - Updated `frontend/src/components/index.ts` - Export AudioUpload component
+  - Updated `frontend/src/hooks/index.ts` - Export useTranscription hook
+  - Updated `frontend/src/types/index.ts` - Export transcription types
+  - Updated `frontend/src/App.tsx` - Integrate AudioUpload for authenticated users
+- **Learnings:**
+  - Use `useRef<HTMLInputElement>` for hidden file input to trigger click programmatically
+  - Use `URL.createObjectURL(file)` for audio preview and duration detection
+  - Load audio metadata via `<audio>` element's `onloadedmetadata` event
+  - Validate files by both extension and file size before processing
+  - Use separate state for `audioDuration` and `durationLimit` to track full vs. transcribable
+  - AbortController pattern for cancellation: store in useRef, abort on cancel/reset
+  - Mock `URL.createObjectURL` in tests with `vi.fn(() => 'blob:test-url')`
+  - Mock API modules with `vi.mock('../services/api', () => ({ ... }))`
+  - Use `fireEvent.change(input, { target: { files: [file] } })` for file input testing
+  - Use `fireEvent.drop(zone, { dataTransfer: { files: [file] } })` for drag-drop testing
+---
