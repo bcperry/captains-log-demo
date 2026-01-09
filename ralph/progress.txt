@@ -2,14 +2,34 @@
 Started: 2024-01-15
 
 ## Codebase Patterns
-- Package manager: Prefer `uv` over pip (e.g., `uv add`, `uv run`)
+- Package manager: Prefer `uv` over pip (e.g., `uv add`, `uv run`, `uv sync`)
 - Migrations: Use alembic with `op.create_table` idempotent checks
 - FastAPI: Use `Depends()` for dependency injection
 - Pydantic: Inherit from BaseModel, use Field() for validation
 - Async: Use `async def` with `await` for I/O operations
 - Testing: Use pytest fixtures, mock external services with `unittest.mock`
 - Type hints: Always annotate function signatures
+- Docker: Use multi-stage builds, copy uv from ghcr.io/astral-sh/uv:latest
 
 ## Key Files
+- `app/pyproject.toml` - Project dependencies and configuration
+- `app/uv.lock` - Locked dependency versions for reproducible builds
+- `app/app.py` - Main Streamlit application (AudioTranscriber, AzureOpenAISummarizer)
+- `Dockerfile` - Container build using uv for package management
 
+---
+
+## 2026-01-09 - US-016
+- What was implemented: Migrated package management from pip to uv
+- Files changed:
+  - Created `app/pyproject.toml` with all project dependencies
+  - Generated `app/uv.lock` for reproducible builds
+  - Updated `Dockerfile` to use uv (copy from ghcr.io/astral-sh/uv:latest, use `uv sync`)
+  - Removed `app/requirements.txt`
+  - Updated `README.md` with uv installation and usage instructions
+- **Learnings:**
+  - Use `uv sync --frozen --no-dev --no-editable` in Dockerfile for production builds
+  - Copy uv binary from official Docker image: `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/`
+  - Use `uv run` prefix to run commands with the virtual environment
+  - No CI/CD pipeline exists yet - will add uv support when US-012 is implemented
 ---
