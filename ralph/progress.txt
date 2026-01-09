@@ -23,7 +23,9 @@ Started: 2024-01-15
 - `app/auth/entra.py` - Azure Entra ID JWT token validation
 - `app/auth/dependencies.py` - FastAPI auth dependencies (get_current_user, get_optional_user)
 - `app/api/auth.py` - User profile endpoints (GET /auth/me, PATCH /auth/me/preferences)
+- `app/api/transcribe.py` - Audio transcription endpoint (POST /transcribe)
 - `app/models/user.py` - User profile Pydantic models
+- `app/models/transcription.py` - Transcription request/response models
 - `app/db/cosmos.py` - Cosmos DB client with in-memory fallback
 - `app/speech/client.py` - Azure Speech Services client with Government cloud support
 - `Dockerfile` - Container build using uv for package management
@@ -157,4 +159,27 @@ Started: 2024-01-15
   - Use `is_available()` method to check service health
   - Cannot use `@lru_cache` with Settings parameter (unhashable); use global singleton instead
   - clear_speech_client_cache() allows test isolation
+---
+
+## 2026-01-09 - US-006
+- What was implemented: Audio transcription endpoint with file upload and Azure Speech Services integration
+- Files changed:
+  - Created `app/api/transcribe.py` - POST /transcribe endpoint with file validation
+  - Created `app/models/transcription.py` - TranscriptionResponse and validation constants
+  - Updated `app/api/__init__.py` - Export transcribe_router
+  - Updated `app/models/__init__.py` - Export transcription models
+  - Created `app/tests/test_transcribe.py` - 20 comprehensive tests
+  - Updated `app/pyproject.toml` - Added python-multipart dependency
+  - Updated `app/uv.lock` - Locked new dependencies
+- **Learnings:**
+  - FastAPI file uploads require `python-multipart` package
+  - Use `UploadFile` with `File()` annotation for file uploads
+  - Use `Annotated[UploadFile, File(...)]` for proper type hints with descriptions
+  - Content-type is not always reliable; fall back to file extension for format detection
+  - Use `tempfile.NamedTemporaryFile(delete=False)` to create temp files for Speech SDK
+  - Always clean up temp files in `finally` block with `os.unlink()`
+  - Use `HTTP_413_CONTENT_TOO_LARGE` (not deprecated `HTTP_413_REQUEST_ENTITY_TOO_LARGE`)
+  - Use `HTTP_422_UNPROCESSABLE_CONTENT` (not deprecated `HTTP_422_UNPROCESSABLE_ENTITY`)
+  - Mock `SpeechClient` with `MagicMock(spec=SpeechClient)` for clean test mocking
+  - Use `dependency_overrides` for both auth and service dependencies in tests
 ---
