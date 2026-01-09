@@ -1,7 +1,6 @@
 """Tests for the transcription API endpoints."""
 
 import io
-from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -377,7 +376,7 @@ class TestTempFileCleanup:
         import os
         import tempfile
 
-        temp_files_before = set(os.listdir(tempfile.gettempdir()))
+        set(os.listdir(tempfile.gettempdir()))
 
         response = client.post(
             "/transcribe",

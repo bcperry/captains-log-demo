@@ -1,6 +1,5 @@
 """Tests for the Cosmos DB client module."""
 
-from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,7 +13,7 @@ from db.cosmos import (
     clear_in_memory_storage,
     get_cosmos_client,
 )
-from models.user import UserProfile, UserProfileCreate
+from models.user import UserProfileCreate
 
 
 @pytest.fixture
@@ -88,7 +87,7 @@ class TestCosmosClient:
             mock_get_settings.return_value.azure_cosmos_endpoint = "https://default.com/"
             mock_get_settings.return_value.azure_cosmos_key = "default-key"
             mock_get_settings.return_value.azure_cosmos_database = "default-db"
-            client = CosmosClient()
+            CosmosClient()
             mock_get_settings.assert_called_once()
 
     def test_endpoint_property_empty(self, mock_settings_unconfigured: Settings) -> None:
