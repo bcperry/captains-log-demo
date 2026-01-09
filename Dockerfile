@@ -12,7 +12,12 @@ RUN npm ci
 # Copy source files
 COPY frontend/ .
 
+# Copy root .env.example for build-time defaults (can be overridden via build args)
+# Vite loads .env from envDir (project root, one level up from frontend)
+COPY .env.example /app/.env.example
+
 # Build production bundle
+# Note: VITE_ prefixed env vars should be passed as build args for production builds
 RUN npm run build
 
 # Stage 2: Build Python application

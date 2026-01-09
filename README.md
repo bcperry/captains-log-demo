@@ -56,16 +56,28 @@ A modern, AI-powered audio transcription and analysis application built with Rea
    ```
 
 4. **Set up environment variables**
-   Create a `.env` file in the `app/` directory:
+   Create a single `.env` file in the **project root** directory (not in app/ or frontend/):
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit the `.env` file with your Azure credentials:
    ```env
+   # Shared configuration
+   AZURE_CLOUD=commercial  # or 'government' for Azure Government
+   AZURE_TENANT_ID=your_tenant_id
+   AZURE_CLIENT_ID=your_client_id
+   
+   # Frontend uses VITE_ prefixed versions (must match above)
+   VITE_AZURE_TENANT_ID=your_tenant_id
+   VITE_AZURE_CLIENT_ID=your_client_id
+   VITE_AZURE_CLOUD=commercial
+   
+   # Backend-only settings
    AZURE_SPEECH_KEY=your_speech_service_key
    AZURE_SPEECH_REGION=your_speech_region
    AZURE_OPENAI_ENDPOINT=your_openai_endpoint
    AZURE_OPENAI_KEY=your_openai_key
-   AZURE_OPENAI_MODEL_NAME=gpt-4
-   AZURE_CLOUD=commercial  # or 'government' for Azure Government
-   AZURE_TENANT_ID=your_tenant_id
-   AZURE_CLIENT_ID=your_client_id
    ```
 
 5. **Run the backend**
@@ -80,20 +92,12 @@ A modern, AI-powered audio transcription and analysis application built with Rea
    npm install
    ```
 
-7. **Configure frontend environment**
-   Create a `.env` file in the `frontend/` directory:
-   ```env
-   VITE_AZURE_CLIENT_ID=your_client_id
-   VITE_AZURE_TENANT_ID=your_tenant_id
-   VITE_AZURE_CLOUD=commercial
-   ```
-
-8. **Run the frontend**
+7. **Run the frontend**
    ```bash
    npm run dev
    ```
 
-9. **Open your browser** to `http://localhost:3000`
+8. **Open your browser** to `http://localhost:3000`
 
 ### Using Docker
 

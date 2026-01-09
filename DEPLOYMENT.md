@@ -13,14 +13,19 @@ This guide covers both local development and Azure cloud deployment of the Strea
 
 1. **Configure Environment**
    ```bash
-   cd app
-   copy .env.example .env
+   # From project root
+   cp .env.example .env
    ```
    
 2. **Edit .env file** with your Azure Speech service details:
    ```
    AZURE_SPEECH_KEY=your-32-character-speech-service-key
    AZURE_SPEECH_REGION=eastus
+   AZURE_TENANT_ID=your-tenant-id
+   AZURE_CLIENT_ID=your-client-id
+   # Frontend uses VITE_ prefixed versions
+   VITE_AZURE_TENANT_ID=your-tenant-id
+   VITE_AZURE_CLIENT_ID=your-client-id
    ```
 
 3. **Install and Run**

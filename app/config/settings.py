@@ -2,16 +2,22 @@
 
 This module provides centralized configuration management with support for:
 - Environment variables
-- .env files
+- .env files (loaded from project root)
 - Multiple Azure cloud environments (Commercial, Government)
 """
 
 from enum import Enum
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Project root is one level up from the app directory
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT_ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class AzureCloud(str, Enum):
@@ -27,10 +33,11 @@ class Settings(BaseSettings):
 
     Settings are loaded from environment variables and .env files.
     Environment variables take precedence over .env file values.
+    The .env file is loaded from the project root directory.
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ROOT_ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
