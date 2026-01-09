@@ -746,6 +746,88 @@
       "priority": 1,
       "passes": true,
       "notes": "Already verified in US-031 - Swagger UI OAuth2 modal confirmed working with Azure Gov endpoints"
+    },
+    {
+      "id": "US-039",
+      "title": "Consolidate .env files into single root location",
+      "acceptanceCriteria": [
+        "Create single .env file at project root (/captains-log-demo/.env)",
+        "Create single .env.example file at project root with all required variables documented",
+        "Migrate all environment variables from app/.env and frontend/.env to root .env",
+        "Remove duplicate variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLOUD appear in both)",
+        "Update FastAPI backend (app/) to load .env from project root using python-dotenv",
+        "Update Vite frontend config to load .env from project root",
+        "Update app/config/settings.py to reference root .env location",
+        "Update frontend/vite.config.ts envDir setting to point to project root",
+        "Delete app/.env and app/.env.example after migration",
+        "Delete frontend/.env and frontend/.env.example after migration",
+        "Update Dockerfile to copy root .env appropriately",
+        "Update README.md to document single .env file location",
+        "Update DEPLOYMENT.md if it references .env files",
+        "Ensure VITE_ prefixed variables are available to frontend build",
+        "Ensure non-VITE_ prefixed variables are available to backend",
+        "All existing tests continue to pass",
+        "Application loads without errors when started with uvicorn",
+        "Frontend builds and runs correctly with npm run dev",
+        "No hardcoded duplicate configuration values between frontend and backend"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Consolidated .env files to project root. Verified with Playwright."
+    },
+    {
+      "id": "US-040",
+      "title": "Fix /auth/me 'invalid token claims' error",
+      "acceptanceCriteria": [
+        "Investigate root cause of 'invalid token claims' error on GET /auth/me endpoint",
+        "Verify Azure Entra ID token contains required claims (oid, email, name, preferred_username)",
+        "Check fastapi-azure-auth configuration matches Azure app registration settings",
+        "Verify token audience (aud) claim matches AZURE_CLIENT_ID",
+        "Verify token issuer (iss) claim matches expected Azure Government endpoint",
+        "Check if token scopes are correctly configured (api://<client_id>/user_impersonation)",
+        "Ensure token validation handles both v1 and v2 Azure AD tokens if needed",
+        "Add detailed logging for token claim extraction to aid debugging",
+        "Handle missing optional claims gracefully (some claims may be absent)",
+        "Verify MSAL React is requesting correct scopes when acquiring token",
+        "Test with tokens from both Swagger UI OAuth2 flow and React MSAL flow",
+        "Update User model if claim mapping needs adjustment",
+        "Ensure backward compatibility with existing authentication flow",
+        "mypy type checking passes",
+        "pytest tests pass with updated token validation",
+        "Application loads without errors when started with uvicorn",
+        "PLAYWRIGHT: Navigate to app, login via MSAL, verify /auth/me returns user profile without errors"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-041",
+      "title": "Fix frontend sign-in returning to same page without authentication",
+      "acceptanceCriteria": [
+        "Investigate why clicking 'Sign In' button returns user to same unauthenticated state",
+        "Check MSAL redirect URI configuration matches Azure app registration",
+        "Verify VITE_AZURE_REDIRECT_URI in .env matches actual frontend URL (localhost:5173 vs localhost:3000)",
+        "Check browser console for MSAL errors during authentication flow",
+        "Verify Azure app registration has correct redirect URIs configured (SPA type, not Web)",
+        "Check if popup vs redirect flow is properly configured in msalConfig.ts",
+        "Verify handleRedirectPromise() is called on app initialization",
+        "Check if authentication state is being persisted correctly (localStorage/sessionStorage)",
+        "Verify MSAL instance is properly initialized before login attempt",
+        "Check for CORS issues between frontend and Azure login endpoints",
+        "Verify Azure Government login endpoint (login.microsoftonline.us) is correctly configured",
+        "Add logging to track MSAL authentication flow steps",
+        "Test with browser dev tools Network tab to trace redirect flow",
+        "Verify AuthProvider properly updates state after successful login",
+        "Check if silent token acquisition is failing and falling back incorrectly",
+        "Ensure no race conditions between redirect handling and React rendering",
+        "TypeScript compiles without errors",
+        "Unit tests for auth components pass",
+        "PLAYWRIGHT: Click Sign In, complete Microsoft login, verify user is authenticated on return"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
