@@ -850,8 +850,8 @@
         "PLAYWRIGHT: Verify Speech Service shows red/disconnected when AZURE_SPEECH_KEY is not set"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "BUG: Screenshot shows Speech Service with green checkmark and 'Connection successful' even though it's not configured. Should show red/failed status."
+      "passes": true,
+      "notes": "Fixed: check_speech_health() now returns healthy: false when AZURE_SPEECH_KEY is not set. Added configured field to DependencyStatus. Playwright verified red/disconnected status when unconfigured."
     },
     {
       "id": "US-043",
@@ -874,6 +874,32 @@
       "priority": 1,
       "passes": false,
       "notes": "Screenshot shows browser tab with 'frontend' title and likely default Vite favicon. Should show 'Captain's Log' with branded icon."
+    },
+    {
+      "id": "US-044",
+      "title": "Fix frontend API calls missing Authorization header",
+      "acceptanceCriteria": [
+        "Investigate why /transcribe API call returns 401 Unauthorized",
+        "Verify frontend is acquiring access token from MSAL before API calls",
+        "Add Authorization: Bearer <token> header to all authenticated API requests",
+        "Review api.ts or services layer to ensure token is included in requests",
+        "Use MSAL acquireTokenSilent() to get access token before each API call",
+        "Handle token acquisition errors gracefully (redirect to login if token unavailable)",
+        "Verify token scope matches what backend expects (api://<client_id>/user_impersonation)",
+        "Add axios/fetch interceptor to automatically attach Bearer token to requests",
+        "Ensure token is refreshed automatically when expired (MSAL handles this)",
+        "Check that API base URL is correctly configured (localhost:8000 for backend)",
+        "Verify CORS allows Authorization header from frontend origin",
+        "Test transcribe endpoint works after fix",
+        "Test all other authenticated endpoints (/auth/me, /transcriptions, etc.)",
+        "TypeScript compiles without errors",
+        "Unit tests pass",
+        "PLAYWRIGHT: Upload audio file, click transcribe, verify request includes Authorization header",
+        "PLAYWRIGHT: Verify transcription succeeds without 401 error"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG: Screenshot shows POST /transcribe returning 401 Unauthorized. Request Headers show no Authorization header - frontend is not passing the MSAL access token to API calls."
     }
   ]
 }
