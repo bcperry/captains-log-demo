@@ -13,6 +13,19 @@ param resourceGroupName string
 
 param principalId string
 
+@description('Azure Entra ID tenant ID for authentication')
+param entraIdTenantId string = ''
+
+@description('Azure Entra ID client ID (application ID) from app registration')
+param entraIdClientId string = ''
+
+@description('Azure cloud environment for Entra ID endpoints')
+@allowed(['commercial', 'government'])
+param azureCloud string = 'government'
+
+@description('Enable Azure Entra ID authentication on App Service')
+param enableEntraAuth bool = false
+
 var tags = { 'azd-env-name': environmentName }
 
 var resourceToken = toLower(uniqueString(subscription().id, environmentName))
@@ -35,6 +48,10 @@ module resources 'resources.bicep' = {
     tags: tags
     principalId: principalId
     containerImage: !empty(webContainerImage) ? webContainerImage : ''
+    entraIdTenantId: entraIdTenantId
+    entraIdClientId: entraIdClientId
+    azureCloud: azureCloud
+    enableEntraAuth: enableEntraAuth
   }
 }
 
