@@ -10,6 +10,14 @@ vi.mock('../services/api', () => ({
   analyzeTranscription: vi.fn(),
 }))
 
+// Mock the useAuthenticatedApi hook - execute API calls directly without token
+vi.mock('../hooks/useAuthenticatedApi', () => ({
+  useAuthenticatedApi: () => ({
+    ensureToken: vi.fn().mockResolvedValue('mock-token'),
+    withAuth: vi.fn().mockImplementation((apiCall) => apiCall()),
+  }),
+}))
+
 // Mock URL.createObjectURL and revokeObjectURL
 const mockCreateObjectURL = vi.fn(() => 'blob:test-url')
 const mockRevokeObjectURL = vi.fn()

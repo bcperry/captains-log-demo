@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { analyzeTranscription as analyzeApi } from '../services/api'
+import { useAuthenticatedApi } from './useAuthenticatedApi'
 import type { AnalysisResult } from '../types'
 
 export interface AnalysisProgress {
@@ -44,6 +45,7 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
   const { onComplete, onError } = options
   const [state, setState] = useState<AnalysisState>(initialState)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const { withAuth } = useAuthenticatedApi()
 
   const analyze = useCallback(
     async (text: string) => {
@@ -68,8 +70,8 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
           },
         }))
 
-        // Call API
-        const result = await analyzeApi(text)
+        // Call API with authentication
+        const result = await withAuth(() => analyzeApi(text))
 
         // Check if cancelled
         if (abortControllerRef.current?.signal.aborted) {
@@ -107,7 +109,7 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
         abortControllerRef.current = null
       }
     },
-    [onComplete, onError]
+    [onComplete, onError, withAuth]
   )
 
   const cancel = useCallback(() => {

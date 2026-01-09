@@ -898,8 +898,90 @@
         "PLAYWRIGHT: Verify transcription succeeds without 401 error"
       ],
       "priority": 1,
+      "passes": true,
+      "notes": "FIXED: Added useAuthenticatedApi hook that acquires token before each API call. AuthProvider now acquires token on page load when cached account exists."
+    },
+    {
+      "id": "US-045",
+      "title": "Add Azure Blob Storage to infrastructure deployment",
+      "acceptanceCriteria": [
+        "Add Azure Storage Account resource to Bicep templates (infra/resources.bicep)",
+        "Create blob container for audio file uploads (e.g., 'audio-uploads')",
+        "Configure storage account for Azure Government cloud support",
+        "Enable managed identity access from Container App to Storage Account",
+        "Add RBAC role assignment for Storage Blob Data Contributor",
+        "Output storage account name and endpoint in Bicep outputs",
+        "Add environment variables for storage configuration (AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_CONTAINER)",
+        "Update main.bicep to include storage module",
+        "Configure appropriate SKU (Standard_LRS for dev, Standard_GRS for prod)",
+        "Enable blob versioning for audit trail (optional)",
+        "Configure lifecycle management for automatic cleanup of old files (optional)",
+        "Add storage account connection string or endpoint to app settings",
+        "Support both connection string and managed identity authentication",
+        "Document storage account setup in DEPLOYMENT.md",
+        "Bicep templates deploy successfully with azd up",
+        "Storage account is accessible from deployed Container App"
+      ],
+      "priority": 2,
       "passes": false,
-      "notes": "BUG: Screenshot shows POST /transcribe returning 401 Unauthorized. Request Headers show no Authorization header - frontend is not passing the MSAL access token to API calls."
+      "notes": "Infrastructure story - adds Azure Blob Storage for storing uploaded audio files before batch transcription"
+    },
+    {
+      "id": "US-046",
+      "title": "Save uploaded audio files to Azure Blob Storage",
+      "acceptanceCriteria": [
+        "Add azure-storage-blob SDK to pyproject.toml dependencies",
+        "Create storage client module (app/storage/blob.py)",
+        "Implement upload_audio_file() function to upload file to blob container",
+        "Generate unique blob names using UUID or timestamp to avoid conflicts",
+        "Preserve original file extension in blob name",
+        "Store user ID in blob metadata for ownership tracking",
+        "Return blob URL after successful upload",
+        "Implement get_blob_sas_url() to generate time-limited SAS tokens for access",
+        "Handle upload errors gracefully with proper error messages",
+        "Support both managed identity and connection string authentication",
+        "Configure blob content type based on audio format (audio/wav, audio/mpeg, etc.)",
+        "Update /transcribe endpoint to save file to blob before processing",
+        "Store blob reference in transcription record in Cosmos DB",
+        "Add configuration for storage account in settings.py",
+        "mypy type checking passes",
+        "pytest tests pass with mocked storage client",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Depends on US-045. Saves uploaded audio to Blob Storage for batch transcription processing."
+    },
+    {
+      "id": "US-047",
+      "title": "Implement Azure Speech Batch Transcription from Blob Storage",
+      "acceptanceCriteria": [
+        "Implement batch transcription using Azure Speech Services REST API",
+        "Reference: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/batch-transcription",
+        "Create batch transcription client module (app/speech/batch.py)",
+        "Implement create_transcription_job() to submit batch transcription request",
+        "Use blob SAS URL as contentUrls input for batch transcription API",
+        "Configure transcription properties: locale, diarization, word-level timestamps",
+        "Support Azure Government Speech Services endpoints",
+        "Implement get_transcription_status() to poll job status",
+        "Implement get_transcription_result() to retrieve completed transcription",
+        "Handle transcription job states: NotStarted, Running, Succeeded, Failed",
+        "Parse batch transcription JSON result format into application model",
+        "Extract speaker diarization segments from batch transcription results",
+        "Create new endpoint POST /transcribe/batch for batch transcription",
+        "Store batch job ID in transcription record for status tracking",
+        "Implement GET /transcribe/batch/{job_id}/status endpoint",
+        "Implement webhook callback endpoint for transcription completion (optional)",
+        "Handle long-running transcriptions asynchronously",
+        "Update frontend to support batch transcription flow (upload -> wait -> results)",
+        "mypy type checking passes",
+        "pytest tests pass with mocked batch transcription API",
+        "Application loads without errors when started with uvicorn",
+        "PLAYWRIGHT: Upload large audio file, verify batch transcription initiates and completes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Depends on US-046. Uses Azure Speech Batch Transcription API for processing audio files stored in Blob Storage. Better for large files and async processing."
     }
   ]
 }

@@ -1000,3 +1000,29 @@ Started: 2024-01-15
   - SVG favicons work well with modern browsers and allow for scalable, crisp icons
   - Ship's wheel (helm) icon represents nautical/captain theme matching the app branding
 ---
+
+## 2026-01-09 - US-044
+- What was implemented: Fixed frontend API calls missing Authorization header
+- Root cause: When user had cached MSAL account from previous session, token was not acquired on page load
+- Also: API hooks called fetch directly without ensuring token was fresh before each call
+- Files changed:
+  - `frontend/src/auth/AuthProvider.tsx` - Added silent token acquisition when cached account exists on page load
+  - `frontend/src/hooks/useAuthenticatedApi.ts` - NEW: Hook that ensures token is acquired/refreshed before each API call
+  - `frontend/src/hooks/useTranscription.ts` - Uses withAuth() wrapper for API calls
+  - `frontend/src/hooks/useAnalysis.ts` - Uses withAuth() wrapper for API calls
+  - `frontend/src/hooks/index.ts` - Exports new useAuthenticatedApi hook
+  - `frontend/src/__tests__/upload.test.tsx` - Added mock for useAuthenticatedApi
+  - `frontend/src/__tests__/results.test.tsx` - Added mock for useAuthenticatedApi
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3001/
+  - Verified MSAL initializes correctly with console logs showing handleRedirectPromise
+  - Verified unauthenticated view displays "Sign in to get started" with Sign in button
+  - Screenshots: us-044-frontend-unauthenticated.png
+  - Note: Full auth flow requires Azure credentials which are not configured in test environment
+- **Learnings:**
+  - MSAL redirect login provides token in handleRedirectPromise response
+  - For cached accounts (page reload), must explicitly call acquireTokenSilent
+  - Create wrapper hooks like withAuth() to ensure token is fresh before each API call
+  - Tests need to mock useAuthenticatedApi hook since it uses MSAL hooks internally
+  - setAccessToken() in api.ts stores token in module-level variable for use by request()
+---
