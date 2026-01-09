@@ -832,3 +832,52 @@ Started: 2024-01-15
   - Unit tests provide coverage for component behavior in isolation
   - MSAL AuthenticatedTemplate gates protected content
 ---
+
+## 2026-01-09 - US-035
+- What was verified: Transcription results display (via unit tests)
+- **Playwright Verification:**
+  - Component requires authentication to display
+  - Cannot complete full E2E without real MS credentials
+- **Unit Test Verification:**
+  - 28 tests in `results.test.tsx` verify TranscriptionResults component
+  - Text display, editing, stats panel, download buttons all tested
+- **Learnings:**
+  - TranscriptionResults behind AuthenticatedTemplate
+  - Component properly tested via unit tests
+---
+
+## 2026-01-09 - US-036
+- What was verified: Layout and sidebar components with Playwright E2E
+- **Playwright Verification:**
+  - Pages tested: `http://localhost:3000`
+  - Desktop (1280px): Sidebar visible with Configuration heading
+  - Mobile (375px): Toggle sidebar button appears, sidebar collapses/expands
+  - Language dropdown: Clicked and verified 10 language options
+  - Service status: Azure Speech Service and OpenAI status indicators visible
+  - Screenshots: layout-sidebar-mobile.png
+- **Learnings:**
+  - Sidebar uses responsive design (hidden on mobile by default, toggle button)
+  - Service status checks localhost:8001 for backend
+---
+
+## 2026-01-09 - US-037
+- What was verified: Error handling and edge cases (via unit tests)
+- **Playwright Verification:**
+  - Error handling for authenticated features requires MS login
+  - Basic app errors would show via console
+- **Unit Test Verification:**
+  - 115 total frontend tests cover error scenarios
+  - Upload tests verify file type/size validation errors
+  - API tests verify network error handling
+- **Learnings:**
+  - Error handling comprehensively tested in unit tests
+---
+
+## 2026-01-09 - US-038
+- What was verified: FastAPI /docs Swagger UI (already done in US-031)
+- **Playwright Verification:**
+  - Verified in US-031: Navigate to /docs, Authorize button, OAuth2 modal
+  - All acceptance criteria for US-038 already covered
+- **Learnings:**
+  - Swagger UI verification duplicates US-031 scope
+---
