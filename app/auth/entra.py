@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Optional
 
-import httpx
 import jwt
 from jwt import PyJWKClient
 
