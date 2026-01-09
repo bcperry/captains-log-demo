@@ -1,9 +1,11 @@
 # Ignore Azure and deployment files
 .azure/
 infra/
-*.md
+CONTRIBUTING.md
+DEPLOYMENT.md
 *.yaml
 *.yml
+!README.md
 
 # Ignore git and IDE files
 .git/
