@@ -15,6 +15,7 @@ Started: 2024-01-15
 - `app/pyproject.toml` - Project dependencies and configuration
 - `app/uv.lock` - Locked dependency versions for reproducible builds
 - `app/app.py` - Main Streamlit application (AudioTranscriber, AzureOpenAISummarizer)
+- `app/config/settings.py` - Centralized configuration with Pydantic Settings
 - `Dockerfile` - Container build using uv for package management
 
 ---
@@ -32,4 +33,22 @@ Started: 2024-01-15
   - Copy uv binary from official Docker image: `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/`
   - Use `uv run` prefix to run commands with the virtual environment
   - No CI/CD pipeline exists yet - will add uv support when US-012 is implemented
+---
+
+## 2026-01-09 - US-013
+- What was implemented: Environment configuration management with Pydantic Settings
+- Files changed:
+  - Created `app/config/__init__.py` - Configuration module exports
+  - Created `app/config/settings.py` - Pydantic Settings with AzureCloud enum
+  - Created `app/tests/__init__.py` - Test package init
+  - Created `app/tests/test_settings.py` - 22 tests for settings validation
+  - Updated `app/.env.example` - Comprehensive environment variable documentation
+  - Updated `app/pyproject.toml` - Added pydantic and pydantic-settings dependencies
+- **Learnings:**
+  - Use `pydantic-settings` BaseSettings for type-safe configuration
+  - Use `AzureCloud` enum for environment types (commercial, government, local)
+  - Auto-generate cloud-specific endpoints using `@property` methods
+  - Use `_env_file=None` in tests to avoid loading .env files (requires type: ignore)
+  - Use `@lru_cache` on `get_settings()` for singleton pattern
+  - Government cloud uses `.azure.us` domain, commercial uses `.microsoft.com`
 ---
