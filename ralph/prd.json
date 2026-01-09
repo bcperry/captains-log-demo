@@ -227,8 +227,8 @@
         "pytest tests pass"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Created GET /health (liveness) and GET /ready (readiness) endpoints. Ready endpoint checks Cosmos DB and Speech Services dependencies. Uses Python logging for structured logs. 15 tests added."
     },
     {
       "id": "US-016",
