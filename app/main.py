@@ -7,21 +7,24 @@ Features:
 - Audio transcription with Azure Speech Services
 - Speaker diarization for multi-speaker audio
 - Transcription history storage in Cosmos DB
-- Azure Entra ID authentication
+- Azure Entra ID authentication with OAuth2 Swagger UI integration
 - Health check and monitoring endpoints
 - React frontend served as static files
 """
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from api import auth_router, health_router, transcribe_router, transcriptions_router
+from auth.azure_auth import get_azure_scheme
+from config.settings import get_settings
 
 # API metadata for OpenAPI documentation
 API_TITLE = "Captain's Log API"
@@ -40,8 +43,10 @@ A FastAPI-based audio transcription service using Azure Speech Services.
 
 ## Authentication
 
+Click the **Authorize** button in Swagger UI to log in with your Microsoft account.
 All endpoints except `/health` and `/ready` require Azure Entra ID authentication.
-Include a valid Bearer token in the `Authorization` header:
+
+For programmatic access, include a valid Bearer token in the `Authorization` header:
 
 ```
 Authorization: Bearer <your-access-token>
@@ -87,10 +92,50 @@ OPENAPI_TAGS = [
 ]
 
 
+# Get settings for OAuth2 configuration
+settings = get_settings()
+
+# Get the Azure authentication scheme (may raise ValueError if not configured)
+# We lazily initialize this only if Entra is configured
+azure_scheme = None
+if settings.is_entra_configured():
+    try:
+        azure_scheme = get_azure_scheme()
+    except ValueError:
+        # Auth not configured, Swagger UI won't have OAuth
+        pass
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifespan manager.
+
+    Loads OpenID configuration on startup for faster first authentication.
+    """
+    if azure_scheme is not None:
+        await azure_scheme.openid_config.load_config()
+    yield
+
+
+# Build Swagger UI OAuth2 configuration
+swagger_ui_init_oauth = None
+if settings.is_entra_configured() and settings.effective_openapi_client_id:
+    swagger_ui_init_oauth = {
+        "usePkceWithAuthorizationCodeGrant": True,
+        "clientId": settings.effective_openapi_client_id,
+        "scopes": settings.api_scope,
+    }
+
+
 def custom_openapi() -> dict:
-    """Generate custom OpenAPI schema with enhanced documentation."""
+    """Generate custom OpenAPI schema with enhanced documentation.
+
+    Adds security schemes, contact info, and license to the OpenAPI spec.
+    """
     if app.openapi_schema:
         return app.openapi_schema
+
+    from fastapi.openapi.utils import get_openapi
 
     openapi_schema = get_openapi(
         title=API_TITLE,
@@ -100,7 +145,11 @@ def custom_openapi() -> dict:
         tags=OPENAPI_TAGS,
     )
 
-    # Add security scheme for Azure Entra ID
+    # Ensure components exists
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+
+    # Add security scheme for Azure Entra ID (Bearer token for fallback/programmatic access)
     openapi_schema["components"]["securitySchemes"] = {
         "AzureEntraID": {
             "type": "http",
@@ -127,7 +176,7 @@ def custom_openapi() -> dict:
     return app.openapi_schema
 
 
-# Create FastAPI application
+# Create FastAPI application with OAuth2 support
 app = FastAPI(
     title=API_TITLE,
     version=API_VERSION,
@@ -136,6 +185,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    swagger_ui_oauth2_redirect_url="/oauth2-redirect",
+    swagger_ui_init_oauth=swagger_ui_init_oauth,
+    lifespan=lifespan,
 )
 
 # CORS configuration for development mode
@@ -166,12 +218,12 @@ STATIC_DIR = Path(__file__).parent / "static"
 if STATIC_DIR.exists():
     # Serve static assets (JS, CSS, images, etc.)
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
-    
+
     # Catch-all route for SPA - must be defined after all API routes
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str) -> FileResponse:
         """Serve React SPA for all non-API routes.
-        
+
         This enables client-side routing by returning index.html for all paths
         that don't match API endpoints or static assets.
         """
@@ -179,6 +231,6 @@ if STATIC_DIR.exists():
         file_path = STATIC_DIR / full_path
         if file_path.is_file():
             return FileResponse(file_path)
-        
+
         # Return index.html for SPA routing
         return FileResponse(STATIC_DIR / "index.html")
