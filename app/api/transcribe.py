@@ -7,9 +7,10 @@ import logging
 import os
 import tempfile
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
 
 from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
@@ -22,12 +23,25 @@ from models.transcription import (
     MAX_FILE_SIZE_BYTES,
     MAX_SPEAKERS,
     MIN_SPEAKERS,
+    BatchTranscriptionJobResponse,
+    BatchTranscriptionJobStatus,
+    BatchTranscriptionResultResponse,
+    BatchTranscriptionStatusResponse,
     DiarizedTranscriptionResponse,
     SpeakerSegment,
     TranscriptionRecord,
     TranscriptionResponse,
 )
 from speech import get_speech_client
+from speech.batch import (
+    BatchTranscriptionClient,
+    BatchTranscriptionError,
+    BatchTranscriptionFailedError,
+    BatchTranscriptionJobNotFoundError,
+    InMemoryBatchTranscriptionClient,
+    TranscriptionStatus,
+    get_batch_transcription_client,
+)
 from speech.client import (
     SpeechClient,
     SpeechConfigurationError,
@@ -391,3 +405,262 @@ async def transcribe_audio_with_diarization(
         # Clean up temporary file
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
+
+
+# Batch Transcription Endpoints
+
+
+def get_batch_service() -> BatchTranscriptionClient:
+    """FastAPI dependency for getting the Batch Transcription client.
+
+    Returns:
+        BatchTranscriptionClient instance (real or in-memory)
+
+    Raises:
+        HTTPException: 503 if Speech Services is not configured
+    """
+    client = get_batch_transcription_client()
+    if client is None:
+        # Return in-memory client for development/testing
+        return InMemoryBatchTranscriptionClient()
+    return client
+
+
+def _map_status(batch_status: TranscriptionStatus) -> BatchTranscriptionJobStatus:
+    """Map internal TranscriptionStatus to API BatchTranscriptionJobStatus."""
+    mapping = {
+        TranscriptionStatus.NOT_STARTED: BatchTranscriptionJobStatus.NOT_STARTED,
+        TranscriptionStatus.RUNNING: BatchTranscriptionJobStatus.RUNNING,
+        TranscriptionStatus.SUCCEEDED: BatchTranscriptionJobStatus.SUCCEEDED,
+        TranscriptionStatus.FAILED: BatchTranscriptionJobStatus.FAILED,
+    }
+    return mapping.get(batch_status, BatchTranscriptionJobStatus.NOT_STARTED)
+
+
+@router.post(
+    "/batch",
+    response_model=BatchTranscriptionJobResponse,
+    summary="Submit batch transcription job",
+    description="Upload an audio file for batch transcription. The file is stored in Blob Storage and processed asynchronously.",
+    responses={
+        400: {"description": "Invalid audio format"},
+        401: {"description": "Authentication required"},
+        413: {"description": "File too large"},
+        503: {"description": "Speech Services unavailable"},
+    },
+)
+async def create_batch_transcription(
+    file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, or M4A)")],
+    language: Annotated[str, Query(description="Language code for transcription")] = "en-US",
+    enable_diarization: Annotated[bool, Query(description="Enable speaker diarization")] = True,
+    max_speakers: Annotated[
+        int, Query(description=f"Maximum speakers ({MIN_SPEAKERS}-{MAX_SPEAKERS})", ge=MIN_SPEAKERS, le=MAX_SPEAKERS)
+    ] = DEFAULT_MAX_SPEAKERS,
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    batch_client: BatchTranscriptionClient = Depends(get_batch_service),
+    storage: BlobStorageClient = Depends(get_blob_storage),
+) -> BatchTranscriptionJobResponse:
+    """Submit an audio file for batch transcription.
+
+    The file is uploaded to Blob Storage and a batch transcription job is started.
+    Use the returned job_id to poll for status and retrieve results.
+
+    Args:
+        file: Uploaded audio file
+        language: Language code for transcription
+        enable_diarization: Whether to enable speaker identification
+        max_speakers: Maximum number of speakers for diarization
+        user: Authenticated user
+        batch_client: Batch transcription client
+        storage: Blob storage client
+
+    Returns:
+        BatchTranscriptionJobResponse with job_id for polling
+    """
+    # Validate file format
+    audio_format = _validate_audio_file(file)
+
+    # Read and validate file size
+    content = await _read_and_validate_file_size(file)
+
+    # Upload to Blob Storage
+    try:
+        blob_url = await storage.upload_audio_file(
+            content=content,
+            audio_format=audio_format,
+            user_id=user.oid,
+            original_filename=file.filename,
+        )
+        logger.info(f"Uploaded audio file to blob storage: {blob_url}")
+    except BlobUploadError as e:
+        logger.error(f"Failed to upload audio to blob storage: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to upload audio file: {e}",
+        ) from e
+
+    # Generate SAS URL for batch transcription
+    try:
+        blob_name = storage.extract_blob_name_from_url(blob_url)
+        sas_url = storage.get_blob_sas_url(blob_name, expiry_hours=24)
+    except Exception as e:
+        logger.error(f"Failed to generate SAS URL: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate SAS URL: {e}",
+        ) from e
+
+    # Create batch transcription job
+    display_name = f"Transcription {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} - {user.oid[:8]}"
+
+    try:
+        job_id = await batch_client.create_transcription_job(
+            content_urls=[sas_url],
+            display_name=display_name,
+            locale=language,
+            enable_diarization=enable_diarization,
+            enable_word_level_timestamps=True,
+            max_speaker_count=max_speakers,
+        )
+
+        # Get initial job status
+        job = await batch_client.get_transcription_status(job_id)
+
+        return BatchTranscriptionJobResponse(
+            job_id=job_id,
+            status=_map_status(job.status),
+            display_name=display_name,
+            created_at=job.created_date_time,
+            blob_url=blob_url,
+        )
+
+    except BatchTranscriptionError as e:
+        logger.error(f"Failed to create batch transcription job: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to create transcription job: {e}",
+        ) from e
+
+
+@router.get(
+    "/batch/{job_id}/status",
+    response_model=BatchTranscriptionStatusResponse,
+    summary="Get batch transcription status",
+    description="Poll the status of a batch transcription job.",
+    responses={
+        401: {"description": "Authentication required"},
+        404: {"description": "Job not found"},
+        503: {"description": "Speech Services unavailable"},
+    },
+)
+async def get_batch_transcription_status(
+    job_id: Annotated[str, Path(description="Batch transcription job ID")],
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    batch_client: BatchTranscriptionClient = Depends(get_batch_service),
+) -> BatchTranscriptionStatusResponse:
+    """Get the status of a batch transcription job.
+
+    Args:
+        job_id: ID of the batch transcription job
+        user: Authenticated user
+        batch_client: Batch transcription client
+
+    Returns:
+        BatchTranscriptionStatusResponse with current status
+    """
+    try:
+        job = await batch_client.get_transcription_status(job_id)
+
+        return BatchTranscriptionStatusResponse(
+            job_id=job_id,
+            status=_map_status(job.status),
+            display_name=job.display_name,
+            created_at=job.created_date_time,
+            completed_at=job.last_action_date_time if job.status == TranscriptionStatus.SUCCEEDED else None,
+            error_message=job.error_message,
+        )
+
+    except BatchTranscriptionJobNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription job not found: {job_id}",
+        )
+    except BatchTranscriptionError as e:
+        logger.error(f"Failed to get transcription status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to get transcription status: {e}",
+        ) from e
+
+
+@router.get(
+    "/batch/{job_id}/result",
+    response_model=BatchTranscriptionResultResponse,
+    summary="Get batch transcription result",
+    description="Retrieve the result of a completed batch transcription job.",
+    responses={
+        401: {"description": "Authentication required"},
+        404: {"description": "Job not found"},
+        409: {"description": "Job not complete or failed"},
+        503: {"description": "Speech Services unavailable"},
+    },
+)
+async def get_batch_transcription_result(
+    job_id: Annotated[str, Path(description="Batch transcription job ID")],
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    batch_client: BatchTranscriptionClient = Depends(get_batch_service),
+) -> BatchTranscriptionResultResponse:
+    """Get the result of a completed batch transcription job.
+
+    Args:
+        job_id: ID of the batch transcription job
+        user: Authenticated user
+        batch_client: Batch transcription client
+
+    Returns:
+        BatchTranscriptionResultResponse with transcribed segments
+    """
+    try:
+        result = await batch_client.get_transcription_result(job_id)
+
+        # Convert internal segments to API model
+        segments = [
+            SpeakerSegment(
+                speaker_id=seg.speaker_id,
+                text=seg.text,
+                start_time_ms=seg.start_time_ms,
+                end_time_ms=seg.end_time_ms,
+            )
+            for seg in result.segments
+        ]
+
+        return BatchTranscriptionResultResponse(
+            job_id=job_id,
+            segments=segments,
+            full_text=result.full_text,
+            language=result.language,
+            duration_ms=result.duration_ms,
+            speaker_count=result.speaker_count,
+        )
+
+    except BatchTranscriptionJobNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription job not found: {job_id}",
+        )
+    except BatchTranscriptionFailedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Transcription job failed: {e}",
+        )
+    except BatchTranscriptionError as e:
+        if "not complete" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e),
+            )
+        logger.error(f"Failed to get transcription result: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to get transcription result: {e}",
+        ) from e
