@@ -357,3 +357,23 @@ Started: 2024-01-15
   - pytest: 231 tests pass
   - All acceptance criteria met per progress notes
 ---
+
+## 2026-01-09 - Playwright MCP E2E Verification
+- What was verified: All 17 user stories pass Playwright MCP end-to-end tests
+- E2E Tests Run:
+  - Swagger UI (/docs): API title, features, endpoints table, Try it out functionality
+  - ReDoc (/redoc): API documentation renders correctly
+  - Health endpoint (/health): Returns healthy JSON with status, timestamp, version
+  - Ready endpoint (/ready): Returns ready with Cosmos DB and Speech Services dependency status
+  - Protected endpoint (/auth/me): Returns 401 Unauthorized with proper error message
+  - Swagger Execute: Verified curl command generation and live API response
+- Verification summary:
+  - mypy type checking: 33 source files, no issues
+  - pytest: 231 tests passed in 1.63s
+  - Application loads without errors with uvicorn
+- **Learnings:**
+  - Playwright MCP browser_navigate + browser_snapshot for page inspection
+  - browser_click with element refs for interactive testing
+  - browser_wait_for to handle async page loading
+  - JSON endpoints render as raw text in browser snapshot
+---
