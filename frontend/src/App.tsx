@@ -1,19 +1,21 @@
 import './App.css'
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from './auth'
-import { LoginButton, Layout } from './components'
+import { LoginButton, Layout, AudioUpload } from './components'
 
 function App() {
   return (
     <Layout>
       <AuthenticatedTemplate>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Welcome to Captain&apos;s Log
-          </h2>
-          <p className="text-gray-600">
-            You are signed in. Transcription and analysis features coming in subsequent user
-            stories.
-          </p>
+        <div className="space-y-6">
+          <AudioUpload
+            language="en-US"
+            onTranscriptionComplete={(result) => {
+              console.log('Transcription complete:', result)
+            }}
+            onError={(error) => {
+              console.error('Transcription error:', error)
+            }}
+          />
         </div>
       </AuthenticatedTemplate>
 
