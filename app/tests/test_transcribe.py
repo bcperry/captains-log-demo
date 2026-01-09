@@ -408,3 +408,226 @@ class TestTempFileCleanup:
 
         # Error should be returned but temp file should still be cleaned up
         assert response.status_code == 422
+
+
+class TestDiarizeEndpoint:
+    """Tests for POST /transcribe/diarize endpoint."""
+
+    @pytest.fixture
+    def mock_speech_client_diarize(self) -> MagicMock:
+        """Create a mock Speech client with diarization support."""
+        client = MagicMock(spec=SpeechClient)
+        client.create_audio_config_from_file.return_value = MagicMock()
+        client.recognize_continuous_with_diarization.return_value = [
+            {
+                "speaker_id": "Speaker1",
+                "text": "Hello, how are you?",
+                "start_time_ms": 0,
+                "end_time_ms": 2000,
+            },
+            {
+                "speaker_id": "Speaker2",
+                "text": "I'm doing great, thanks!",
+                "start_time_ms": 2500,
+                "end_time_ms": 5000,
+            },
+        ]
+        return client
+
+    @pytest.fixture
+    def diarize_client(
+        self,
+        app: FastAPI,
+        mock_user: AuthenticatedUser,
+        mock_speech_client_diarize: MagicMock,
+    ) -> TestClient:
+        """Create a test client with diarization mock."""
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_speech_service] = lambda: mock_speech_client_diarize
+        return TestClient(app)
+
+    def test_diarize_returns_segments(
+        self, diarize_client: TestClient, mock_speech_client_diarize: MagicMock
+    ) -> None:
+        """Test that diarize endpoint returns speaker segments."""
+        response = diarize_client.post(
+            "/transcribe/diarize",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "segments" in data
+        assert len(data["segments"]) == 2
+        assert data["segments"][0]["speaker_id"] == "Speaker1"
+        assert data["segments"][0]["text"] == "Hello, how are you?"
+        assert data["segments"][1]["speaker_id"] == "Speaker2"
+
+    def test_diarize_returns_full_text(
+        self, diarize_client: TestClient
+    ) -> None:
+        """Test that diarize endpoint returns full text."""
+        response = diarize_client.post(
+            "/transcribe/diarize",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "full_text" in data
+        assert "Hello, how are you?" in data["full_text"]
+        assert "I'm doing great, thanks!" in data["full_text"]
+
+    def test_diarize_returns_speaker_count(
+        self, diarize_client: TestClient
+    ) -> None:
+        """Test that diarize endpoint returns correct speaker count."""
+        response = diarize_client.post(
+            "/transcribe/diarize",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["speaker_count"] == 2
+
+    def test_diarize_returns_timestamps(
+        self, diarize_client: TestClient
+    ) -> None:
+        """Test that diarize endpoint returns timestamps."""
+        response = diarize_client.post(
+            "/transcribe/diarize",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["segments"][0]["start_time_ms"] == 0
+        assert data["segments"][0]["end_time_ms"] == 2000
+        assert data["segments"][1]["start_time_ms"] == 2500
+
+    def test_diarize_with_custom_max_speakers(
+        self, diarize_client: TestClient, mock_speech_client_diarize: MagicMock
+    ) -> None:
+        """Test diarize with custom max_speakers parameter."""
+        response = diarize_client.post(
+            "/transcribe/diarize?max_speakers=3",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["max_speakers"] == 3
+        mock_speech_client_diarize.recognize_continuous_with_diarization.assert_called_once()
+
+    def test_diarize_rejects_invalid_max_speakers_too_low(
+        self, diarize_client: TestClient
+    ) -> None:
+        """Test that diarize rejects max_speakers below minimum."""
+        response = diarize_client.post(
+            "/transcribe/diarize?max_speakers=0",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 422  # FastAPI validation error
+
+    def test_diarize_rejects_invalid_max_speakers_too_high(
+        self, diarize_client: TestClient
+    ) -> None:
+        """Test that diarize rejects max_speakers above maximum."""
+        response = diarize_client.post(
+            "/transcribe/diarize?max_speakers=20",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 422  # FastAPI validation error
+
+    def test_diarize_requires_authentication(
+        self, app: FastAPI, mock_speech_client_diarize: MagicMock
+    ) -> None:
+        """Test that diarize endpoint requires authentication."""
+        app.dependency_overrides[get_speech_service] = lambda: mock_speech_client_diarize
+        client = TestClient(app, raise_server_exceptions=False)
+
+        response = client.post(
+            "/transcribe/diarize",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 401
+
+    def test_diarize_validates_file_format(
+        self, diarize_client: TestClient
+    ) -> None:
+        """Test that diarize endpoint validates file format."""
+        response = diarize_client.post(
+            "/transcribe/diarize",
+            files=[create_audio_file(content_type="text/plain", filename="test.txt")],
+        )
+
+        assert response.status_code == 400
+
+    def test_diarize_handles_service_error(
+        self, app: FastAPI, mock_user: AuthenticatedUser
+    ) -> None:
+        """Test handling of service errors in diarize endpoint."""
+        mock_client = MagicMock(spec=SpeechClient)
+        mock_client.create_audio_config_from_file.return_value = MagicMock()
+        mock_client.recognize_continuous_with_diarization.side_effect = (
+            SpeechServiceUnavailableError("Diarization failed")
+        )
+
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_speech_service] = lambda: mock_client
+        client = TestClient(app)
+
+        response = client.post(
+            "/transcribe/diarize",
+            files=[create_audio_file()],
+        )
+
+        assert response.status_code == 503
+
+
+class TestDiarizedTranscriptionModels:
+    """Tests for diarization models."""
+
+    def test_speaker_segment_model(self) -> None:
+        """Test SpeakerSegment model."""
+        from models.transcription import SpeakerSegment
+
+        segment = SpeakerSegment(
+            speaker_id="Speaker1",
+            text="Hello world",
+            start_time_ms=0,
+            end_time_ms=1000,
+        )
+        assert segment.speaker_id == "Speaker1"
+        assert segment.text == "Hello world"
+        assert segment.start_time_ms == 0
+        assert segment.end_time_ms == 1000
+
+    def test_diarized_transcription_response_model(self) -> None:
+        """Test DiarizedTranscriptionResponse model."""
+        from models.transcription import DiarizedTranscriptionResponse, SpeakerSegment
+
+        response = DiarizedTranscriptionResponse(
+            segments=[
+                SpeakerSegment(
+                    speaker_id="S1",
+                    text="Test",
+                    start_time_ms=0,
+                    end_time_ms=500,
+                )
+            ],
+            full_text="Test",
+            language="en-US",
+            audio_format="wav",
+            file_size_bytes=1024,
+            speaker_count=1,
+            max_speakers=5,
+        )
+        assert len(response.segments) == 1
+        assert response.full_text == "Test"
+        assert response.speaker_count == 1
+        assert response.max_speakers == 5

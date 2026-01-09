@@ -305,6 +305,105 @@ class SpeechClient:
         except SpeechServiceUnavailableError:
             return False
 
+    def recognize_continuous_with_diarization(
+        self,
+        audio_config: speechsdk.AudioConfig,
+        language: str = "en-US",
+        max_speakers: int = 5,
+    ) -> list[dict[str, object]]:
+        """Perform continuous speech recognition with speaker diarization.
+
+        Uses ConversationTranscriber for multi-speaker transcription.
+
+        Args:
+            audio_config: Audio configuration for the recognizer.
+            language: Language code for recognition (default: en-US).
+            max_speakers: Maximum number of speakers to identify (1-10).
+
+        Returns:
+            List of diarized segments with speaker info and timestamps.
+
+        Raises:
+            SpeechRecognitionError: If recognition fails.
+            SpeechServiceUnavailableError: If the service is unavailable.
+        """
+        import threading
+
+        speech_config = self._get_speech_config()
+        speech_config.speech_recognition_language = language
+
+        # Set speaker diarization properties
+        speech_config.set_property(
+            speechsdk.PropertyId.SpeechServiceConnection_LanguageIdMode,
+            "Continuous"
+        )
+
+        try:
+            # Create conversation transcriber
+            conversation_transcriber = speechsdk.transcription.ConversationTranscriber(
+                speech_config=speech_config,
+                audio_config=audio_config,
+            )
+
+            segments: list[dict[str, object]] = []
+            errors: list[str] = []
+            done_event = threading.Event()
+
+            def handle_transcribed(evt: speechsdk.SpeechRecognitionEventArgs) -> None:
+                """Handle transcribed speech events."""
+                if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                    segment = {
+                        "speaker_id": getattr(evt.result, "speaker_id", "Unknown"),
+                        "text": evt.result.text,
+                        "start_time_ms": int(
+                            evt.result.offset / 10000
+                        ),  # Convert ticks to ms
+                        "end_time_ms": int(
+                            (evt.result.offset + evt.result.duration) / 10000
+                        ),
+                    }
+                    segments.append(segment)
+
+            def handle_canceled(evt: speechsdk.SpeechRecognitionCanceledEventArgs) -> None:
+                """Handle cancellation events."""
+                if evt.cancellation_details.reason == speechsdk.CancellationReason.Error:
+                    errors.append(evt.cancellation_details.error_details)
+                done_event.set()
+
+            def handle_session_stopped(
+                evt: speechsdk.SessionEventArgs,
+            ) -> None:
+                """Handle session stopped events."""
+                done_event.set()
+
+            # Connect event handlers
+            conversation_transcriber.transcribed.connect(handle_transcribed)
+            conversation_transcriber.canceled.connect(handle_canceled)
+            conversation_transcriber.session_stopped.connect(handle_session_stopped)
+
+            # Start transcription
+            conversation_transcriber.start_transcribing_async().get()
+
+            # Wait for completion (timeout after 5 minutes)
+            done_event.wait(timeout=300)
+
+            # Stop transcription
+            conversation_transcriber.stop_transcribing_async().get()
+
+            if errors:
+                raise SpeechServiceUnavailableError(
+                    f"Diarization failed: {errors[0]}"
+                )
+
+            return segments
+
+        except (SpeechRecognitionError, SpeechServiceUnavailableError):
+            raise
+        except Exception as e:
+            raise SpeechServiceError(
+                f"Diarization failed: {e}"
+            ) from e
+
     @property
     def region(self) -> str:
         """Get the configured region."""

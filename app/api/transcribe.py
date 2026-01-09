@@ -13,7 +13,12 @@ from auth import AuthenticatedUser, get_current_user
 from models.transcription import (
     ALLOWED_CONTENT_TYPES,
     ALLOWED_EXTENSIONS,
+    DEFAULT_MAX_SPEAKERS,
     MAX_FILE_SIZE_BYTES,
+    MAX_SPEAKERS,
+    MIN_SPEAKERS,
+    DiarizedTranscriptionResponse,
+    SpeakerSegment,
     TranscriptionResponse,
 )
 from speech import get_speech_client
@@ -176,6 +181,123 @@ async def transcribe_audio(
             language=language,
             audio_format=audio_format,
             file_size_bytes=len(content),
+        )
+
+    except SpeechConfigurationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Speech Services configuration error: {e}",
+        ) from e
+
+    except SpeechServiceUnavailableError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Speech Services unavailable: {e}",
+        ) from e
+
+    except SpeechRecognitionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Speech recognition failed: {e}",
+        ) from e
+
+    except SpeechServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Speech service error: {e}",
+        ) from e
+
+    finally:
+        # Clean up temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+
+
+@router.post(
+    "/diarize",
+    response_model=DiarizedTranscriptionResponse,
+    summary="Transcribe audio with speaker diarization",
+    description="Upload an audio file for transcription with speaker identification.",
+    responses={
+        400: {"description": "Invalid audio format or max_speakers out of range"},
+        401: {"description": "Authentication required"},
+        413: {"description": "File too large"},
+        503: {"description": "Speech Services unavailable"},
+    },
+)
+async def transcribe_audio_with_diarization(
+    file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, or M4A)")],
+    language: Annotated[str, Query(description="Language code for transcription")] = "en-US",
+    max_speakers: Annotated[
+        int, Query(description=f"Maximum number of speakers ({MIN_SPEAKERS}-{MAX_SPEAKERS})", ge=MIN_SPEAKERS, le=MAX_SPEAKERS)
+    ] = DEFAULT_MAX_SPEAKERS,
+    user: AuthenticatedUser = Depends(get_current_user),
+    speech_client: SpeechClient = Depends(get_speech_service),
+) -> DiarizedTranscriptionResponse:
+    """Transcribe an uploaded audio file with speaker diarization.
+
+    Enables speaker identification in the transcription results.
+    Returns segments with speaker labels and timestamps.
+
+    Args:
+        file: Uploaded audio file
+        language: Language code for transcription (default: en-US)
+        max_speakers: Maximum number of speakers to identify (1-10)
+        user: Authenticated user from Entra ID token
+        speech_client: Azure Speech Services client
+
+    Returns:
+        DiarizedTranscriptionResponse with speaker segments and metadata
+
+    Raises:
+        HTTPException: Various status codes for validation/service errors
+    """
+    # Validate file format
+    audio_format = _validate_audio_file(file)
+
+    # Read and validate file size
+    content = await _read_and_validate_file_size(file)
+
+    # Save to temporary file for Speech SDK processing
+    temp_file_path: Optional[str] = None
+    try:
+        # Create temp file with appropriate extension
+        with tempfile.NamedTemporaryFile(
+            suffix=f".{audio_format}",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+
+        # Create audio config and perform diarized transcription
+        audio_config = speech_client.create_audio_config_from_file(temp_file_path)
+        segments_raw = speech_client.recognize_continuous_with_diarization(
+            audio_config, language, max_speakers
+        )
+
+        # Convert to SpeakerSegment models
+        segments = [
+            SpeakerSegment(
+                speaker_id=str(seg.get("speaker_id", "Unknown")),
+                text=str(seg.get("text", "")),
+                start_time_ms=int(str(seg.get("start_time_ms", 0))),
+                end_time_ms=int(str(seg.get("end_time_ms", 0))),
+            )
+            for seg in segments_raw
+        ]
+
+        # Compute full text and speaker count
+        full_text = " ".join(seg.text for seg in segments if seg.text)
+        unique_speakers = set(seg.speaker_id for seg in segments)
+
+        return DiarizedTranscriptionResponse(
+            segments=segments,
+            full_text=full_text,
+            language=language,
+            audio_format=audio_format,
+            file_size_bytes=len(content),
+            speaker_count=len(unique_speakers),
+            max_speakers=max_speakers,
         )
 
     except SpeechConfigurationError as e:
