@@ -141,6 +141,7 @@ class TranscriptionRecord(BaseModel):
     audio_format: str = Field(..., description="Audio file format")
     file_size_bytes: int = Field(..., description="Size of original audio file")
     duration_ms: Optional[int] = Field(default=None, description="Audio duration in milliseconds")
+    blob_url: Optional[str] = Field(default=None, description="URL of the audio file in Blob Storage")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         description="Timestamp when transcription was created",

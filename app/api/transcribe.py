@@ -3,6 +3,7 @@
 This module provides endpoints for audio transcription using Azure Speech Services.
 """
 
+import logging
 import os
 import tempfile
 import uuid
@@ -34,6 +35,10 @@ from speech.client import (
     SpeechServiceError,
     SpeechServiceUnavailableError,
 )
+from storage import get_storage_client
+from storage.blob import BlobStorageClient, BlobUploadError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transcribe", tags=["Transcription"])
 
@@ -41,6 +46,15 @@ router = APIRouter(prefix="/transcribe", tags=["Transcription"])
 def get_db() -> CosmosClient:
     """FastAPI dependency for getting database client."""
     return get_cosmos_client()
+
+
+def get_blob_storage() -> BlobStorageClient:
+    """FastAPI dependency for getting the Blob Storage client.
+
+    Returns:
+        BlobStorageClient instance
+    """
+    return get_storage_client()
 
 
 def get_speech_service() -> SpeechClient:
@@ -149,12 +163,14 @@ async def transcribe_audio(
     user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
     db: CosmosClient = Depends(get_db),
+    storage: BlobStorageClient = Depends(get_blob_storage),
 ) -> TranscriptionResponse:
     """Transcribe an uploaded audio file.
 
     Accepts WAV, MP3, and M4A audio formats.
     Protected by JWT authentication.
     Optionally stores transcription in history.
+    Saves audio file to Blob Storage when storage is configured.
 
     Args:
         file: Uploaded audio file
@@ -163,6 +179,7 @@ async def transcribe_audio(
         user: Authenticated user from Entra ID token
         speech_client: Azure Speech Services client
         db: Database client
+        storage: Blob storage client
 
     Returns:
         TranscriptionResponse with transcribed text and metadata
@@ -178,7 +195,22 @@ async def transcribe_audio(
 
     # Save to temporary file for Speech SDK processing
     temp_file_path: Optional[str] = None
+    blob_url: Optional[str] = None
     try:
+        # Upload to Blob Storage if configured
+        if storage.is_configured():
+            try:
+                blob_url = await storage.upload_audio_file(
+                    content=content,
+                    audio_format=audio_format,
+                    user_id=user.oid,
+                    original_filename=file.filename,
+                )
+                logger.info(f"Saved audio file to blob storage: {blob_url}")
+            except BlobUploadError as e:
+                # Log error but continue with transcription
+                logger.warning(f"Failed to save audio to blob storage: {e}")
+
         # Create temp file with appropriate extension
         with tempfile.NamedTemporaryFile(
             suffix=f".{audio_format}",
@@ -207,6 +239,7 @@ async def transcribe_audio(
                 language=language,
                 audio_format=audio_format,
                 file_size_bytes=len(content),
+                blob_url=blob_url,
                 has_diarization=False,
             )
             await db.create_transcription(user.oid, record)

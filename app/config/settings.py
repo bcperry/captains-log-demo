@@ -113,6 +113,24 @@ class Settings(BaseSettings):
         description="Azure Entra ID client ID for Swagger UI OAuth (defaults to azure_client_id)",
     )
 
+    # Azure Storage Configuration
+    azure_storage_account: Optional[str] = Field(
+        default=None,
+        description="Azure Storage account name",
+    )
+    azure_storage_container: str = Field(
+        default="audio-uploads",
+        description="Azure Storage container name for audio uploads",
+    )
+    azure_storage_endpoint: Optional[str] = Field(
+        default=None,
+        description="Azure Storage endpoint URL (optional, auto-generated if not provided)",
+    )
+    azure_storage_connection_string: Optional[str] = Field(
+        default=None,
+        description="Azure Storage connection string (alternative to account name + managed identity)",
+    )
+
     # Application Settings
     app_name: str = Field(
         default="Captain's Log",
@@ -185,6 +203,20 @@ class Settings(BaseSettings):
         return None
 
     @property
+    def storage_endpoint_url(self) -> Optional[str]:
+        """Get the Azure Blob Storage endpoint URL based on cloud environment."""
+        if self.azure_storage_endpoint:
+            return self.azure_storage_endpoint
+
+        if not self.azure_storage_account:
+            return None
+
+        if self.azure_cloud == AzureCloud.GOVERNMENT:
+            return f"https://{self.azure_storage_account}.blob.core.usgovcloudapi.net"
+        else:
+            return f"https://{self.azure_storage_account}.blob.core.windows.net"
+
+    @property
     def effective_openapi_client_id(self) -> Optional[str]:
         """Get the effective client ID for OpenAPI/Swagger UI OAuth.
 
@@ -215,6 +247,12 @@ class Settings(BaseSettings):
     def is_cosmos_configured(self) -> bool:
         """Check if Azure Cosmos DB is properly configured."""
         return bool(self.azure_cosmos_endpoint and self.azure_cosmos_key)
+
+    def is_storage_configured(self) -> bool:
+        """Check if Azure Blob Storage is properly configured."""
+        # Configured if either connection string is provided, or account name is provided
+        # (managed identity will be used when connection string is not provided)
+        return bool(self.azure_storage_connection_string or self.azure_storage_account)
 
     def is_entra_configured(self) -> bool:
         """Check if Azure Entra ID is properly configured."""
