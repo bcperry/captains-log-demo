@@ -903,3 +903,21 @@ Started: 2024-01-15
   - VITE_ prefixed variables must be duplicated for frontend (Vite only exposes VITE_ prefixed vars)
   - Backend and frontend can share same .env file with proper prefixing
 ---
+
+## 2026-01-09 - US-040
+- What was implemented: Fixed /auth/me 'invalid token claims' error
+- Files changed:
+  - Updated `app/auth/dependencies.py` - Added logging, improved claim extraction with fallbacks
+  - Updated `frontend/src/auth/msalConfig.ts` - Changed scope from .default to user_impersonation
+  - Updated `frontend/src/__tests__/auth.test.tsx` - Fixed test expectation for scope
+- **Playwright Verification:**
+  - Navigated to http://localhost:8001/docs - Swagger UI loaded
+  - Clicked Authorize button - OAuth2 modal showed correct Azure Government endpoints
+  - Screenshot taken: us040-swagger-oauth2-modal.png
+- **Learnings:**
+  - Azure tokens may have email in different places: email, preferred_username, or upn claim
+  - Always prefer oid claim for user ID, fall back to sub claim
+  - Use user_impersonation scope for delegated permissions, .default is for client credentials
+  - Add logging at DEBUG level for token claims to aid troubleshooting
+  - Handle missing optional claims gracefully - not all tokens have all claims
+---
