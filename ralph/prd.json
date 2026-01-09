@@ -495,8 +495,8 @@
         "All API endpoints accessible from React frontend"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed 2026-01-09 - Multi-stage Dockerfile, FastAPI static serving, SPA routing"
     },
     {
       "id": "US-028",

@@ -604,3 +604,22 @@ Started: 2024-01-15
   - Coverage thresholds: 70% lines realistic for component-heavy React apps
   - FormData in tests: access via `callArgs[1].body as FormData`, use `.get(key)`
 ---
+
+## 2026-01-09 - US-027
+- What was implemented: React static build and FastAPI integration
+- Files changed:
+  - Updated `Dockerfile` - Multi-stage build with Node.js for frontend
+  - Updated `app/main.py` - CORS, static files, SPA routing
+  - Updated `frontend/src/config.ts` - Production mode detection
+  - Updated `frontend/tsconfig.app.json` - Exclude tests from build
+- **Learnings:**
+  - Multi-stage Docker builds: use `FROM node:22-slim AS frontend-builder` for React build
+  - Copy build artifacts: `COPY --from=frontend-builder /frontend/dist ./static`
+  - FastAPI static files: `app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"))`
+  - SPA catch-all route: define after all API routes, return index.html for unknown paths
+  - Use `Path(__file__).parent / "static"` for relative path resolution
+  - CORS origins from env: `os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")`
+  - Vite `import.meta.env.PROD` for production detection in frontend
+  - Empty apiBaseUrl in production when serving from same origin (relative paths)
+  - Exclude test files from build: `"exclude": ["src/__tests__"]` in tsconfig.app.json
+---
