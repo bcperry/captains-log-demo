@@ -8,6 +8,7 @@ import type {
   DiarizedTranscriptionResponse,
   TranscriptionListResponse,
   TranscriptionRecord,
+  AnalysisResult,
 } from '../types'
 
 class ApiError extends Error {
@@ -149,6 +150,14 @@ export const getTranscription = (id: string): Promise<TranscriptionRecord> => {
 
 export const deleteTranscription = (id: string): Promise<void> => {
   return request<void>(`/transcriptions/${id}`, { method: 'DELETE' })
+}
+
+// Analysis endpoints
+export const analyzeTranscription = (text: string): Promise<AnalysisResult> => {
+  return request<AnalysisResult>('/analyze', {
+    method: 'POST',
+    body: { text },
+  })
 }
 
 export { ApiError }
