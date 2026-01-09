@@ -16,6 +16,7 @@ Started: 2024-01-15
 - `app/uv.lock` - Locked dependency versions for reproducible builds
 - `app/app.py` - Main Streamlit application (AudioTranscriber, AzureOpenAISummarizer)
 - `app/config/settings.py` - Centralized configuration with Pydantic Settings
+- `app/auth/entra.py` - Azure Entra ID JWT token validation
 - `Dockerfile` - Container build using uv for package management
 
 ---
@@ -51,4 +52,22 @@ Started: 2024-01-15
   - Use `_env_file=None` in tests to avoid loading .env files (requires type: ignore)
   - Use `@lru_cache` on `get_settings()` for singleton pattern
   - Government cloud uses `.azure.us` domain, commercial uses `.microsoft.com`
+---
+
+## 2026-01-09 - US-001
+- What was implemented: Azure Entra ID authentication integration with JWT token validation
+- Files changed:
+  - Created `app/auth/__init__.py` - Auth module exports
+  - Created `app/auth/entra.py` - EntraTokenValidator, AuthenticatedUser, exception classes
+  - Created `app/tests/test_entra.py` - 28 comprehensive tests for auth module
+  - Updated `app/pyproject.toml` - Added pyjwt, cryptography, httpx dependencies
+  - Updated `app/uv.lock` - Locked new dependencies
+- **Learnings:**
+  - Use PyJWT with PyJWKClient for JWKS-based token validation
+  - Azure Entra ID v2.0 issuer format: `https://login.microsoftonline.{tld}/{tenant}/v2.0`
+  - Government cloud uses `.us` TLD, commercial uses `.com`
+  - Cache PyJWKClient to avoid fetching JWKS on every request (use lifespan param)
+  - Use dataclass for AuthenticatedUser to hold parsed claims
+  - Always verify: signature, exp, nbf, iat, aud, iss
+  - Use `@lru_cache` on get_entra_validator() for singleton pattern
 ---
