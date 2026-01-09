@@ -9,10 +9,17 @@ Features:
 - Transcription history storage in Cosmos DB
 - Azure Entra ID authentication
 - Health check and monitoring endpoints
+- React frontend served as static files
 """
 
-from fastapi import FastAPI
+import os
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from api import auth_router, health_router, transcribe_router, transcriptions_router
 
@@ -131,11 +138,46 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+# CORS configuration for development mode
+# In production, the React app is served from the same origin
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Override OpenAPI schema with custom version
 app.openapi = custom_openapi  # type: ignore[method-assign]
 
-# Include routers
+# Include API routers
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(transcribe_router)
 app.include_router(transcriptions_router)
+
+# Static files and SPA routing
+# Check if frontend dist directory exists (production build)
+STATIC_DIR = Path(__file__).parent / "static"
+
+if STATIC_DIR.exists():
+    # Serve static assets (JS, CSS, images, etc.)
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+    
+    # Catch-all route for SPA - must be defined after all API routes
+    @app.get("/{full_path:path}")
+    async def serve_spa(request: Request, full_path: str) -> FileResponse:
+        """Serve React SPA for all non-API routes.
+        
+        This enables client-side routing by returning index.html for all paths
+        that don't match API endpoints or static assets.
+        """
+        # Check if requesting a specific file
+        file_path = STATIC_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        
+        # Return index.html for SPA routing
+        return FileResponse(STATIC_DIR / "index.html")
