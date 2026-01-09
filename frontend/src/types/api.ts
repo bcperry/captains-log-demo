@@ -60,6 +60,7 @@ export interface TranscriptionListResponse {
 export interface DependencyStatus {
   name: string
   healthy: boolean
+  configured?: boolean
   message?: string
 }
 

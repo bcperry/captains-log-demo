@@ -25,6 +25,7 @@ class DependencyStatus(BaseModel):
 
     name: str = Field(..., description="Name of the dependency")
     healthy: bool = Field(..., description="Whether the dependency is healthy")
+    configured: bool = Field(default=True, description="Whether the dependency is configured")
     message: Optional[str] = Field(default=None, description="Status message or error")
 
 
@@ -64,6 +65,7 @@ def check_cosmos_health() -> DependencyStatus:
             return DependencyStatus(
                 name="cosmos_db",
                 healthy=True,
+                configured=False,
                 message="Using in-memory storage (Cosmos DB not configured)",
             )
 
@@ -72,12 +74,14 @@ def check_cosmos_health() -> DependencyStatus:
             return DependencyStatus(
                 name="cosmos_db",
                 healthy=True,
+                configured=True,
                 message="Cosmos DB configured",
             )
         else:
             return DependencyStatus(
                 name="cosmos_db",
                 healthy=True,
+                configured=False,
                 message="Using in-memory fallback",
             )
     except Exception as e:
@@ -85,6 +89,7 @@ def check_cosmos_health() -> DependencyStatus:
         return DependencyStatus(
             name="cosmos_db",
             healthy=False,
+            configured=True,
             message=str(e),
         )
 
@@ -100,8 +105,9 @@ def check_speech_health() -> DependencyStatus:
         if not settings.is_speech_configured():
             return DependencyStatus(
                 name="speech_services",
-                healthy=True,
-                message="Speech Services not configured (optional)",
+                healthy=False,
+                configured=False,
+                message="Not configured (AZURE_SPEECH_KEY not set)",
             )
 
         client = get_speech_client()
@@ -109,12 +115,14 @@ def check_speech_health() -> DependencyStatus:
             return DependencyStatus(
                 name="speech_services",
                 healthy=True,
+                configured=True,
                 message="Speech Services available",
             )
         else:
             return DependencyStatus(
                 name="speech_services",
                 healthy=False,
+                configured=True,
                 message="Speech Services unavailable",
             )
     except Exception as e:
@@ -122,6 +130,7 @@ def check_speech_health() -> DependencyStatus:
         return DependencyStatus(
             name="speech_services",
             healthy=False,
+            configured=True,
             message=str(e),
         )
 
