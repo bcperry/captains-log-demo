@@ -429,3 +429,32 @@ Started: 2024-01-15
   - Mock httpx.Client methods for API client testing
   - Test API error handling separately from Streamlit integration
 ---
+
+## 2026-01-09 - US-020
+- What was implemented: Streamlit deployment and containerization
+- Files changed:
+  - Created `Dockerfile.streamlit` - Multi-stage Docker build for Streamlit
+  - Updated `infra/resources.bicep` - Added Streamlit Container App resource
+  - Updated `.github/workflows/ci-cd.yml` - Added Streamlit Docker image build
+- **Dockerfile Features:**
+  - Multi-stage build (builder + runtime stages) for optimized image
+  - Non-root user (appuser) for security
+  - Health check using Streamlit's built-in `/_stcore/health` endpoint
+  - Environment variables: BACKEND_API_URL, STREAMLIT_SERVER_PORT, etc.
+  - Uses uv for package management
+- **Bicep Updates:**
+  - Added `streamlitContainerImage` parameter
+  - Added `streamlitContainerApp` Container App resource
+  - Configured liveness and readiness probes
+  - Added STREAMLIT_APP_URL and STREAMLIT_APP_NAME outputs
+  - Streamlit app connects to FastAPI via BACKEND_API_URL
+- **CI/CD Updates:**
+  - Build both FastAPI and Streamlit Docker images
+  - Separate build steps for each image
+- **Learnings:**
+  - Streamlit's built-in health endpoint: `/_stcore/health`
+  - Container Apps use `probes` with `httpGet` for health checks
+  - Use separate Container Apps for frontend and backend (microservices)
+  - Pass backend URL as environment variable to Streamlit container
+  - Multi-stage Docker builds reduce image size significantly
+---

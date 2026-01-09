@@ -11,6 +11,9 @@ param principalId string
 @description('Container image reference for the web application')
 param containerImage string = ''
 
+@description('Container image reference for the Streamlit frontend application')
+param streamlitContainerImage string = ''
+
 @description('Azure Entra ID tenant ID for authentication')
 param entraIdTenantId string = ''
 
@@ -204,6 +207,10 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' =
 var defaultImage = '${containerRegistry.properties.loginServer}/web:latest'
 var actualContainerImage = !empty(containerImage) ? containerImage : defaultImage
 
+// Default Streamlit image
+var defaultStreamlitImage = '${containerRegistry.properties.loginServer}/streamlit:latest'
+var actualStreamlitImage = !empty(streamlitContainerImage) ? streamlitContainerImage : defaultStreamlitImage
+
 // Log Analytics Workspace for Container Apps
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
@@ -337,6 +344,83 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_CLIENT_ID'
               value: userAssignedIdentity.properties.clientId
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 3
+      }
+    }
+  }
+}
+
+// Azure Container App for hosting the Streamlit frontend application
+resource streamlitContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: '${abbrs.appContainerApps}stl-${resourceToken}'
+  location: location
+  tags: union(allTags, { 'azd-service-name': 'streamlit' })
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${userAssignedIdentity.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: containerAppsEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 8501
+        transport: 'auto'
+        allowInsecure: false
+      }
+      registries: [
+        {
+          server: containerRegistry.properties.loginServer
+          identity: userAssignedIdentity.id
+        }
+      ]
+      secrets: []
+    }
+    template: {
+      containers: [
+        {
+          name: 'streamlit'
+          image: actualStreamlitImage
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            {
+              name: 'BACKEND_API_URL'
+              value: 'https://${containerApp.properties.configuration.ingress.fqdn}'
+            }
+            {
+              name: 'AZURE_CLOUD'
+              value: azureCloud
+            }
+          ]
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/_stcore/health'
+                port: 8501
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 30
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/_stcore/health'
+                port: 8501
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
             }
           ]
         }
@@ -511,6 +595,10 @@ output AZURE_COSMOS_DATABASE string = cosmosDbDatabase.name
 output CONTAINER_APP_URL string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
 output CONTAINER_APP_NAME string = containerApp.name
 output CONTAINER_ENVIRONMENT_NAME string = containerAppsEnvironment.name
+
+// Streamlit Container App outputs
+output STREAMLIT_APP_URL string = 'https://${streamlitContainerApp.properties.configuration.ingress.fqdn}'
+output STREAMLIT_APP_NAME string = streamlitContainerApp.name
 
 // Container Registry outputs
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.name
