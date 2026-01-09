@@ -183,8 +183,8 @@
         "Deployment validation and smoke tests"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Created .github/workflows/ci-cd.yml with build/test, Docker build, Azure Commercial auto-deploy, and Azure Government manual deploy. Uses OIDC federated credentials. Smoke tests hit /health endpoint. Documentation in docs/ci-cd-setup.md."
     },
     {
       "id": "US-013",

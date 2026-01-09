@@ -288,3 +288,20 @@ Started: 2024-01-15
   - Group related tests into classes (TestAuthenticationFlow, TestUserIsolation, etc.)
   - Integration tests should test complete workflows, not individual functions
 ---
+
+## 2026-01-09 - US-012
+- What was implemented: CI/CD pipeline for Azure Commercial and Government deployment
+- Files changed:
+  - Created `.github/workflows/ci-cd.yml` - GitHub Actions workflow
+  - Created `docs/ci-cd-setup.md` - Setup guide for secrets and federated credentials
+- **Learnings:**
+  - Use `astral-sh/setup-uv@v4` action for fast uv installation in CI
+  - Use GitHub Environments (`commercial`, `government`) for deployment secrets
+  - OIDC federated credentials eliminate need for storing service principal secrets
+  - Use `workflow_dispatch` with `inputs` for manual deployment triggers
+  - Azure Government requires `AZURE_CLOUD: AzureUSGovernment` environment variable
+  - Use `docker/build-push-action@v6` with GitHub Actions cache for fast builds
+  - Smoke tests can hit `/health` endpoint to validate deployment
+  - Use `needs:` to chain jobs (test -> build -> deploy)
+  - Use `if:` conditions to control when deployment jobs run
+---
