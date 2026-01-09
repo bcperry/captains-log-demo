@@ -183,3 +183,18 @@ Started: 2024-01-15
   - Mock `SpeechClient` with `MagicMock(spec=SpeechClient)` for clean test mocking
   - Use `dependency_overrides` for both auth and service dependencies in tests
 ---
+
+## 2026-01-09 - US-009
+- What was implemented: Unit test suite with 93% code coverage (exceeds 80% requirement)
+- Files changed:
+  - Created `app/tests/test_cosmos.py` - 28 tests for Cosmos DB client
+  - Updated `app/pyproject.toml` - Added coverage omit for app.py (Streamlit)
+- **Learnings:**
+  - Use `[tool.coverage.run]` in pyproject.toml to configure coverage exclusions
+  - Exclude non-API files (like Streamlit app.py) from coverage to focus on FastAPI API code
+  - Use `get_cosmos_client.cache_clear()` to reset LRU cache in tests
+  - Test both configured and unconfigured states for clients with Settings
+  - Use `autouse=True` fixture to clear in-memory storage before each test
+  - AsyncIO tests need `@pytest.mark.asyncio` decorator
+  - Mock `get_settings` with `patch()` to test different configuration scenarios
+---
