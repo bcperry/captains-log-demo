@@ -881,3 +881,25 @@ Started: 2024-01-15
 - **Learnings:**
   - Swagger UI verification duplicates US-031 scope
 ---
+
+## 2026-01-09 - US-039
+- What was implemented: Consolidated .env files into single root location
+- Files changed:
+  - Created `.env.example` at project root with all backend and frontend variables
+  - Updated `app/config/settings.py` to load from project root using `Path(__file__).resolve().parent.parent.parent`
+  - Updated `frontend/vite.config.ts` with `envDir: path.resolve(__dirname, '..')`
+  - Updated `Dockerfile` to copy root .env.example for frontend build
+  - Updated `README.md` with consolidated setup instructions
+  - Updated `DEPLOYMENT.md` with unified .env configuration
+  - Deleted `app/.env.example` and `frontend/.env.example`
+- **Playwright Verification:**
+  - Navigated to http://localhost:3001 - frontend loaded correctly
+  - Navigated to http://localhost:8001/docs - Swagger UI loaded
+  - Clicked Authorize button - OAuth2 modal showed correct Azure Government endpoints
+  - Screenshots taken: us039-frontend-verification.png, us039-swagger-ui.png
+- **Learnings:**
+  - Vite uses `envDir` config option to specify where to load .env files from
+  - Pydantic Settings can use absolute path for env_file via `Path` resolution
+  - VITE_ prefixed variables must be duplicated for frontend (Vite only exposes VITE_ prefixed vars)
+  - Backend and frontend can share same .env file with proper prefixing
+---
