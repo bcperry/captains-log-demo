@@ -124,8 +124,8 @@
         "pytest tests pass"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed. Added TranscriptionRecord model with user_id partition key. Created GET /transcriptions and GET /transcriptions/{id} endpoints. Updated POST /transcribe to store results. Added InMemory storage for dev/test. 15 tests added."
     },
     {
       "id": "US-009",
