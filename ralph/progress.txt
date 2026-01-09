@@ -669,3 +669,25 @@ Started: 2024-01-15
 - GitHub Actions caches npm packages using cache-dependency-path
 - Frontend and backend tests run in parallel for faster CI
 - Smoke tests remain unchanged (check /health endpoint)
+
+## 2026-01-09 - Enhancement: fastapi-azure-auth integration
+- What was implemented: Added fastapi-azure-auth library for OAuth2 Swagger UI integration
+- Files changed:
+  - Created `app/auth/azure_auth.py` - Azure auth scheme with Government cloud support
+  - Updated `app/auth/__init__.py` - Export new azure_auth functions
+  - Updated `app/config/settings.py` - Added openapi_client_id, api_scope properties
+  - Updated `app/main.py` - OAuth2 Swagger UI configuration with lifespan manager
+  - Updated `app/.env.example` - New OPENAPI_CLIENT_ID and CORS_ORIGINS settings
+  - Updated `app/pyproject.toml` - Added fastapi-azure-auth>=5.2.0 dependency
+  - Created `app/tests/test_azure_auth.py` - 19 comprehensive tests
+- **Learnings:**
+  - `fastapi-azure-auth` SingleTenantAzureAuthorizationCodeBearer handles OAuth2 + PKCE
+  - For Azure Government, must override: openapi_authorization_url, openapi_token_url
+  - Also must set scheme.openid_config.config_url for Government OpenID discovery
+  - Use lifespan context manager to load OpenID config on startup
+  - swagger_ui_init_oauth enables Authorize button in Swagger UI
+  - swagger_ui_oauth2_redirect_url="/oauth2-redirect" required for OAuth callback
+  - Library provides User object with claims in request.state.user
+  - Can coexist with custom EntraTokenValidator for backward compatibility
+  - Scope format: api://<client_id>/user_impersonation
+---
