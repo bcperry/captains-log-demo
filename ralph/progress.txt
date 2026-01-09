@@ -713,3 +713,26 @@ Started: 2024-01-15
   - Use get_azure_scheme_dependency() pattern for lazy initialization
   - Tests must mock get_current_user_azure, not get_current_user for new flow
 ---
+
+## 2026-01-09 - US-031 (Fixed)
+- What was fixed: get_current_user_azure was failing with "missing required positional argument: security_scopes"
+- Root cause: Calling azure_scheme(request) directly without SecurityScopes argument
+- Fix applied:
+  - Updated `app/auth/dependencies.py` - Call azure_scheme with SecurityScopes(scopes=[])
+  - Added type annotations for _create_azure_user_dependency() and user variable
+- **Playwright Verification:**
+  - Navigated to http://127.0.0.1:8000/docs
+  - Verified Authorize button visible in Swagger UI
+  - Clicked Authorize button, verified OAuth2 modal appears
+  - Modal shows: AzureAD_PKCE_single_tenant scheme
+  - Authorization URL: https://login.microsoftonline.us (Azure Government)
+  - Token URL: https://login.microsoftonline.us (Azure Government)
+  - client_id pre-populated, client_secret blank (PKCE)
+  - Scopes: api://<client_id>/user_impersonation with checkbox
+  - Screenshot taken as evidence
+- **Learnings:**
+  - SingleTenantAzureAuthorizationCodeBearer.__call__ requires security_scopes parameter
+  - Use SecurityScopes(scopes=[]) when calling scheme directly outside of FastAPI's Security() wrapper
+  - Backend .env needs AZURE_TENANT_ID and AZURE_CLIENT_ID (not VITE_ prefix)
+  - Type annotations: use `user: AuthenticatedUser = request.state.user` to avoid Any return type
+---

@@ -590,11 +590,12 @@
         "Backward compatible with React frontend MSAL authentication",
         "mypy type checking passes",
         "pytest tests pass with mocked authentication",
-        "Application loads without errors when started with uvicorn"
+        "Application loads without errors when started with uvicorn",
+        "PLAYWRIGHT VERIFICATION: Navigate to /docs, click Authorize button, verify OAuth2 modal appears"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed 2026-01-09 - Security(azure_scheme) at router level, get_current_user_azure dependency, OAuth2 PKCE flow"
+      "notes": "Playwright MCP E2E verification completed 2026-01-09 - OAuth2 Authorize button works in Swagger UI"
     }
   ]
 }

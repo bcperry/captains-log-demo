@@ -13,7 +13,7 @@ The modern approach (get_current_user_azure) is preferred as it provides:
 - Better integration with fastapi-azure-auth library features
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import Depends, Header, HTTPException, Request, Security, status
 
@@ -146,6 +146,24 @@ def get_azure_scheme_dependency():  # type: ignore[no-untyped-def]
     return get_azure_scheme()
 
 
+def _create_azure_user_dependency() -> Any:
+    """Create a dependency function that uses Security() with azure_scheme.
+
+    This factory returns a dependency that properly integrates with FastAPI's
+    Security() wrapper, which provides the security_scopes argument that
+    SingleTenantAzureAuthorizationCodeBearer requires.
+
+    Returns:
+        A dependency function or None if Azure auth is not configured.
+    """
+    azure_scheme = get_azure_scheme_dependency()
+    if azure_scheme is None:
+        return None
+
+    # Return the scheme itself - it will be wrapped with Security() when used
+    return azure_scheme
+
+
 async def get_current_user_azure(
     request: Request,
 ) -> AuthenticatedUser:
@@ -154,18 +172,28 @@ async def get_current_user_azure(
     This is the preferred authentication method as it provides full OAuth2
     Authorization Code flow with PKCE support in Swagger UI.
 
-    The azure_scheme validates the Bearer token using fastapi-azure-auth library,
-    which handles JWKS caching and OpenID configuration automatically.
+    IMPORTANT: This dependency should be used AFTER Security(azure_scheme) has
+    been applied at the router level. The Security() dependency handles token
+    validation and makes the user available via request.state.user.
+
+    When azure_scheme is not configured, this falls back to returning a 401.
 
     Args:
-        request: FastAPI request object for storing user in state
+        request: FastAPI request object containing user from Security() dependency
 
     Returns:
         AuthenticatedUser: Authenticated user with claims extracted from token
 
     Raises:
-        HTTPException: 401 Unauthorized if authentication is not configured
+        HTTPException: 401 Unauthorized if authentication is not configured or no user
     """
+    # Check if user was already set by Security(azure_scheme) at router level
+    if hasattr(request.state, "user") and request.state.user is not None:
+        user: AuthenticatedUser = request.state.user
+        return user
+
+    # Try to get user from fastapi-azure-auth User if set
+    # This happens when Security(azure_scheme) is used
     azure_scheme = get_azure_scheme_dependency()
     if azure_scheme is None:
         raise HTTPException(
@@ -174,10 +202,23 @@ async def get_current_user_azure(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Call the azure_scheme as a dependency - it validates the token and returns User
-    from fastapi_azure_auth.user import User
+    # Extract token from Authorization header and validate manually
+    # This is needed when the dependency is called directly without Security() wrapper
+    from fastapi.security import SecurityScopes
 
-    azure_user: User = await azure_scheme(request)
+    try:
+        # Call the scheme with an empty SecurityScopes - token validation happens here
+        azure_user = await azure_scheme(request, SecurityScopes(scopes=[]))
+    except HTTPException:
+        # Re-raise HTTP exceptions (401, 403, etc)
+        raise
+    except Exception as e:
+        # Any other error during token validation
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token validation failed: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
     # Convert fastapi-azure-auth User to our AuthenticatedUser for compatibility
     user = AuthenticatedUser(
