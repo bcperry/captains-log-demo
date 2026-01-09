@@ -1050,3 +1050,32 @@ Started: 2024-01-15
   - Container App env vars use object format with name/value pairs
   - App Service appsettings use simple key:value format
 ---
+
+## 2026-01-09 - US-046
+- What was implemented: Save uploaded audio files to Azure Blob Storage
+- Files changed:
+  - `app/pyproject.toml` - Added azure-storage-blob>=12.19.0 dependency
+  - `app/config/settings.py` - Added storage configuration (AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_CONTAINER, etc.)
+  - `app/storage/__init__.py` - Storage module exports
+  - `app/storage/blob.py` - BlobStorageClient with upload, SAS URL generation, and InMemory fallback
+  - `app/models/transcription.py` - Added blob_url field to TranscriptionRecord
+  - `app/api/transcribe.py` - Updated /transcribe endpoint to save file to blob before processing
+  - `app/tests/test_blob_storage.py` - 26 tests for blob storage module
+  - `.env.example` - Added storage configuration documentation
+- **Playwright Verification:**
+  - Navigated to /docs (Swagger UI)
+  - Verified TranscriptionRecord schema shows blob_url field
+  - Confirmed blob_url description: "URL of the audio file in Blob Storage"
+  - Screenshot taken as evidence
+- **Learnings:**
+  - Use azure-storage-blob SDK with BlobServiceClient for Azure Blob operations
+  - Support both connection string and managed identity (DefaultAzureCredential) auth
+  - Use generate_blob_sas() for SAS token generation with connection string
+  - Use user delegation key for SAS generation with managed identity
+  - Azure Government blob endpoint: `.blob.core.usgovcloudapi.net`
+  - Commercial blob endpoint: `.blob.core.windows.net`
+  - Store blob metadata (user_id, audio_format, upload_timestamp) for ownership tracking
+  - Generate unique blob names: `{user_id}/{timestamp}_{uuid}.{extension}`
+  - Set content type based on audio format (audio/wav, audio/mpeg, audio/mp4)
+  - InMemoryBlobClient pattern useful for testing without real Azure resources
+---
