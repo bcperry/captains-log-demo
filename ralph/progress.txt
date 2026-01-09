@@ -984,3 +984,19 @@ Started: 2024-01-15
   - Frontend uses `speechDep.healthy` to determine green vs red status display
   - Pydantic Settings loads from .env file even when env var is unset - use explicit empty string to override
 ---
+
+## 2026-01-09 - US-043
+- What was implemented: Added branded favicon and page title for Captain's Log
+- Files changed:
+  - `frontend/index.html` - Updated title from "frontend" to "Captain's Log", changed favicon path to /favicon.svg
+  - `frontend/public/favicon.svg` - Created branded ship's wheel (helm) icon with blue gradient theme
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000/
+  - Interactions verified: Page loaded, title confirmed as "Captain's Log"
+  - Screenshots taken: us043-captains-log-title.png
+  - Favicon served correctly at /favicon.svg with Content-Type: image/svg+xml
+- **Learnings:**
+  - Vite serves files from `public/` directory at root path (e.g., public/favicon.svg → /favicon.svg)
+  - SVG favicons work well with modern browsers and allow for scalable, crisp icons
+  - Ship's wheel (helm) icon represents nautical/captain theme matching the app branding
+---
