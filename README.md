@@ -2,28 +2,37 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Azure](https://img.shields.io/badge/Azure-Speech%20%26%20OpenAI-blue)](https://azure.microsoft.com/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red)](https://streamlit.io/)
+[![React](https://img.shields.io/badge/React-19+-blue)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.128+-green)](https://fastapi.tiangolo.com/)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue)](https://www.python.org/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
-A modern, AI-powered audio transcription and analysis application built with Streamlit, Azure Speech Services, and Azure OpenAI. Perfect for transcribing meetings, interviews, lectures, and other audio content with intelligent summarization and action item extraction.
+A modern, AI-powered audio transcription and analysis application built with React, FastAPI, Azure Speech Services, and Azure OpenAI. Perfect for transcribing meetings, interviews, lectures, and other audio content with intelligent summarization and action item extraction.
 
 ## ✨ Features
 
 - 🎯 **High-Quality Audio Transcription** - Powered by Azure Speech Services with support for multiple languages
 - 🤖 **AI-Powered Analysis** - Intelligent summarization and action item extraction using Azure OpenAI
 - ⏱️ **Flexible Duration Control** - Transcribe full audio or select specific time ranges
-- 🔒 **Enterprise Security** - Built for Azure Government and Commercial clouds with managed identity support
+- 🔒 **Enterprise Security** - Azure Entra ID authentication with Azure Government support
 - 📊 **Real-time Statistics** - Processing time, word count, and confidence metrics
 - 💾 **Multiple Export Formats** - Download as TXT, JSON, or comprehensive analysis reports
-- 🎨 **Modern Web Interface** - Clean, responsive UI built with Streamlit
-- 🚀 **Easy Deployment** - Ready for Azure App Service with Docker support
+- 🎨 **Modern Web Interface** - Clean, responsive React UI with Tailwind CSS
+- 🚀 **Easy Deployment** - Ready for Azure Container Apps with Docker support
+
+## 🏗️ Architecture
+
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
+- **Backend**: FastAPI + Python 3.11+
+- **Authentication**: Azure Entra ID (MSAL)
+- **Services**: Azure Speech Services, Azure OpenAI, Azure Cosmos DB
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.11 or higher
+- Node.js 22 or higher
 - Azure subscription with Speech Services and OpenAI resources
 - FFmpeg (for audio processing)
 
@@ -40,31 +49,51 @@ A modern, AI-powered audio transcription and analysis application built with Str
    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
 
-3. **Install dependencies**
+3. **Install backend dependencies**
    ```bash
    cd app
    uv sync
    ```
 
 4. **Set up environment variables**
-   Create a `.env` file in the `.azure/captainslog/` directory:
+   Create a `.env` file in the `app/` directory:
    ```env
    AZURE_SPEECH_KEY=your_speech_service_key
    AZURE_SPEECH_REGION=your_speech_region
-   AZURE_SPEECH_ENDPOINT=your_speech_endpoint
    AZURE_OPENAI_ENDPOINT=your_openai_endpoint
    AZURE_OPENAI_KEY=your_openai_key
    AZURE_OPENAI_MODEL_NAME=gpt-4
-   AZURE_OPENAI_API_VERSION=2024-02-01
+   AZURE_CLOUD=commercial  # or 'government' for Azure Government
+   AZURE_TENANT_ID=your_tenant_id
+   AZURE_CLIENT_ID=your_client_id
    ```
 
-5. **Run the application**
+5. **Run the backend**
    ```bash
    cd app
-   uv run streamlit run app.py
+   uv run uvicorn main:app --reload --port 8001
    ```
 
-6. **Open your browser** to `http://localhost:8501`
+6. **Install frontend dependencies**
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+7. **Configure frontend environment**
+   Create a `.env` file in the `frontend/` directory:
+   ```env
+   VITE_AZURE_CLIENT_ID=your_client_id
+   VITE_AZURE_TENANT_ID=your_tenant_id
+   VITE_AZURE_CLOUD=commercial
+   ```
+
+8. **Run the frontend**
+   ```bash
+   npm run dev
+   ```
+
+9. **Open your browser** to `http://localhost:3000`
 
 ### Using Docker
 
@@ -75,7 +104,7 @@ A modern, AI-powered audio transcription and analysis application built with Str
 
 2. **Run the container**
    ```bash
-   docker run -p 8501:8501 --env-file .env captains-log
+   docker run -p 8001:8001 --env-file .env captains-log
    ```
 
 ## ☁️ Azure Deployment
@@ -98,24 +127,10 @@ A modern, AI-powered audio transcription and analysis application built with Str
    ```
 
 This will:
-- Create necessary Azure resources (App Service, Speech Services, OpenAI)
-- Deploy the application
+- Create necessary Azure resources (Container Apps, Speech Services, OpenAI)
+- Build and deploy the application
 - Configure environment variables
-- Set up managed identity authentication
-
-### Manual Azure Setup
-
-1. **Create Azure Resources**
-   - Speech Services resource
-   - OpenAI resource
-   - App Service or Container App
-   - Key Vault (recommended for secrets)
-
-2. **Configure Environment Variables**
-   Set the required environment variables in your Azure App Service configuration.
-
-3. **Deploy Application**
-   Use the included Bicep templates or deploy directly via Azure CLI.
+- Set up Azure Entra ID authentication
 
 ## 📋 Supported Audio Formats
 
@@ -134,27 +149,50 @@ This will:
 |----------|-------------|----------|
 | `AZURE_SPEECH_KEY` | Azure Speech Services API key | Yes |
 | `AZURE_SPEECH_REGION` | Azure region (e.g., eastus) | Yes |
-| `AZURE_SPEECH_ENDPOINT` | Speech service endpoint | Yes |
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint | Yes |
 | `AZURE_OPENAI_KEY` | Azure OpenAI API key | Yes |
 | `AZURE_OPENAI_MODEL_NAME` | Model name (e.g., gpt-4) | Yes |
-| `AZURE_OPENAI_API_VERSION` | API version | Yes |
+| `AZURE_CLOUD` | Cloud type: 'commercial' or 'government' | Yes |
+| `AZURE_TENANT_ID` | Azure Entra ID tenant ID | Yes |
+| `AZURE_CLIENT_ID` | Azure Entra ID client ID | Yes |
 
 ### Azure Government Support
 
-The application automatically detects and configures for Azure Government clouds:
+The application automatically configures for Azure Government clouds:
 - Uses `*.speech.azure.us` endpoints
-- Supports government-specific authentication
-- Maintains compliance requirements
+- Uses `login.microsoftonline.us` for authentication
+- Supports government-specific compliance requirements
 
+## 🧪 Testing
+
+### Backend Tests
+```bash
+cd app
+uv run pytest tests/ -v
+```
+
+### Frontend Tests
+```bash
+cd frontend
+npm run test
+```
+
+### Test Coverage
+```bash
+# Backend
+uv run pytest tests/ --cov
+
+# Frontend
+npm run test -- --coverage
+```
 
 ## 🔐 Security Features
 
-- **Managed Identity** - Secure authentication without storing credentials
-- **Environment Variables** - Sensitive data stored securely
-- **Azure Key Vault** - Integration ready for enterprise secrets management
+- **Azure Entra ID** - Enterprise SSO authentication
+- **JWT Validation** - Secure token verification
+- **CORS Configuration** - Controlled cross-origin access
+- **Managed Identity** - Secure Azure resource access
 - **HTTPS Only** - Secure communication in production
-- **No Data Persistence** - Audio files are processed in memory only
 
 ## 🐛 Troubleshooting
 
@@ -165,26 +203,17 @@ The application automatically detects and configures for Azure Government clouds
    - Check audio format compatibility
 
 2. **Authentication errors**
-   - Verify Azure Speech service key and region
-   - Check OpenAI endpoint and API key
-   - Ensure managed identity is properly configured
+   - Verify Azure Entra ID configuration
+   - Check client ID and tenant ID
+   - Ensure redirect URI is configured correctly
 
-3. **Format issues**
-   - Try converting audio to WAV format
-   - Check if FFmpeg is properly installed
-   - Ensure file size is within limits
+3. **API connection errors**
+   - Check if backend is running on port 8001
+   - Verify CORS configuration
 
 4. **Long processing times**
    - Large files take more time to process
    - Consider using duration limits for testing
-   - Check Azure service quotas
-
-### Debug Mode
-
-Enable debug logging by setting:
-```env
-STREAMLIT_LOGGER_LEVEL=DEBUG
-```
 
 ## 🤝 Contributing
 
@@ -202,10 +231,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **Microsoft Azure** - For providing excellent Speech and OpenAI services
-- **Streamlit** - For the amazing web framework
-- **PyDub** - For audio processing capabilities
-- **Open Source Community** - For the various libraries and tools used
+- **Microsoft Azure** - For excellent Speech and OpenAI services
+- **React** - For the frontend framework
+- **FastAPI** - For the high-performance API framework
+- **Vite** - For the blazing fast build tooling
 
 ---
 

@@ -538,6 +538,28 @@
       "priority": 1,
       "passes": false,
       "notes": "Execute after US-027 (React integration) is complete and verified working"
+    },
+    {
+      "id": "US-030",
+      "title": "Enable CORS for local development",
+      "acceptanceCriteria": [
+        "FastAPI backend enables CORS middleware when running in development mode",
+        "Allow origins include localhost:5173 (Vite dev server default port)",
+        "Allow origins include localhost:3000 (common alternative dev port)",
+        "Allow credentials for authenticated requests with cookies/tokens",
+        "Allow all standard HTTP methods (GET, POST, PUT, DELETE, OPTIONS)",
+        "Allow necessary headers including Authorization and Content-Type",
+        "CORS is configurable via environment variables (CORS_ORIGINS)",
+        "CORS is disabled or restricted in production deployments",
+        "Vite frontend can successfully call FastAPI endpoints without CORS errors",
+        "Preflight OPTIONS requests are handled correctly",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Required for local development with Vite frontend running on separate port from FastAPI backend"
     }
   ]
 }

@@ -1,6 +1,6 @@
-name: captains-log-with-streamlit
+name: captains-log
 services:
-  web:
+  api:
     project: .
     language: docker
-    host: appservice
+    host: containerapp
