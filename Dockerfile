@@ -33,6 +33,9 @@ WORKDIR /app
 # Copy dependency files first for better caching
 COPY app/pyproject.toml app/uv.lock ./
 
+# Copy README.md referenced by pyproject.toml
+COPY README.md ./
+
 # Install Python dependencies using uv
 RUN uv sync --frozen --no-dev --no-editable
 

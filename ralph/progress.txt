@@ -659,3 +659,13 @@ Started: 2024-01-15
   - Use `os.getenv("CORS_ORIGINS", "default").split(",")` for list from env var
   - In production (same origin), CORS middleware has no effect but doesn't hurt
 ---
+
+## US-028: React frontend deployment and CI/CD
+- Added test-frontend job with npm ci, lint, and test steps
+- Added test-backend job (renamed from test) with uv sync and pytest
+- Removed Streamlit Docker build from CI/CD pipeline
+- Updated Docker image tag from captains-log-api to captains-log
+- Fixed .dockerignore to allow README.md (needed by pyproject.toml)
+- GitHub Actions caches npm packages using cache-dependency-path
+- Frontend and backend tests run in parallel for faster CI
+- Smoke tests remain unchanged (check /health endpoint)
