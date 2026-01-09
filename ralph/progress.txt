@@ -198,3 +198,20 @@ Started: 2024-01-15
   - AsyncIO tests need `@pytest.mark.asyncio` decorator
   - Mock `get_settings` with `patch()` to test different configuration scenarios
 ---
+
+## 2026-01-09 - US-011
+- What was implemented: Azure Government Bicep infrastructure with parameterized cloud selection
+- Files changed:
+  - Updated `infra/resources.bicep` - Added cloud-specific variables, Cosmos DB, Container Apps, compliance tags
+  - Updated `infra/main.bicep` - Added new outputs for Cosmos DB and Container Apps
+- **Learnings:**
+  - Use ternary operator for cloud-specific values: `isGovernment ? 'azure.us' : 'azure.com'`
+  - Bicep variables referencing resources must be defined AFTER the resource (ordering matters)
+  - Azure Cosmos DB serverless uses `capabilities: [{ name: 'EnableServerless' }]`
+  - Container Apps require Log Analytics workspace for logging
+  - Use `union(tags, complianceTags)` to merge base tags with compliance tags
+  - Container Apps ingress uses `targetPort: 8000` for FastAPI/uvicorn
+  - Container Apps secrets use `secretRef` in env vars to reference secret values
+  - For Government cloud, use `usgovvirginia` as the region
+  - Resource abbreviations: `cosmos-` for Cosmos DB, `cae-` for Container Apps Environment, `ca-` for Container App
+---
