@@ -30,6 +30,7 @@ var abbrs = loadJsonContent('./abbreviations.json')
 var isGovernment = azureCloud == 'government'
 var cognitiveServicesEndpointSuffix = isGovernment ? 'azure.us' : 'azure.com'
 var cosmosDbEndpointSuffix = isGovernment ? 'azure.us' : 'azure.com'
+var blobEndpointSuffix = isGovernment ? 'core.usgovcloudapi.net' : 'core.windows.net'
 var azureRegion = isGovernment ? 'usgovvirginia' : location
 
 // Compliance tags for Azure Government
@@ -143,6 +144,53 @@ resource azureSpeechService 'Microsoft.CognitiveServices/accounts@2024-10-01' = 
   properties: {
     customSubDomainName: '${abbrs.cognitiveServicesAccounts}speech${resourceToken}'
     publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Azure Storage Account for audio file uploads
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+  name: '${abbrs.storageStorageAccounts}${resourceToken}'
+  location: azureRegion
+  tags: allTags
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'  // Use Standard_GRS for production geo-redundancy
+  }
+  properties: {
+    accessTier: 'Hot'
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: true  // Required for connection string auth, disable when using managed identity only
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    networkAcls: {
+      defaultAction: 'Allow'
+      bypass: 'AzureServices'
+    }
+  }
+}
+
+// Blob service configuration
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+    isVersioningEnabled: true  // Enable versioning for audit trail
+  }
+}
+
+// Container for audio file uploads
+resource audioUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'audio-uploads'
+  properties: {
+    publicAccess: 'None'
+    metadata: {
+      purpose: 'audio-file-uploads-for-batch-transcription'
+    }
   }
 }
 
@@ -338,6 +386,18 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_CLIENT_ID'
               value: userAssignedIdentity.properties.clientId
             }
+            {
+              name: 'AZURE_STORAGE_ACCOUNT'
+              value: storageAccount.name
+            }
+            {
+              name: 'AZURE_STORAGE_CONTAINER'
+              value: audioUploadsContainer.name
+            }
+            {
+              name: 'AZURE_STORAGE_ENDPOINT'
+              value: 'https://${storageAccount.name}.blob.${blobEndpointSuffix}'
+            }
           ]
         }
       ]
@@ -422,6 +482,9 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       AZURE_COSMOS_ENDPOINT: cosmosDbAccount.properties.documentEndpoint
       AZURE_COSMOS_KEY: cosmosDbAccount.listKeys().primaryMasterKey
       AZURE_COSMOS_DATABASE: cosmosDbDatabase.name
+      AZURE_STORAGE_ACCOUNT: storageAccount.name
+      AZURE_STORAGE_CONTAINER: audioUploadsContainer.name
+      AZURE_STORAGE_ENDPOINT: 'https://${storageAccount.name}.blob.${blobEndpointSuffix}'
     }
   }
 }
@@ -481,6 +544,28 @@ resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-
   }
 }
 
+// Role assignment for Storage Blob Data Contributor access from user account
+resource storageBlobDataContributorForUser 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  scope: storageAccount
+  name: guid(storageAccount.id, principalId, resourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'))
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor
+    principalId: principalId
+    principalType: 'User'
+  }
+}
+
+// Role assignment for Storage Blob Data Contributor access from app service managed identity
+resource storageBlobDataContributorForAppService 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  scope: storageAccount
+  name: guid(storageAccount.id, userAssignedIdentity.id, resourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'))
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor
+    principalId: userAssignedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Optional: Configure Azure Entra ID authentication on App Service
 module entraAuth 'entra-auth.bicep' = if (enableEntraAuth && !empty(entraIdTenantId) && !empty(entraIdClientId)) {
   name: 'entra-auth'
@@ -515,3 +600,8 @@ output CONTAINER_ENVIRONMENT_NAME string = containerAppsEnvironment.name
 // Container Registry outputs
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.name
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.properties.loginServer
+
+// Storage Account outputs
+output AZURE_STORAGE_ACCOUNT string = storageAccount.name
+output AZURE_STORAGE_CONTAINER string = audioUploadsContainer.name
+output AZURE_STORAGE_ENDPOINT string = 'https://${storageAccount.name}.blob.${blobEndpointSuffix}'
