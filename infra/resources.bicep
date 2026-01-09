@@ -11,6 +11,19 @@ param principalId string
 @description('Container image reference for the web application')
 param containerImage string = ''
 
+@description('Azure Entra ID tenant ID for authentication')
+param entraIdTenantId string = ''
+
+@description('Azure Entra ID client ID (application ID) from app registration')
+param entraIdClientId string = ''
+
+@description('Azure cloud environment for Entra ID endpoints')
+@allowed(['commercial', 'government'])
+param azureCloud string = 'government'
+
+@description('Enable Azure Entra ID authentication on App Service')
+param enableEntraAuth bool = false
+
 var abbrs = loadJsonContent('./abbreviations.json')
 
 // Use our container registry if no image is provided
@@ -227,6 +240,17 @@ resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull role
     principalId: userAssignedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// Optional: Configure Azure Entra ID authentication on App Service
+module entraAuth 'entra-auth.bicep' = if (enableEntraAuth && !empty(entraIdTenantId) && !empty(entraIdClientId)) {
+  name: 'entra-auth'
+  params: {
+    appServiceName: appService.name
+    tenantId: entraIdTenantId
+    clientId: entraIdClientId
+    azureCloud: azureCloud
   }
 }
 
