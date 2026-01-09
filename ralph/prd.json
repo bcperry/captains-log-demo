@@ -560,6 +560,41 @@
       "priority": 1,
       "passes": true,
       "notes": "Completed 2026-01-09 - CORS middleware with explicit methods/headers, configurable via env"
+    },
+    {
+      "id": "US-031",
+      "title": "Modernize FastAPI authentication with fastapi-azure-auth",
+      "acceptanceCriteria": [
+        "Replace custom EntraTokenValidator with fastapi-azure-auth library",
+        "Implement SingleTenantAzureAuthorizationCodeBearer for token validation",
+        "Support OAuth2 Authorization Code Flow with PKCE",
+        "Configure proper scopes for API access (api://<client_id>/user_impersonation)",
+        "Swagger UI /docs displays working Authorize button that opens OAuth2 modal dialog",
+        "OAuth2 modal shows client_id field (pre-populated), client_secret field (optional), and scope checkboxes",
+        "Clicking Authorize in modal redirects to Microsoft login page",
+        "After Microsoft login, user is redirected back and token is stored in Swagger UI session",
+        "Authenticated requests from Swagger UI automatically include Bearer token",
+        "OpenAPI configuration includes OAuth2 redirect URL (/oauth2-redirect)",
+        "Support Azure Government cloud endpoints via configuration",
+        "Patch fastapi-azure-auth to replace hardcoded microsoft.com token URLs with configurable endpoints",
+        "Token URL and authorization URL must use login.microsoftonline.us for Azure Gov",
+        "Extract user claims (oid, email, name, preferred_username) from validated tokens",
+        "JWKS key caching handled automatically by the library",
+        "Token validation happens on app startup via load_config()",
+        "Protected routes use Security() dependency with azure_scheme",
+        "User object accessible via Depends(azure_scheme) in route handlers",
+        "Environment variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET",
+        "Environment variable AZURE_CLOUD to switch between commercial and government",
+        "Optional: OPENAPI_CLIENT_ID for separate Swagger UI client app",
+        "Graceful error handling with proper 401 responses",
+        "Backward compatible with React frontend MSAL authentication",
+        "mypy type checking passes",
+        "pytest tests pass with mocked authentication",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed 2026-01-09 - Security(azure_scheme) at router level, get_current_user_azure dependency, OAuth2 PKCE flow"
     }
   ]
 }

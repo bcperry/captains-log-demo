@@ -5,7 +5,7 @@ Started: 2024-01-15
 - Package manager: Prefer `uv` over pip (e.g., `uv add`, `uv run`, `uv sync`)
 - Migrations: Use alembic with `op.create_table` idempotent checks
 - FastAPI: Use `Depends()` for dependency injection
-- FastAPI Auth: Use `get_current_user` dependency for protected endpoints, `request.state.user` for access
+- FastAPI Auth: Use `get_current_user_azure` dependency for OAuth2/Swagger UI, add `Security(azure_scheme)` at router level
 - Pydantic: Inherit from BaseModel, use Field() for validation
 - Async: Use `async def` with `await` for I/O operations
 - Testing: Use pytest fixtures, mock external services with `unittest.mock`
@@ -17,6 +17,7 @@ Started: 2024-01-15
 - Docker: Use multi-stage builds, copy uv from ghcr.io/astral-sh/uv:latest
 - Bicep: Use `@allowed` for param validation, conditional modules with `if (condition)`
 - Bicep Entra: Use `authsettingsV2` for App Service auth (app registrations require MS Graph API)
+- fastapi-azure-auth: Add `Security(azure_scheme)` to routes for OAuth2 OpenAPI schema generation
 
 ## Key Files
 - `app/pyproject.toml` - Project dependencies and configuration
@@ -690,4 +691,25 @@ Started: 2024-01-15
   - Library provides User object with claims in request.state.user
   - Can coexist with custom EntraTokenValidator for backward compatibility
   - Scope format: api://<client_id>/user_impersonation
+---
+
+## 2026-01-09 - US-031
+- What was implemented: Modernize FastAPI authentication with fastapi-azure-auth for working Swagger UI OAuth2
+- Files changed:
+  - Updated `app/auth/dependencies.py` - Added get_current_user_azure dependency
+  - Updated `app/auth/__init__.py` - Export get_current_user_azure
+  - Updated `app/main.py` - Add Security(azure_scheme) at router level
+  - Updated `app/api/auth.py` - Use get_current_user_azure dependency
+  - Updated `app/api/transcribe.py` - Use get_current_user_azure dependency
+  - Updated `app/api/transcriptions.py` - Use get_current_user_azure dependency
+  - Updated tests to mock get_current_user_azure instead of get_current_user
+- **Learnings:**
+  - Security(azure_scheme) MUST be added to routes for OAuth2 to appear in OpenAPI
+  - Adding dependencies at router level in include_router() is cleaner than per-route
+  - fastapi-azure-auth User object has: oid, sub, tid, name, claims dict
+  - Convert azure_user.claims.get("email") for email (not a direct attribute)
+  - The custom_openapi() should NOT override security schemes when using fastapi-azure-auth
+  - fastapi-azure-auth automatically adds OAuth2 security scheme when scheme is used
+  - Use get_azure_scheme_dependency() pattern for lazy initialization
+  - Tests must mock get_current_user_azure, not get_current_user for new flow
 ---
