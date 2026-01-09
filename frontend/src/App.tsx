@@ -1,21 +1,37 @@
+import { useState } from 'react'
 import './App.css'
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from './auth'
-import { LoginButton, Layout, AudioUpload } from './components'
+import { LoginButton, Layout, AudioUpload, TranscriptionResults } from './components'
+import type { TranscriptionResult } from './types/transcription'
 
 function App() {
+  const [transcriptionResult, setTranscriptionResult] = useState<TranscriptionResult | null>(null)
+
+  const handleTranscriptionComplete = (result: TranscriptionResult) => {
+    setTranscriptionResult(result)
+  }
+
+  const handleClear = () => {
+    setTranscriptionResult(null)
+  }
+
   return (
     <Layout>
       <AuthenticatedTemplate>
         <div className="space-y-6">
           <AudioUpload
             language="en-US"
-            onTranscriptionComplete={(result) => {
-              console.log('Transcription complete:', result)
-            }}
+            onTranscriptionComplete={handleTranscriptionComplete}
             onError={(error) => {
               console.error('Transcription error:', error)
             }}
           />
+          {transcriptionResult && (
+            <TranscriptionResults
+              transcription={transcriptionResult}
+              onClear={handleClear}
+            />
+          )}
         </div>
       </AuthenticatedTemplate>
 
