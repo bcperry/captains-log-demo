@@ -7,6 +7,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -135,6 +136,105 @@ def check_speech_health() -> DependencyStatus:
         )
 
 
+async def check_openai_health() -> DependencyStatus:
+    """Check Azure OpenAI connection health.
+
+    Verifies:
+    - Configuration is complete (endpoint, key, deployment)
+    - Endpoint is reachable via HTTP GET
+
+    Returns:
+        DependencyStatus for Azure OpenAI
+    """
+    try:
+        settings = get_settings()
+        if not settings.is_openai_configured():
+            # Determine what's missing for better error message
+            missing = []
+            if not settings.azure_openai_endpoint:
+                missing.append("AZURE_OPENAI_ENDPOINT")
+            if not settings.azure_openai_key:
+                missing.append("AZURE_OPENAI_KEY")
+            if not settings.azure_openai_deployment:
+                missing.append("AZURE_OPENAI_DEPLOYMENT")
+
+            return DependencyStatus(
+                name="azure_openai",
+                healthy=False,
+                configured=False,
+                message=f"Not configured ({', '.join(missing)} not set)",
+            )
+
+        # Test connectivity by making a lightweight API call
+        # Use the deployments endpoint to verify the endpoint is reachable
+        # These are guaranteed to be non-None after is_openai_configured() check
+        endpoint = str(settings.azure_openai_endpoint).rstrip("/")
+        api_version = settings.azure_openai_api_version
+        deployment = str(settings.azure_openai_deployment)
+        api_key = str(settings.azure_openai_key)
+        url = f"{endpoint}/openai/deployments/{deployment}?api-version={api_version}"
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                url,
+                headers={"api-key": api_key},
+            )
+
+            if response.status_code == 200:
+                return DependencyStatus(
+                    name="azure_openai",
+                    healthy=True,
+                    configured=True,
+                    message="Connection successful",
+                )
+            elif response.status_code == 401:
+                return DependencyStatus(
+                    name="azure_openai",
+                    healthy=False,
+                    configured=True,
+                    message="Invalid API key",
+                )
+            elif response.status_code == 404:
+                return DependencyStatus(
+                    name="azure_openai",
+                    healthy=False,
+                    configured=True,
+                    message=f"Deployment '{deployment}' not found",
+                )
+            else:
+                return DependencyStatus(
+                    name="azure_openai",
+                    healthy=False,
+                    configured=True,
+                    message=f"Connection failed (HTTP {response.status_code})",
+                )
+
+    except httpx.TimeoutException:
+        logger.error("Azure OpenAI health check timed out")
+        return DependencyStatus(
+            name="azure_openai",
+            healthy=False,
+            configured=True,
+            message="Connection timed out",
+        )
+    except httpx.ConnectError as e:
+        logger.error(f"Azure OpenAI connection error: {e}")
+        return DependencyStatus(
+            name="azure_openai",
+            healthy=False,
+            configured=True,
+            message="Connection failed - endpoint unreachable",
+        )
+    except Exception as e:
+        logger.error(f"Azure OpenAI health check failed: {e}")
+        return DependencyStatus(
+            name="azure_openai",
+            healthy=False,
+            configured=True,
+            message=str(e),
+        )
+
+
 @router.get(
     "/health",
     response_model=HealthResponse,
@@ -170,16 +270,22 @@ async def readiness_check() -> ReadinessResponse:
     Checks:
     - Cosmos DB connectivity
     - Azure Speech Services availability
+    - Azure OpenAI connectivity
 
     Returns:
         ReadinessResponse with dependency statuses
     """
     logger.info("Readiness check requested")
 
+    # Sync health checks
     dependencies = [
         check_cosmos_health(),
         check_speech_health(),
     ]
+
+    # Async health checks
+    openai_status = await check_openai_health()
+    dependencies.append(openai_status)
 
     # Determine overall status
     all_healthy = all(dep.healthy for dep in dependencies)
