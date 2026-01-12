@@ -1188,3 +1188,23 @@ Started: 2024-01-15
   - Pydantic Settings' `validation_alias` with `AliasChoices` allows accepting multiple env var names
   - When auth appears broken, check env var naming mismatches first
 ---
+
+## 2026-01-12 - US-052
+- What was implemented: Verified React frontend is built and served from FastAPI
+- Root cause: Implementation was already complete - Dockerfile has multi-stage build, main.py has static file serving
+- Files verified:
+  - `frontend/package.json` - Has `npm run build` script (tsc + vite build)
+  - `Dockerfile` - Multi-stage build: Node stage builds frontend, copies dist to app/static
+  - `app/main.py` - StaticFiles mount for /assets, catch-all route for SPA routing
+- Files created for local dev:
+  - `app/static/` - Copied from frontend/dist for local testing
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8001 (React app), http://localhost:8001/docs (Swagger UI)
+  - Interactions verified: Frontend loads with "Captain's Log" title, Swagger UI loads with API endpoints
+  - Screenshots taken: us052-frontend-served-from-fastapi.png, us052-swagger-ui.png
+- **Learnings:**
+  - For local development, run `npm run build` in frontend/ then copy dist to app/static
+  - Dockerfile handles this automatically during container build
+  - SPA catch-all route must be defined AFTER all API routes to avoid conflicts
+  - StaticFiles mount for /assets serves JS, CSS, and other bundled assets
+---
