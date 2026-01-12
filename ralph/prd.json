@@ -1126,8 +1126,8 @@
         "Frontend tests pass"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "BUG: When frontend is built and served from FastAPI at localhost:8000, the MSAL login redirects back to localhost:3000 (from VITE_AZURE_REDIRECT_URI). This causes login to fail because the app is not running on port 3000. The redirect URI should match the origin the user is accessing the app from."
+      "passes": true,
+      "notes": "FIXED: Updated config.ts to always use window.location.origin for redirect URI instead of relying on environment variable. This ensures login redirects to the correct port dynamically - port 8000 for FastAPI or port 3000 for dev server. Verified with Playwright E2E testing."
     }
   ]
 }

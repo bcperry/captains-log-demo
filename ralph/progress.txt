@@ -1245,3 +1245,20 @@ Started: 2024-01-15
   - The response contains `data` array with model objects that have `id` field
   - Deployment names may or may not match model IDs depending on configuration
 ---
+
+## 2026-01-12 - US-055
+- What was implemented: Fixed MSAL redirect URI to dynamically use window.location.origin
+- Root cause: config.ts was checking VITE_AZURE_REDIRECT_URI env var first, which could mismatch the actual server port
+- Files changed:
+  - `frontend/src/config.ts` - Changed getRedirectUri() to always use window.location.origin when in browser
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000 and http://localhost:3000
+  - Verified redirect_uri in OAuth URL: port 8000 from FastAPI, port 3000 from dev server
+  - Interactions verified: Sign in button triggers login with correct redirect URI
+  - Screenshots taken: us055-login-success-port8000.png, us055-login-redirect-port3000.png
+- **Learnings:**
+  - Always use window.location.origin for OAuth redirect URIs to handle dynamic ports
+  - Environment variables are evaluated at build time for Vite, not runtime
+  - MSAL redirect URI must match the actual origin the user is accessing
+  - Vite dev server runs on port 3000, FastAPI serves static on port 8000
+---
