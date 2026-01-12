@@ -13,3 +13,8 @@ app/config/__pycache__/*
 
 *.pyc
 app/config/__pycache__/settings.cpython-314.pyc
+app/tests/__pycache__/test_settings.cpython-314-pytest-9.0.2.pyc
+app/config/__pycache__/settings.cpython-314.pyc
+
+
+app/static/*

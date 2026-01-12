@@ -1088,6 +1088,46 @@
       "priority": 1,
       "passes": true,
       "notes": "VERIFIED: Added AliasChoices to azure_openai_deployment field to accept both AZURE_OPENAI_DEPLOYMENT and AZURE_OPENAI_MODEL_NAME. Health check now correctly reads gpt-4o from AZURE_OPENAI_MODEL_NAME. 301 pytest tests pass. Swagger UI verified with Playwright. Note: Frontend 'Test OpenAI' button shows 'API unavailable' due to pre-existing frontend config issue (hardcoded port 8000) - not related to this fix."
+    },
+    {
+      "id": "US-054",
+      "title": "Fix Azure OpenAI 'Deployment gpt-4o not found' despite deployment existing",
+      "acceptanceCriteria": [
+        "Investigate why Azure OpenAI health check returns 'Deployment gpt-4o not found'",
+        "Verify the deployment name 'gpt-4o' is being passed correctly to Azure OpenAI API",
+        "Check if deployment name has extra quotes or whitespace when read from environment",
+        "Verify Azure OpenAI endpoint URL is correctly formatted for Azure Government",
+        "Confirm the API version (2024-02-15-preview) is compatible with the deployment",
+        "Azure OpenAI health check should return green 'Connection successful'",
+        "Test OpenAI button should work and return successful response",
+        "Log the actual API request being made to help debug",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG: Frontend shows 'Deployment gpt-4o not found' but Azure Portal screenshot confirms the deployment 'gpt-4o' exists with model gpt-4o version 2024-11-20, status Succeeded. The deployment is definitely there. Possible causes: (1) API version mismatch, (2) endpoint URL formatting issue, (3) key/auth issue, (4) extra quotes/whitespace in deployment name, (5) Azure Government specific API differences."
+    },
+    {
+      "id": "US-055",
+      "title": "Fix MSAL redirect URI using wrong port when frontend served from FastAPI",
+      "acceptanceCriteria": [
+        "Fix MSAL redirect URI to use port 8000 when frontend is bundled and served from FastAPI",
+        "The redirect URI is currently hardcoded to localhost:3000 in VITE_AZURE_REDIRECT_URI",
+        "When running bundled frontend from FastAPI on port 8000, login should redirect back to port 8000",
+        "Consider making redirect URI dynamic based on current window.location.origin",
+        "Update msalConfig.ts to use window.location.origin as the redirect URI",
+        "Alternatively, update build process to inject correct redirect URI for production builds",
+        "Login flow completes successfully when accessing app at localhost:8000",
+        "Login flow still works when running dev server at localhost:3000",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Frontend tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG: When frontend is built and served from FastAPI at localhost:8000, the MSAL login redirects back to localhost:3000 (from VITE_AZURE_REDIRECT_URI). This causes login to fail because the app is not running on port 3000. The redirect URI should match the origin the user is accessing the app from."
     }
   ]
 }

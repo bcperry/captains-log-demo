@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:deploy": "tsc -b && vite build && npm run copy:static",
+    "copy:static": "rm -rf ../app/static && cp -r dist ../app/static",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
