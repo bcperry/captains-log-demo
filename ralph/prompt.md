@@ -1,26 +1,32 @@
 # Ralph Agent Instructions
 
+## CRITICAL: You MUST read files before making any decisions
+
+**DO NOT assume the state of the PRD. You MUST use the read_file tool to read ralph/prd.json FIRST.**
+
+If you claim all stories pass without reading the file, you are WRONG.
+
 ## Your Task
 
-1. Read `ralph/prd.json`
-2. Read `ralph/progress.txt`
-   (check Codebase Patterns first)
-3. Check you're on the correct branch
-4. Pick highest priority story 
-   where `passes: false`
-5. Implement that ONE story
-6. Run linting, type checking, and tests
-7. **MANDATORY: Use Playwright MCP tools for E2E verification**
+1. **FIRST: Use read_file tool to read `ralph/prd.json`** - DO NOT SKIP THIS STEP
+2. Search the file content for `"passes": false` to find incomplete stories
+3. Read `ralph/progress.txt` (check Codebase Patterns first)
+4. Check you're on the correct branch
+5. Pick highest priority story where `passes: false`
+6. Implement that ONE story
+7. Run linting, type checking, and tests
+8. **MANDATORY: Use Playwright MCP tools for E2E verification**
    - Start the application (FastAPI backend, Vite frontend if needed)
    - Navigate to the relevant pages using Playwright browser tools
    - Verify UI elements render correctly
    - Test user interactions (clicks, form submissions, auth flows)
    - Take screenshots as evidence of verification
    - DO NOT mark stories as passed without Playwright verification
-8. Update AGENTS.md files with learnings
-9. Commit: `feat: [ID] - [Title]`
+9. Update AGENTS.md files with learnings
 10. Update prd.json: `passes: true` (ONLY after Playwright verification succeeds)
 11. Append learnings to progress.txt
+12. Commit: `feat: [ID] - [Title]`
+
 
 ## Playwright Verification Required
 
@@ -76,7 +82,11 @@ Add reusable patterns to the TOP of progress.txt:
 
 ## Stop Condition
 
-If ALL stories pass, reply:
+**ONLY after reading ralph/prd.json with the read_file tool:**
+
+If you have verified by reading the file that ALL stories have `"passes": true`, reply:
 <promise>COMPLETE</promise>
 
-Otherwise end normally.
+If ANY story has `"passes": false`, you MUST work on it. Do NOT say complete.
+
+Otherwise end normally after implementing one story.
