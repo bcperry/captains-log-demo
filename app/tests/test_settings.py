@@ -183,6 +183,21 @@ class TestSettings:
             settings = create_settings()
             assert settings.is_openai_configured() is False
 
+    def test_is_openai_configured_with_model_name_alias(self) -> None:
+        """Test azure_openai_deployment accepts AZURE_OPENAI_MODEL_NAME alias."""
+        with patch.dict(
+            os.environ,
+            {
+                "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+                "AZURE_OPENAI_KEY": "test-key",
+                "AZURE_OPENAI_MODEL_NAME": "gpt-4o",
+            },
+            clear=True,
+        ):
+            settings = create_settings()
+            assert settings.azure_openai_deployment == "gpt-4o"
+            assert settings.is_openai_configured() is True
+
     def test_is_cosmos_configured_true(self) -> None:
         """Test is_cosmos_configured returns True when configured."""
         with patch.dict(

@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     azure_openai_deployment: Optional[str] = Field(
         default=None,
         description="Azure OpenAI deployment name",
+        validation_alias=AliasChoices(
+            "azure_openai_deployment", "azure_openai_model_name"
+        ),
     )
     azure_openai_api_version: str = Field(
         default="2024-02-15-preview",
