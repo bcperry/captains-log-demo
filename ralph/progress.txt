@@ -10,6 +10,7 @@ Started: 2024-01-15
 - Async: Use `async def` with `await` for I/O operations
 - Testing: Use pytest fixtures, mock external services with `unittest.mock`
 - Testing FastAPI: Use `TestClient` from `fastapi.testclient` for HTTP testing
+- Testing Async: Use `AsyncMock` for mocking async functions, set `new_callable=AsyncMock` in patch
 - Type hints: Always annotate function signatures
 - Webapp Testing: Use Playwright MCP for E2E testing of frontend features
 - Playwright: Navigate, click, fill, screenshot - verify UI behavior end-to-end
@@ -22,6 +23,7 @@ Started: 2024-01-15
 - Azure Gov Auth: Must set `scheme.openid_config.config_url` to `.microsoftonline.us` URL before `load_config()`
 - Azure Gov Auth: v1 tokens use issuer `sts.windows.net`, v2 tokens use `login.microsoftonline.us`
 - fastapi-azure-auth User: Has `tid` not `tenant_id`, `sub` not `oid` - convert to AuthenticatedUser
+- Health Checks: Use httpx.AsyncClient for async HTTP connectivity tests with timeout handling
 
 ## Key Files
 - `app/pyproject.toml` - Project dependencies and configuration
@@ -32,6 +34,7 @@ Started: 2024-01-15
 - `app/auth/dependencies.py` - FastAPI auth dependencies (get_current_user, get_optional_user)
 - `app/api/auth.py` - User profile endpoints (GET /auth/me, PATCH /auth/me/preferences)
 - `app/api/transcribe.py` - Audio transcription endpoint (POST /transcribe)
+- `app/api/health.py` - Health check endpoints (/health, /ready) with dependency status
 - `app/models/user.py` - User profile Pydantic models
 - `app/models/transcription.py` - Transcription request/response models
 - `app/db/cosmos.py` - Cosmos DB client with in-memory fallback
@@ -40,6 +43,24 @@ Started: 2024-01-15
 - `infra/entra-auth.bicep` - App Service Entra ID authentication settings
 - `docs/entra-id-setup.md` - Azure Entra ID app registration setup guide
 
+---
+
+## 2026-01-12 - US-050
+- What was implemented: Added Azure OpenAI health check to readiness endpoint
+- Root cause: Health check only checked Cosmos DB and Speech Services, not Azure OpenAI
+- Files changed:
+  - `app/api/health.py` - Added `check_openai_health()` async function that tests Azure OpenAI connectivity via HTTP GET to deployments endpoint
+  - `app/tests/test_health.py` - Added tests for OpenAI health check, updated existing tests for new dependency count
+  - `app/tests/test_main.py` - Updated readiness test to accept both "ready" and "not_ready" status
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend sidebar)
+  - Interactions verified: Service Status shows Azure OpenAI status, Test OpenAI button works
+  - Screenshots taken: us050-openai-health-check.png
+- **Learnings:**
+  - Health checks should return descriptive messages (e.g., "Not configured (AZURE_OPENAI_DEPLOYMENT not set)")
+  - Use httpx.AsyncClient for async HTTP calls with proper timeout and error handling
+  - Frontend looks for dependency name containing 'openai' - case insensitive match
+  - AsyncMock with `new_callable=AsyncMock` required for patching async functions in tests
 ---
 
 ## 2026-01-09 - US-040 (In Progress)

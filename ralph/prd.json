@@ -1014,6 +1014,62 @@
       "priority": 1,
       "passes": true,
       "notes": "FIXED: Changed type hint from `speechsdk.AudioInputStream` to `speechsdk.audio.AudioInputStream` at line 198. AudioInputStream is in the `audio` submodule, not the root module."
+    },
+    {
+      "id": "US-050",
+      "title": "Fix Azure OpenAI health check connection failure",
+      "acceptanceCriteria": [
+        "Investigate why Azure OpenAI shows 'Connection failed' in the service status sidebar",
+        "Verify AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY are being read correctly from environment",
+        "Check if Azure Government OpenAI endpoint format is correct (openai.azure.us)",
+        "Fix the health check endpoint to properly test Azure OpenAI connectivity",
+        "Azure OpenAI should show green 'Connection successful' when properly configured",
+        "Test OpenAI button should work and return successful response",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "FIXED: Added check_openai_health() async function in api/health.py that tests Azure OpenAI connectivity via HTTP. Health check now returns azure_openai dependency with proper status messages. Frontend correctly displays the status."
+    },
+    {
+      "id": "US-051",
+      "title": "Fix 'Authentication is not configured' error on transcription",
+      "acceptanceCriteria": [
+        "Fix the 401 Unauthorized error when calling POST /transcribe endpoint",
+        "Ensure Authorization header with Bearer token is being sent from frontend",
+        "Verify fastapi-azure-auth is properly configured for local development",
+        "Authenticated users should be able to transcribe audio files",
+        "Error message should not appear when user is logged in",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "PLAYWRIGHT: Login, upload audio file, verify transcription succeeds without auth error"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG: User is logged in (showing 'Blaine Perry' and 'Sign out' button) but POST /transcribe returns 401 Unauthorized with message 'Authentication is not configured'. Backend logs show '401 Unauthorized' for POST /transcribe. The frontend may not be sending the Authorization header, or the backend auth middleware is misconfigured."
+    },
+    {
+      "id": "US-052",
+      "title": "Build React frontend and serve from FastAPI",
+      "acceptanceCriteria": [
+        "Add npm build script to create production build of React frontend",
+        "Configure FastAPI to serve static files from frontend/dist directory",
+        "Add StaticFiles mount for serving built React assets (JS, CSS, images)",
+        "Add catch-all route to serve index.html for SPA client-side routing",
+        "Create build script or npm command to build frontend before deployment",
+        "Update Dockerfile to build frontend and copy to app directory",
+        "Frontend loads correctly when accessing FastAPI server directly",
+        "All React routes work with client-side routing (no 404 on refresh)",
+        "API endpoints (/api/*, /docs, /health, etc.) still work correctly",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "FEATURE: Instead of running separate frontend dev server, build the React app and serve it directly from FastAPI. This simplifies deployment and allows single-container deployment. FastAPI should serve the built static files and handle SPA routing."
     }
   ]
 }
