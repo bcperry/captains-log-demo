@@ -1128,3 +1128,24 @@ Started: 2024-01-15
   - Add `workloadProfileName: 'Consumption'` to containerApps resource properties
   - Consumption profile is the serverless option that scales to zero
 ---
+
+## 2026-01-12 - US-049
+- What was implemented: Fixed AttributeError in speech/client.py - speechsdk.AudioInputStream doesn't exist
+- Files changed:
+  - `app/speech/client.py` - Changed type hint from `speechsdk.AudioInputStream` to `speechsdk.audio.AudioInputStream` at line 198
+- Root cause: The AudioInputStream class is in the `speechsdk.audio` submodule, not the root `speechsdk` module
+- **Verification:**
+  - Import test: `from speech.client import SpeechClient` succeeds
+  - mypy type checking passes: `mypy speech/client.py --ignore-missing-imports`
+  - All 294 pytest tests pass
+  - uvicorn starts successfully without AttributeError
+- **Playwright Verification:**
+  - Pages tested: /docs (Swagger UI)
+  - Verified app starts and serves Swagger UI correctly
+  - Clicked Authorize button - OAuth2 modal shows Azure Gov endpoints
+  - Screenshots: swagger-ui-docs.png, oauth2-modal.png
+- **Learnings:**
+  - Azure Speech SDK structure: audio classes are in `speechsdk.audio` submodule
+  - Available audio stream types: AudioInputStream, PushAudioInputStream, PullAudioInputStream
+  - Always verify module paths with `dir()` when encountering AttributeError
+---
