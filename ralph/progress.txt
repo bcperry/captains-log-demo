@@ -1208,3 +1208,19 @@ Started: 2024-01-15
   - SPA catch-all route must be defined AFTER all API routes to avoid conflicts
   - StaticFiles mount for /assets serves JS, CSS, and other bundled assets
 ---
+
+## 2026-01-12 - US-053
+- What was implemented: Added AliasChoices to azure_openai_deployment settings field to accept AZURE_OPENAI_MODEL_NAME
+- Root cause: Bicep outputs AZURE_OPENAI_MODEL_NAME but Pydantic settings only accepted AZURE_OPENAI_DEPLOYMENT
+- Files changed:
+  - `app/config/settings.py` - Added validation_alias with AliasChoices for azure_openai_deployment field
+  - `app/tests/test_settings.py` - Added test for AZURE_OPENAI_MODEL_NAME alias
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8001/docs (Swagger UI)
+  - API verified: /ready endpoint shows azure_openai configured: true with deployment gpt-4o
+  - Screenshots taken: us053-swagger-ui.png, us053-frontend-service-status.png
+- **Learnings:**
+  - Use AliasChoices for backwards compatibility when env var names change
+  - Pydantic validation_alias accepts AliasChoices for multiple env var names
+  - Frontend port config is separate from backend - pre-existing issue with localhost:8000 hardcoding
+---
