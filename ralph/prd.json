@@ -982,6 +982,22 @@
       "priority": 2,
       "passes": true,
       "notes": "Depends on US-046. Uses Azure Speech Batch Transcription API for processing audio files stored in Blob Storage. Better for large files and async processing. Implemented BatchTranscriptionClient with Azure Speech REST API v3.1, POST/GET endpoints for batch jobs, InMemoryBatchTranscriptionClient for testing, and comprehensive test suite (18 tests)."
+    },
+    {
+      "id": "US-048",
+      "title": "Fix Azure Government deployment - deprecated model and Container Apps workload profiles",
+      "acceptanceCriteria": [
+        "Update GPT-4o model version from 2024-05-13 to a supported version in Azure Government (check Azure OpenAI model availability)",
+        "Update Container Apps environment in resources.bicep to use workload profiles (consumption profile)",
+        "Add workloadProfiles property to Container Apps Environment resource",
+        "Verify model deployment uses a non-deprecated model version available in usgovarizona or usgovvirginia",
+        "azd up completes successfully without validation errors",
+        "All existing Bicep outputs remain functional",
+        "Application deploys and runs in Azure Government"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Fixed two deployment errors: (1) Updated gpt-4o model version from 2024-05-13 to 2024-11-20 (latest supported in Azure Government), (2) Added workloadProfiles property with Consumption profile to Container Apps Environment and workloadProfileName to Container App resource."
     }
   ]
 }
