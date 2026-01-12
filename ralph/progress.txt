@@ -1112,3 +1112,19 @@ Started: 2024-01-15
   - Results include combinedRecognizedPhrases and recognizedPhrases with speaker info
   - Duration in results uses ISO 8601 format (PT#H#M#.###S)
 ---
+
+## 2026-01-12 - US-048
+- What was implemented: Fixed Azure Government deployment errors for GPT-4o model deprecation and Container Apps workload profiles
+- Files changed:
+  - `infra/resources.bicep` - Updated gpt-4o modelVersion from 2024-05-13 to 2024-11-20, added workloadProfiles to Container Apps Environment, added workloadProfileName to Container App
+- **Playwright Verification:**
+  - Pages tested: /docs (Swagger UI), /health
+  - Interactions verified: Swagger UI loads correctly, Authorize button shows Azure Gov OAuth2 endpoints (login.microsoftonline.us)
+  - Screenshots taken: swagger-ui-verification.png, swagger-verified.png
+- **Learnings:**
+  - Azure OpenAI gpt-4o version 2024-05-13 is deprecated in Azure Government - use 2024-11-20
+  - Container Apps requires workload profiles in newer API versions (2024-03-01+)
+  - Add `workloadProfiles` array with Consumption profile to managedEnvironments
+  - Add `workloadProfileName: 'Consumption'` to containerApps resource properties
+  - Consumption profile is the serverless option that scales to zero
+---
