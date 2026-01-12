@@ -31,15 +31,16 @@ const getApiBaseUrl = (): string => {
   return 'http://localhost:8001'
 }
 
-// Get redirect URI - use current origin in production
+// Get redirect URI - always use window.location.origin for dynamic redirect
+// This ensures login redirects back to the correct port (3000 for dev, 8000 for prod)
 const getRedirectUri = (): string => {
-  if (import.meta.env.VITE_AZURE_REDIRECT_URI) {
-    return import.meta.env.VITE_AZURE_REDIRECT_URI
-  }
-  if (import.meta.env.PROD && typeof window !== 'undefined') {
+  // Always use current origin when running in browser
+  // This handles both dev (port 3000) and prod (port 8000) automatically
+  if (typeof window !== 'undefined') {
     return window.location.origin
   }
-  return 'http://localhost:3000'
+  // Fallback for SSR or build-time (should not happen in browser)
+  return import.meta.env.VITE_AZURE_REDIRECT_URI || 'http://localhost:3000'
 }
 
 export const config: AppConfig = {
