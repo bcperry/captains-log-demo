@@ -137,7 +137,6 @@ class TestSpeechClient:
         mock_speech_config = MagicMock()
         mock_sdk.SpeechConfig.return_value = mock_speech_config
         mock_sdk.OutputFormat.Detailed = "Detailed"
-        mock_sdk.PropertyId.SpeechServiceConnection_Region = "Region"
 
         config = SpeechConfig(
             subscription_key="test-key",
@@ -152,7 +151,8 @@ class TestSpeechClient:
             subscription="test-key",
             endpoint="https://usgovvirginia.api.cognitive.azure.us/",
         )
-        mock_speech_config.set_property.assert_called_once()
+        # Note: We do NOT set region when using endpoint - they conflict (SPXERR_INVALID_ARG)
+        mock_speech_config.set_property.assert_not_called()
 
     @patch("speech.client.speechsdk")
     def test_get_speech_config_commercial(self, mock_sdk: MagicMock) -> None:
@@ -174,6 +174,32 @@ class TestSpeechClient:
             subscription="test-key",
             region="eastus",
         )
+
+    @patch("speech.client.speechsdk")
+    def test_get_speech_config_custom_endpoint(self, mock_sdk: MagicMock) -> None:
+        """Test Speech SDK configuration with custom endpoint (no region setting)."""
+        mock_speech_config = MagicMock()
+        mock_sdk.SpeechConfig.return_value = mock_speech_config
+        mock_sdk.OutputFormat.Detailed = "Detailed"
+
+        # Custom endpoint simulates Azure Cognitive Services multi-service endpoint
+        config = SpeechConfig(
+            subscription_key="test-key",
+            region="usgovarizona",
+            endpoint="https://my-cog-service.cognitiveservices.azure.us/",
+            cloud=AzureCloud.GOVERNMENT,
+        )
+        client = SpeechClient(config)
+        result = client._get_speech_config()
+
+        assert result == mock_speech_config
+        # When custom endpoint is provided, use endpoint directly (not speech_endpoint)
+        mock_sdk.SpeechConfig.assert_called_once_with(
+            subscription="test-key",
+            endpoint="https://my-cog-service.cognitiveservices.azure.us/",
+        )
+        # Must NOT set region when using endpoint - causes SPXERR_INVALID_ARG
+        mock_speech_config.set_property.assert_not_called()
 
     @patch("speech.client.speechsdk")
     def test_get_speech_config_caching(self, mock_sdk: MagicMock) -> None:

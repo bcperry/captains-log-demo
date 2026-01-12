@@ -1262,3 +1262,20 @@ Started: 2024-01-15
   - MSAL redirect URI must match the actual origin the user is accessing
   - Vite dev server runs on port 3000, FastAPI serves static on port 8000
 ---
+
+## 2026-01-12 - US-056
+- What was implemented: Fixed SPXERR_INVALID_ARG (0x5) error during transcription
+- Root cause: Azure Speech SDK throws SPXERR_INVALID_ARG when both `endpoint` and `region` are configured. The code was setting `set_property(SpeechServiceConnection_Region)` after creating config with endpoint parameter.
+- Files changed:
+  - `app/speech/client.py` - Removed region property setting when using endpoint. Now properly handles three cases: (1) custom endpoint, (2) Government cloud without custom endpoint, (3) Commercial cloud with region
+  - `app/tests/test_speech.py` - Updated test to verify region is NOT set when using endpoint, added test for custom endpoint configuration
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend sidebar), http://localhost:8000/docs (API docs)
+  - Interactions verified: Test Speech button shows "Connection successful"
+  - Screenshots taken: us056-speech-service-working.png, us056-swagger-ui-api-docs.png
+- **Learnings:**
+  - Azure Speech SDK: Do NOT set region when using endpoint parameter - they conflict
+  - Custom Cognitive Services multi-service endpoints need endpoint-only configuration
+  - For Government cloud, use endpoint=speech_endpoint without region property
+  - SDK error codes: 0x5 = SPXERR_INVALID_ARG indicates conflicting configuration
+---
