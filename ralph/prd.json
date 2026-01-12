@@ -1068,8 +1068,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "FEATURE: Instead of running separate frontend dev server, build the React app and serve it directly from FastAPI. This simplifies deployment and allows single-container deployment. FastAPI should serve the built static files and handle SPA routing."
+      "passes": true,
+      "notes": "VERIFIED: React frontend builds with 'npm run build' and is served from FastAPI. Dockerfile already has multi-stage build that builds frontend and copies to app/static. main.py has StaticFiles mount for /assets and catch-all route for SPA routing. Playwright verified: frontend loads at http://localhost:8001, Swagger UI at /docs, API endpoints (/health, /ready) work correctly. 300 pytest tests pass."
     }
   ]
 }
