@@ -147,16 +147,19 @@ class SpeechClient:
             return self._speech_config
 
         try:
-            # For Government cloud, use endpoint-based configuration
-            if self._config.cloud == AzureCloud.GOVERNMENT:
+            # Check if a custom endpoint is configured (including Government cloud)
+            # When using endpoint, do NOT set region - they conflict and cause SPXERR_INVALID_ARG
+            if self._config.endpoint:
+                # Custom endpoint provided - use endpoint-only configuration
+                self._speech_config = speechsdk.SpeechConfig(
+                    subscription=self._config.subscription_key,
+                    endpoint=self._config.endpoint,
+                )
+            elif self._config.cloud == AzureCloud.GOVERNMENT:
+                # Government cloud without custom endpoint - use standard speech endpoint
                 self._speech_config = speechsdk.SpeechConfig(
                     subscription=self._config.subscription_key,
                     endpoint=self._config.speech_endpoint,
-                )
-                # Set the region explicitly for Government cloud
-                self._speech_config.set_property(
-                    speechsdk.PropertyId.SpeechServiceConnection_Region,
-                    self._config.region,
                 )
             else:
                 # Commercial cloud uses standard region-based configuration

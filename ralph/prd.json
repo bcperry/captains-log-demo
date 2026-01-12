@@ -1128,6 +1128,26 @@
       "priority": 1,
       "passes": true,
       "notes": "FIXED: Updated config.ts to always use window.location.origin for redirect URI instead of relying on environment variable. This ensures login redirects to the correct port dynamically - port 8000 for FastAPI or port 3000 for dev server. Verified with Playwright E2E testing."
+    },
+    {
+      "id": "US-056",
+      "title": "Fix Speech SDK SPXERR_INVALID_ARG error during transcription",
+      "acceptanceCriteria": [
+        "Fix the SPXERR_INVALID_ARG (0x5) error when transcribing audio files",
+        "Investigate what invalid argument is being passed to the Speech SDK",
+        "Check if the audio format/encoding is compatible with Azure Speech SDK",
+        "Verify the speech config is using correct region and endpoint for Azure Government",
+        "Check if audio stream is being passed correctly to the recognizer",
+        "Ensure WAV file format matches expected parameters (sample rate, channels, bit depth)",
+        "Add logging to identify which argument is invalid",
+        "Successfully transcribe a WAV audio file without errors",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "FIXED: Azure Speech SDK was throwing SPXERR_INVALID_ARG (0x5) because region property was set after creating SpeechConfig with endpoint parameter. The fix removes region configuration when using endpoint-based configuration (custom endpoints or Government cloud). Verified with Playwright E2E testing - Speech Service shows Connection successful."
     }
   ]
 }
