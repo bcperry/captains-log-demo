@@ -1224,3 +1224,24 @@ Started: 2024-01-15
   - Pydantic validation_alias accepts AliasChoices for multiple env var names
   - Frontend port config is separate from backend - pre-existing issue with localhost:8000 hardcoding
 ---
+
+## 2026-01-12 - US-054
+- What was implemented: Fixed Azure OpenAI health check "Deployment gpt-4o not found" error
+- Root cause: The health check was using an invalid Azure OpenAI API endpoint `GET /openai/deployments/{deployment}?api-version={version}` which doesn't exist in the Azure OpenAI REST API. This endpoint always returns 404.
+- Solution: Changed to use `GET /openai/models?api-version={version}` which is the correct lightweight health check endpoint for Azure OpenAI. This endpoint returns list of available models without consuming tokens.
+- Files changed:
+  - `app/api/health.py` - Updated `check_openai_health()` to use `/openai/models` endpoint instead of `/openai/deployments/{deployment}`
+  - `app/tests/test_health.py` - Updated test to mock the new JSON response format with models list
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000 (frontend with bundled React app)
+  - Interactions verified: 
+    - Service Status shows Azure OpenAI with green checkmark ✅
+    - "Connection successful" message displayed
+    - Test OpenAI button clicked and returns "✅ Connection successful"
+  - Screenshots taken: us054-openai-health-fixed.png
+- **Learnings:**
+  - Azure OpenAI REST API doesn't have a GET endpoint for individual deployments
+  - Use `GET /openai/models?api-version={version}` for health checks - lightweight, no token cost
+  - The response contains `data` array with model objects that have `id` field
+  - Deployment names may or may not match model IDs depending on configuration
+---
