@@ -199,7 +199,7 @@ var deployments = [
   {
     name: 'gpt-4o'
     skuName: 'Standard'
-    modelVersion: '2024-05-13'
+    modelVersion: '2024-11-20'
     capacity: 10
   }
   {
@@ -280,6 +280,12 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
         sharedKey: logAnalyticsWorkspace.listKeys().primarySharedKey
       }
     }
+    workloadProfiles: [
+      {
+        name: 'Consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
     zoneRedundant: false
   }
 }
@@ -297,6 +303,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnvironment.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: true
