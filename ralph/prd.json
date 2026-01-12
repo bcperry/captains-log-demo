@@ -998,6 +998,22 @@
       "priority": 1,
       "passes": true,
       "notes": "Fixed two deployment errors: (1) Updated gpt-4o model version from 2024-05-13 to 2024-11-20 (latest supported in Azure Government), (2) Added workloadProfiles property with Consumption profile to Container Apps Environment and workloadProfileName to Container App resource."
+    },
+    {
+      "id": "US-049",
+      "title": "Fix AttributeError: speechsdk has no attribute AudioInputStream",
+      "acceptanceCriteria": [
+        "Fix the AttributeError in app/speech/client.py line 198",
+        "Replace speechsdk.AudioInputStream with the correct type (AudioDataStream or audio.AudioStreamFormat)",
+        "Verify the Azure Speech SDK API is used correctly for the installed version",
+        "Application starts without import errors when run with uvicorn",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Container App logs show successful startup without AttributeError"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "FIXED: Changed type hint from `speechsdk.AudioInputStream` to `speechsdk.audio.AudioInputStream` at line 198. AudioInputStream is in the `audio` submodule, not the root module."
     }
   ]
 }

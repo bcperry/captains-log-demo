@@ -195,7 +195,7 @@ class SpeechClient:
             raise SpeechServiceError(f"Failed to configure audio: {e}") from e
 
     def create_audio_config_from_stream(
-        self, audio_stream: speechsdk.AudioInputStream
+        self, audio_stream: speechsdk.audio.AudioInputStream
     ) -> speechsdk.AudioConfig:
         """Create an AudioConfig from an audio stream.
 
