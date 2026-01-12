@@ -1170,3 +1170,21 @@ Started: 2024-01-15
   - Available audio stream types: AudioInputStream, PushAudioInputStream, PullAudioInputStream
   - Always verify module paths with `dir()` when encountering AttributeError
 ---
+
+## 2026-01-12 - US-051
+- What was implemented: Fixed 'Authentication is not configured' error on transcription
+- Root cause: Settings class expected `AZURE_CLIENT_ID`/`AZURE_TENANT_ID` but `.env` file had `AZURE_ENTRA_CLIENT_ID`/`AZURE_ENTRA_TENANT_ID`
+- Files changed:
+  - `app/config/settings.py` - Added `AliasChoices` import from pydantic and `validation_alias` to accept both naming conventions for `azure_client_id` and `azure_tenant_id` fields
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000
+  - Logged in successfully as "Blaine Perry" 
+  - Uploaded test_audio.wav file
+  - Clicked "Start Transcription" - request reached backend without 401 auth error
+  - Error was 503 from Azure Speech SDK (separate issue), not authentication
+  - Screenshot: us051-auth-fix-verification.png
+- **Learnings:**
+  - Azure deployment templates use `AZURE_ENTRA_*` naming for Entra ID settings
+  - Pydantic Settings' `validation_alias` with `AliasChoices` allows accepting multiple env var names
+  - When auth appears broken, check env var naming mismatches first
+---

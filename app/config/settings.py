@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -99,10 +99,12 @@ class Settings(BaseSettings):
     azure_tenant_id: Optional[str] = Field(
         default=None,
         description="Azure Entra ID tenant ID",
+        validation_alias=AliasChoices("azure_tenant_id", "azure_entra_tenant_id"),
     )
     azure_client_id: Optional[str] = Field(
         default=None,
         description="Azure Entra ID application (client) ID (backend API)",
+        validation_alias=AliasChoices("azure_client_id", "azure_entra_client_id"),
     )
     azure_client_secret: Optional[str] = Field(
         default=None,
