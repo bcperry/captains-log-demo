@@ -278,9 +278,10 @@ class TestCheckOpenAIHealth:
             mock_settings.return_value.azure_openai_deployment = "gpt-4"
             mock_settings.return_value.azure_openai_api_version = "2024-02-15-preview"
 
-            # Mock successful response
+            # Mock successful response with models data containing the deployment
             mock_response = MagicMock()
             mock_response.status_code = 200
+            mock_response.json.return_value = {"data": [{"id": "gpt-4"}, {"id": "gpt-35-turbo"}]}
             mock_client_instance = AsyncMock()
             mock_client_instance.get.return_value = mock_response
             mock_client.return_value.__aenter__.return_value = mock_client_instance

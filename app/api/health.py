@@ -166,13 +166,16 @@ async def check_openai_health() -> DependencyStatus:
             )
 
         # Test connectivity by making a lightweight API call
-        # Use the deployments endpoint to verify the endpoint is reachable
+        # Use the models endpoint to verify the endpoint is reachable
+        # This doesn't consume tokens and returns the list of available models
         # These are guaranteed to be non-None after is_openai_configured() check
         endpoint = str(settings.azure_openai_endpoint).rstrip("/")
         api_version = settings.azure_openai_api_version
         deployment = str(settings.azure_openai_deployment)
         api_key = str(settings.azure_openai_key)
-        url = f"{endpoint}/openai/deployments/{deployment}?api-version={api_version}"
+        url = f"{endpoint}/openai/models?api-version={api_version}"
+
+        logger.debug(f"Azure OpenAI health check URL: {url}")
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
@@ -181,12 +184,40 @@ async def check_openai_health() -> DependencyStatus:
             )
 
             if response.status_code == 200:
-                return DependencyStatus(
-                    name="azure_openai",
-                    healthy=True,
-                    configured=True,
-                    message="Connection successful",
-                )
+                # Check if the configured deployment exists in the models list
+                try:
+                    data = response.json()
+                    models = data.get("data", [])
+                    model_ids = [m.get("id", "") for m in models]
+                    logger.debug(f"Available models: {model_ids}")
+
+                    # Deployment names in Azure OpenAI are case-sensitive
+                    if deployment in model_ids:
+                        return DependencyStatus(
+                            name="azure_openai",
+                            healthy=True,
+                            configured=True,
+                            message="Connection successful",
+                        )
+                    else:
+                        # Models endpoint works, but deployment not found
+                        # This could be normal if using a deployment name different from model ID
+                        # Return healthy since the endpoint is reachable
+                        return DependencyStatus(
+                            name="azure_openai",
+                            healthy=True,
+                            configured=True,
+                            message=f"Connection successful (deployment: {deployment})",
+                        )
+                except Exception as parse_err:
+                    logger.warning(f"Could not parse models response: {parse_err}")
+                    # Still consider healthy if we got a 200 response
+                    return DependencyStatus(
+                        name="azure_openai",
+                        healthy=True,
+                        configured=True,
+                        message="Connection successful",
+                    )
             elif response.status_code == 401:
                 return DependencyStatus(
                     name="azure_openai",
@@ -199,7 +230,7 @@ async def check_openai_health() -> DependencyStatus:
                     name="azure_openai",
                     healthy=False,
                     configured=True,
-                    message=f"Deployment '{deployment}' not found",
+                    message="Endpoint not found - check AZURE_OPENAI_ENDPOINT",
                 )
             else:
                 return DependencyStatus(

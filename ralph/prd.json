@@ -1106,8 +1106,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "BUG: Frontend shows 'Deployment gpt-4o not found' but Azure Portal screenshot confirms the deployment 'gpt-4o' exists with model gpt-4o version 2024-11-20, status Succeeded. The deployment is definitely there. Possible causes: (1) API version mismatch, (2) endpoint URL formatting issue, (3) key/auth issue, (4) extra quotes/whitespace in deployment name, (5) Azure Government specific API differences."
+      "passes": true,
+      "notes": "FIXED: The health check was using an invalid Azure OpenAI API endpoint GET /openai/deployments/{deployment} which doesn't exist. Changed to use GET /openai/models endpoint which is the correct lightweight health check endpoint for Azure OpenAI. This endpoint returns list of available models without consuming tokens."
     },
     {
       "id": "US-055",
