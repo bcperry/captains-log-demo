@@ -249,9 +249,11 @@ async def transcribe_audio(
             converted_file_path = convert_to_wav(temp_file_path, audio_format)
             speech_file_path = converted_file_path
 
-        # Create audio config and transcribe
+        # Create audio config and transcribe using continuous recognition
+        # recognize_continuous handles long audio files (unlike recognize_once which only
+        # captures ~15-30 seconds)
         audio_config = speech_client.create_audio_config_from_file(speech_file_path)
-        transcribed_text = speech_client.recognize_once(audio_config, language)
+        transcribed_text = speech_client.recognize_continuous(audio_config, language)
 
         response = TranscriptionResponse(
             text=transcribed_text,

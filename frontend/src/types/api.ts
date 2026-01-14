@@ -25,8 +25,8 @@ export interface TranscriptionResponse {
 export interface SpeakerSegment {
   speakerId: string
   text: string
-  startTime: number
-  endTime: number
+  startTimeMs: number
+  endTimeMs: number
 }
 
 export interface DiarizedTranscriptionResponse {

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
-import type { TranscriptionResult } from '../types/transcription'
+import type { TranscriptionResult, SpeakerSegment } from '../types/transcription'
 import type { AnalysisResult } from '../types/api'
 
 export interface TranscriptionResultsProps {
@@ -20,6 +20,34 @@ const downloadFile = (content: string, filename: string, mimeType: string) => {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+// Format milliseconds to MM:SS format
+const formatTimeMs = (ms: number): string => {
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+// Generate consistent color for speaker ID
+const getSpeakerColor = (speakerId: string): string => {
+  const colors = [
+    'bg-blue-100 text-blue-800 border-blue-300',
+    'bg-green-100 text-green-800 border-green-300',
+    'bg-purple-100 text-purple-800 border-purple-300',
+    'bg-orange-100 text-orange-800 border-orange-300',
+    'bg-pink-100 text-pink-800 border-pink-300',
+    'bg-teal-100 text-teal-800 border-teal-300',
+    'bg-yellow-100 text-yellow-800 border-yellow-300',
+    'bg-red-100 text-red-800 border-red-300',
+    'bg-indigo-100 text-indigo-800 border-indigo-300',
+    'bg-gray-100 text-gray-800 border-gray-300',
+  ]
+  // Extract number from speaker ID or use hash
+  const match = speakerId.match(/\d+/)
+  const index = match ? parseInt(match[0], 10) - 1 : speakerId.charCodeAt(0)
+  return colors[Math.abs(index) % colors.length]
 }
 
 // Sentiment emoji mapping
@@ -123,6 +151,8 @@ export function TranscriptionResults({
     duration: transcription.duration ?? 0,
     characters: editableText.length,
     words: editableText.split(/\s+/).filter(Boolean).length,
+    speakerCount: transcription.speakerCount ?? 0,
+    hasDiarization: transcription.hasDiarization ?? false,
   }
 
   return (
@@ -131,14 +161,17 @@ export function TranscriptionResults({
       <div className="bg-green-50 border border-green-200 rounded-lg p-4" data-testid="success-banner">
         <div className="flex items-center text-green-700">
           <span className="text-lg mr-2">✅</span>
-          <span className="font-medium">Transcription completed successfully!</span>
+          <span className="font-medium">
+            Transcription completed successfully!
+            {stats.hasDiarization && ` (${stats.speakerCount} speaker${stats.speakerCount !== 1 ? 's' : ''} identified)`}
+          </span>
         </div>
       </div>
 
       {/* Quick stats panel */}
       <div className="bg-gray-50 rounded-lg p-4" data-testid="stats-panel">
         <h3 className="text-sm font-semibold text-gray-700 mb-3">📈 Quick Stats</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-2 ${stats.hasDiarization ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
           <div className="text-center">
             <p className="text-xs text-gray-500">⏱️ Processing Time</p>
             <p className="text-lg font-medium text-gray-800">{stats.processingTime.toFixed(1)}s</p>
@@ -155,8 +188,19 @@ export function TranscriptionResults({
             <p className="text-xs text-gray-500">🔤 Words</p>
             <p className="text-lg font-medium text-gray-800">{stats.words.toLocaleString()}</p>
           </div>
+          {stats.hasDiarization && (
+            <div className="text-center">
+              <p className="text-xs text-gray-500">👥 Speakers</p>
+              <p className="text-lg font-medium text-gray-800">{stats.speakerCount}</p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Speaker segments - show when diarization is enabled */}
+      {stats.hasDiarization && transcription.segments && transcription.segments.length > 0 && (
+        <SpeakerSegmentsDisplay segments={transcription.segments} />
+      )}
 
       {/* Transcription text area */}
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -354,6 +398,58 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Sub-component for displaying speaker segments with diarization
+interface SpeakerSegmentsDisplayProps {
+  segments: SpeakerSegment[]
+}
+
+function SpeakerSegmentsDisplay({ segments }: SpeakerSegmentsDisplayProps) {
+  if (!segments || segments.length === 0) {
+    return null
+  }
+
+  // Get unique speakers
+  const uniqueSpeakers = [...new Set(segments.map((s) => s.speakerId))]
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6" data-testid="speaker-segments">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-800">👥 Speaker Segments</h3>
+        <div className="flex gap-2">
+          {uniqueSpeakers.map((speakerId) => (
+            <span
+              key={speakerId}
+              className={`px-2 py-1 text-xs rounded-full border ${getSpeakerColor(speakerId)}`}
+            >
+              {speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3 max-h-96 overflow-y-auto" data-testid="segments-list">
+        {segments.map((segment, index) => (
+          <div
+            key={index}
+            className={`p-3 rounded-lg border ${getSpeakerColor(segment.speakerId)}`}
+            data-testid={`segment-${index}`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium text-sm">
+                {segment.speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')}
+              </span>
+              <span className="text-xs opacity-70">
+                {formatTimeMs(segment.startTimeMs)} - {formatTimeMs(segment.endTimeMs)}
+              </span>
+            </div>
+            <p className="text-sm">{segment.text}</p>
+          </div>
+        ))}
       </div>
     </div>
   )

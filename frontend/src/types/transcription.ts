@@ -16,6 +16,13 @@ export interface TranscriptionProgress {
   message?: string
 }
 
+export interface SpeakerSegment {
+  speakerId: string
+  text: string
+  startTimeMs: number
+  endTimeMs: number
+}
+
 export interface TranscriptionResult {
   text: string
   duration?: number
@@ -23,6 +30,10 @@ export interface TranscriptionResult {
   language: string
   audioFormat?: string
   fileSizeBytes?: number
+  // Diarization fields (optional)
+  segments?: SpeakerSegment[]
+  speakerCount?: number
+  hasDiarization?: boolean
 }
 
 export interface TranscriptionState {

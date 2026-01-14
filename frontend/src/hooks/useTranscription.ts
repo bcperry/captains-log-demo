@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { transcribeAudio as transcribeAudioApi } from '../services/api'
+import { transcribeAudio as transcribeAudioApi, transcribeWithDiarization as transcribeDiarizeApi } from '../services/api'
 import { useAuthenticatedApi } from './useAuthenticatedApi'
 import type {
   FileInfo,
@@ -13,6 +13,8 @@ export { SUPPORTED_AUDIO_FORMATS, SUPPORTED_EXTENSIONS, MAX_FILE_SIZE_BYTES } fr
 
 export interface UseTranscriptionOptions {
   language?: string
+  enableDiarization?: boolean
+  maxSpeakers?: number
   onComplete?: (result: TranscriptionResult) => void
   onError?: (error: string) => void
 }
@@ -45,7 +47,7 @@ const initialState: TranscriptionState = {
  * Hook for managing audio file upload and transcription state.
  */
 export function useTranscription(options: UseTranscriptionOptions = {}): UseTranscriptionReturn {
-  const { language = 'en-US', onComplete, onError } = options
+  const { language = 'en-US', enableDiarization = false, maxSpeakers = 5, onComplete, onError } = options
   const [state, setState] = useState<TranscriptionState>(initialState)
   const abortControllerRef = useRef<AbortController | null>(null)
   const { withAuth } = useAuthenticatedApi()
@@ -107,24 +109,45 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
         progress: {
           status: 'transcribing',
           progress: 30,
-          message: 'Transcribing audio...',
+          message: enableDiarization ? 'Transcribing with speaker identification...' : 'Transcribing audio...',
         },
       }))
 
-      // Call API with authentication
-      const response = await withAuth(() => transcribeAudioApi(state.file!.file, language))
+      // Call API with authentication - use diarization endpoint if enabled
+      let result: TranscriptionResult
+
+      if (enableDiarization) {
+        const response = await withAuth(() => transcribeDiarizeApi(state.file!.file, maxSpeakers, language))
+        // Transform diarized response to TranscriptionResult
+        result = {
+          text: response.fullText,
+          duration: response.duration,
+          processingTime: response.processingTime,
+          language: language,
+          hasDiarization: true,
+          speakerCount: response.speakerCount,
+          segments: response.segments.map((seg) => ({
+            speakerId: seg.speakerId,
+            text: seg.text,
+            startTimeMs: seg.startTimeMs,
+            endTimeMs: seg.endTimeMs,
+          })),
+        }
+      } else {
+        const response = await withAuth(() => transcribeAudioApi(state.file!.file, language))
+        // Transform response to TranscriptionResult
+        result = {
+          text: response.text,
+          duration: response.duration,
+          processingTime: response.processingTime,
+          language: response.language,
+          hasDiarization: false,
+        }
+      }
 
       // Check if cancelled
       if (abortControllerRef.current?.signal.aborted) {
         return
-      }
-
-      // Transform response to TranscriptionResult
-      const result: TranscriptionResult = {
-        text: response.text,
-        duration: response.duration,
-        processingTime: response.processingTime,
-        language: response.language,
       }
 
       // Update state with result

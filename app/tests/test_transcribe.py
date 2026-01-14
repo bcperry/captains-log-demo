@@ -50,6 +50,7 @@ def mock_speech_client() -> MagicMock:
     client = MagicMock(spec=SpeechClient)
     client.create_audio_config_from_file.return_value = MagicMock()
     client.recognize_once.return_value = "This is the transcribed text."
+    client.recognize_continuous.return_value = "This is the transcribed text."
     return client
 
 from typing import Generator
@@ -109,7 +110,7 @@ class TestTranscribeEndpoint:
         assert data["audio_format"] == "wav"
         assert data["language"] == "en-US"
         assert "transcribed_at" in data
-        mock_speech_client.recognize_once.assert_called_once()
+        mock_speech_client.recognize_continuous.assert_called_once()
 
     def test_transcribes_mp3_file(
         self, client: TestClient, mock_speech_client: MagicMock
@@ -123,7 +124,7 @@ class TestTranscribeEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["audio_format"] == "mp3"
-        mock_speech_client.recognize_once.assert_called_once()
+        mock_speech_client.recognize_continuous.assert_called_once()
 
     def test_transcribes_m4a_file(
         self, client: TestClient, mock_speech_client: MagicMock
@@ -150,9 +151,9 @@ class TestTranscribeEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["language"] == "es-ES"
-        mock_speech_client.recognize_once.assert_called_once()
-        # Verify language was passed to recognize_once
-        call_args = mock_speech_client.recognize_once.call_args
+        mock_speech_client.recognize_continuous.assert_called_once()
+        # Verify language was passed to recognize_continuous
+        call_args = mock_speech_client.recognize_continuous.call_args
         assert call_args[0][1] == "es-ES"
 
     def test_returns_file_size(
@@ -268,7 +269,7 @@ class TestSpeechServiceErrors:
         """Test handling when Speech Service is unavailable."""
         mock_client = MagicMock(spec=SpeechClient)
         mock_client.create_audio_config_from_file.return_value = MagicMock()
-        mock_client.recognize_once.side_effect = SpeechServiceUnavailableError(
+        mock_client.recognize_continuous.side_effect = SpeechServiceUnavailableError(
             "Service unavailable"
         )
 
@@ -290,7 +291,7 @@ class TestSpeechServiceErrors:
         """Test handling of speech recognition errors."""
         mock_client = MagicMock(spec=SpeechClient)
         mock_client.create_audio_config_from_file.return_value = MagicMock()
-        mock_client.recognize_once.side_effect = SpeechRecognitionError("No speech detected")
+        mock_client.recognize_continuous.side_effect = SpeechRecognitionError("No speech detected")
 
         app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
@@ -310,7 +311,7 @@ class TestSpeechServiceErrors:
         """Test handling of configuration errors."""
         mock_client = MagicMock(spec=SpeechClient)
         mock_client.create_audio_config_from_file.return_value = MagicMock()
-        mock_client.recognize_once.side_effect = SpeechConfigurationError("Missing key")
+        mock_client.recognize_continuous.side_effect = SpeechConfigurationError("Missing key")
 
         app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
@@ -409,7 +410,7 @@ class TestTempFileCleanup:
         """Test that temporary files are cleaned up on transcription error."""
         mock_client = MagicMock(spec=SpeechClient)
         mock_client.create_audio_config_from_file.return_value = MagicMock()
-        mock_client.recognize_once.side_effect = SpeechRecognitionError("Error")
+        mock_client.recognize_continuous.side_effect = SpeechRecognitionError("Error")
 
         app.dependency_overrides[get_current_user_azure] = lambda: mock_user
         app.dependency_overrides[get_speech_service] = lambda: mock_client
