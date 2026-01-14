@@ -14,7 +14,10 @@ export interface UserPreferences {
   theme?: 'light' | 'dark' | 'system'
 }
 
-// Transcription types
+// Re-export SpeakerSegment from transcription to avoid duplication
+export type { SpeakerSegment } from './transcription'
+
+// Frontend-friendly transcription types (camelCase, seconds)
 export interface TranscriptionResponse {
   text: string
   duration: number
@@ -22,15 +25,8 @@ export interface TranscriptionResponse {
   language: string
 }
 
-export interface SpeakerSegment {
-  speakerId: string
-  text: string
-  startTimeMs: number
-  endTimeMs: number
-}
-
 export interface DiarizedTranscriptionResponse {
-  segments: SpeakerSegment[]
+  segments: import('./transcription').SpeakerSegment[]
   fullText: string
   duration: number
   processingTime: number

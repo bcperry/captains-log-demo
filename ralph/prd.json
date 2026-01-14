@@ -1288,8 +1288,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "BUG: TranscriptionResult shows processing time and duration as 0.0s. Screenshot shows: 'Processing Time: 0.0s', 'Duration: 0.0s'. These should show actual values. Need to: (1) Capture start/end times in api/transcribe.py, (2) Calculate processingTime from delta, (3) Extract duration from audio file, (4) Update TranscriptionResult model, (5) Update frontend display format."
+      "passes": true,
+      "notes": "FIXED: Added processing_time_ms and duration_ms to TranscriptionResponse and DiarizedTranscriptionResponse models. Backend now captures timing with time.monotonic() and gets audio duration via get_audio_duration_ms(). Frontend API service transforms ms to seconds for display. All tests pass."
     }
   ]
 }

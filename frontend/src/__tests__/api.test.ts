@@ -228,9 +228,11 @@ describe('API service', () => {
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({
           text: 'Transcribed text',
-          duration: 60,
-          processingTime: 5,
+          duration_ms: 60000,
+          processing_time_ms: 5000,
           language: 'en-US',
+          audio_format: 'mp3',
+          file_size_bytes: 1024,
         }),
       })
 
@@ -245,6 +247,8 @@ describe('API service', () => {
       const callArgs = mockFetch.mock.calls[0]
       expect(callArgs[1].body).toBeInstanceOf(FormData)
       expect(result.text).toBe('Transcribed text')
+      expect(result.duration).toBe(60)
+      expect(result.processingTime).toBe(5)
     })
 
     it('includes language in FormData when provided', async () => {
@@ -254,9 +258,11 @@ describe('API service', () => {
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({
           text: 'Texto transcrito',
-          duration: 60,
-          processingTime: 5,
+          duration_ms: 60000,
+          processing_time_ms: 5000,
           language: 'es-ES',
+          audio_format: 'mp3',
+          file_size_bytes: 1024,
         }),
       })
 
@@ -277,10 +283,13 @@ describe('API service', () => {
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({
           segments: [],
-          fullText: 'Full text',
-          duration: 60,
-          processingTime: 5,
-          speakerCount: 2,
+          full_text: 'Full text',
+          duration_ms: 60000,
+          processing_time_ms: 5000,
+          speaker_count: 2,
+          language: 'en-US',
+          audio_format: 'mp3',
+          file_size_bytes: 1024,
         }),
       })
 
@@ -292,6 +301,8 @@ describe('API service', () => {
         expect.objectContaining({ method: 'POST' })
       )
       expect(result.speakerCount).toBe(2)
+      expect(result.duration).toBe(60)
+      expect(result.processingTime).toBe(5)
     })
 
     it('includes max_speakers in query params', async () => {
@@ -301,10 +312,13 @@ describe('API service', () => {
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({
           segments: [],
-          fullText: '',
-          duration: 0,
-          processingTime: 0,
-          speakerCount: 0,
+          full_text: '',
+          duration_ms: 0,
+          processing_time_ms: 0,
+          speaker_count: 0,
+          language: 'en-US',
+          audio_format: 'mp3',
+          file_size_bytes: 0,
         }),
       })
 

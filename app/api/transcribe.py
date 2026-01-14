@@ -6,6 +6,7 @@ This module provides endpoints for audio transcription using Azure Speech Servic
 import logging
 import os
 import tempfile
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Optional
@@ -53,6 +54,7 @@ from speech.converter import (
     AudioConversionError,
     NoAudioTrackError,
     convert_to_wav,
+    get_audio_duration_ms,
     needs_conversion,
 )
 from storage import get_storage_client
@@ -249,17 +251,31 @@ async def transcribe_audio(
             converted_file_path = convert_to_wav(temp_file_path, audio_format)
             speech_file_path = converted_file_path
 
+        # Get audio duration before transcription
+        duration_ms = get_audio_duration_ms(speech_file_path, audio_format)
+        logger.debug(f"Audio duration: {duration_ms}ms")
+
         # Create audio config and transcribe using continuous recognition
         # recognize_continuous handles long audio files (unlike recognize_once which only
         # captures ~15-30 seconds)
         audio_config = speech_client.create_audio_config_from_file(speech_file_path)
+
+        # Capture start time for processing time measurement
+        start_time = time.monotonic()
         transcribed_text = speech_client.recognize_continuous(audio_config, language)
+        end_time = time.monotonic()
+
+        # Calculate processing time in milliseconds
+        processing_time_ms = int((end_time - start_time) * 1000)
+        logger.debug(f"Processing time: {processing_time_ms}ms")
 
         response = TranscriptionResponse(
             text=transcribed_text,
             language=language,
             audio_format=audio_format,
             file_size_bytes=len(content),
+            duration_ms=duration_ms,
+            processing_time_ms=processing_time_ms,
         )
 
         # Store transcription in history if requested
@@ -271,6 +287,7 @@ async def transcribe_audio(
                 language=language,
                 audio_format=audio_format,
                 file_size_bytes=len(content),
+                duration_ms=duration_ms,
                 blob_url=blob_url,
                 has_diarization=False,
             )
@@ -388,11 +405,23 @@ async def transcribe_audio_with_diarization(
             converted_file_path = convert_to_wav(temp_file_path, audio_format)
             speech_file_path = converted_file_path
 
+        # Get audio duration before transcription
+        duration_ms = get_audio_duration_ms(speech_file_path, audio_format)
+        logger.debug(f"Audio duration: {duration_ms}ms")
+
         # Create audio config and perform diarized transcription
         audio_config = speech_client.create_audio_config_from_file(speech_file_path)
+
+        # Capture start time for processing time measurement
+        start_time = time.monotonic()
         segments_raw = speech_client.recognize_continuous_with_diarization(
             audio_config, language, max_speakers
         )
+        end_time = time.monotonic()
+
+        # Calculate processing time in milliseconds
+        processing_time_ms = int((end_time - start_time) * 1000)
+        logger.debug(f"Processing time: {processing_time_ms}ms")
 
         # Convert to SpeakerSegment models
         segments = [
@@ -417,6 +446,8 @@ async def transcribe_audio_with_diarization(
             file_size_bytes=len(content),
             speaker_count=len(unique_speakers),
             max_speakers=max_speakers,
+            duration_ms=duration_ms,
+            processing_time_ms=processing_time_ms,
         )
 
     except NoAudioTrackError as e:

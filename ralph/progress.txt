@@ -1387,3 +1387,27 @@ Started: 2024-01-15
   - Speaker segments display with color-coded badges per speaker ID
   - Azure Speech SDK ConversationTranscriber provides speaker_id with timestamps
 ---
+
+## 2026-01-14 - BUG-004
+- What was implemented: Fixed processing time and duration showing as 0.0s in transcription results
+- Root cause: Backend TranscriptionResponse model had duration_ms field but was not populating it. No processing_time_ms field existed. Backend was not capturing timing or calling get_audio_duration_ms().
+- Files changed:
+  - `app/models/transcription.py` - Added `processing_time_ms` field to TranscriptionResponse and DiarizedTranscriptionResponse
+  - `app/api/transcribe.py` - Added time.monotonic() timing capture around speech recognition, added get_audio_duration_ms() call, import time module
+  - `frontend/src/services/api.ts` - Added raw backend response types, transform ms to seconds in transcribeAudio/transcribeWithDiarization
+  - `frontend/src/types/api.ts` - Cleaned up duplicate SpeakerSegment, re-export from transcription.ts
+  - `frontend/src/__tests__/api.test.ts` - Updated mocks to use snake_case backend format (duration_ms, processing_time_ms)
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend)
+  - Interactions verified: App loads, services connected (Speech + OpenAI)
+  - Screenshots taken: bug004-frontend-app.png, bug004-services-connected.png
+  - Note: Full transcription test requires Azure AD auth which cannot be automated
+- **API Verification:**
+  - OpenAPI schema confirmed: duration_ms and processing_time_ms present in TranscriptionResponse
+  - Model test confirmed: Fields serialize correctly to JSON
+- **Learnings:**
+  - Backend returns snake_case (duration_ms), frontend expects camelCase (duration) - transform in API service
+  - time.monotonic() is best for measuring elapsed time in Python
+  - get_audio_duration_ms() uses ffprobe to get accurate audio duration
+  - When re-exporting types, use `export type { X } from './module'` syntax
+---
