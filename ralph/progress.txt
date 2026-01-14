@@ -1300,3 +1300,26 @@ Started: 2024-01-15
   - Use `model_config = {"populate_by_name": True}` for Pydantic v2 config
   - Azure OpenAI client requires endpoint, api_key, and deployment name
 ---
+
+## 2026-01-14 - US-058
+- What was implemented: Added MP3, MP4, OGG, and FLAC audio format support with automatic conversion to WAV
+- Files changed:
+  - `app/speech/converter.py` - New module for audio conversion using ffmpeg subprocess (Python 3.14 compatible)
+  - `app/speech/__init__.py` - Exported converter functions
+  - `app/models/transcription.py` - Added MP4, OGG, FLAC to ALLOWED_CONTENT_TYPES and ALLOWED_EXTENSIONS
+  - `app/api/transcribe.py` - Integrated audio conversion before Speech SDK processing, added error handling
+  - `app/tests/test_converter.py` - Unit tests for audio conversion module
+  - `app/tests/test_transcribe.py` - Updated tests for new formats, added converter mocking
+  - `app/tests/integration/conftest.py` - Added converter mock fixture for integration tests
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8001/docs (Swagger UI)
+  - Verified /transcribe endpoint shows "Audio file to transcribe (WAV, MP3, MP4, M4A, OGG, FLAC)"
+  - Verified 400 response description: "Invalid audio format or MP4 has no audio track"
+  - Screenshots: us058-swagger-mp3-mp4-support.png, us058-swagger-file-formats.png
+- **Learnings:**
+  - Python 3.14 removed `audioop` module, breaking pydub - use ffmpeg subprocess directly instead
+  - Use `subprocess.run()` with ffmpeg for audio conversion - more portable than pydub
+  - ffmpeg conversion to WAV: `-ar 16000 -ac 1 -acodec pcm_s16le` for optimal Speech SDK settings
+  - Check for "no audio" or "does not contain any stream" in ffmpeg stderr for NoAudioTrackError
+  - Always mock `needs_conversion` and `convert_to_wav` in tests to avoid ffmpeg dependency
+---

@@ -49,6 +49,12 @@ from speech.client import (
     SpeechServiceError,
     SpeechServiceUnavailableError,
 )
+from speech.converter import (
+    AudioConversionError,
+    NoAudioTrackError,
+    convert_to_wav,
+    needs_conversion,
+)
 from storage import get_storage_client
 from storage.blob import BlobStorageClient, BlobUploadError
 
@@ -111,7 +117,7 @@ def _validate_audio_file(file: UploadFile) -> str:
         file: Uploaded file to validate
 
     Returns:
-        Detected audio format (wav, mp3, or m4a)
+        Detected audio format (wav, mp3, m4a, mp4, ogg, or flac)
 
     Raises:
         HTTPException: 400 if file format is invalid or not supported
@@ -164,14 +170,15 @@ async def _read_and_validate_file_size(file: UploadFile) -> bytes:
     summary="Transcribe audio file",
     description="Upload an audio file for transcription using Azure Speech Services.",
     responses={
-        400: {"description": "Invalid audio format"},
+        400: {"description": "Invalid audio format or MP4 has no audio track"},
         401: {"description": "Authentication required"},
         413: {"description": "File too large"},
+        422: {"description": "Audio conversion or speech recognition failed"},
         503: {"description": "Speech Services unavailable"},
     },
 )
 async def transcribe_audio(
-    file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, or M4A)")],
+    file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, MP4, M4A, OGG, FLAC)")],
     language: Annotated[str, Query(description="Language code for transcription")] = "en-US",
     store: Annotated[bool, Query(description="Store transcription in history")] = True,
     user: AuthenticatedUser = Depends(get_current_user_azure),
@@ -181,7 +188,8 @@ async def transcribe_audio(
 ) -> TranscriptionResponse:
     """Transcribe an uploaded audio file.
 
-    Accepts WAV, MP3, and M4A audio formats.
+    Accepts WAV, MP3, MP4, M4A, OGG, and FLAC audio formats.
+    MP3/MP4/M4A/OGG/FLAC files are converted to WAV for optimal Speech SDK processing.
     Protected by JWT authentication.
     Optionally stores transcription in history.
     Saves audio file to Blob Storage when storage is configured.
@@ -209,6 +217,7 @@ async def transcribe_audio(
 
     # Save to temporary file for Speech SDK processing
     temp_file_path: Optional[str] = None
+    converted_file_path: Optional[str] = None
     blob_url: Optional[str] = None
     try:
         # Upload to Blob Storage if configured
@@ -233,8 +242,15 @@ async def transcribe_audio(
             temp_file.write(content)
             temp_file_path = temp_file.name
 
+        # Convert to WAV if needed (MP3, MP4, etc.)
+        speech_file_path = temp_file_path
+        if needs_conversion(audio_format):
+            logger.info(f"Converting {audio_format} to WAV for Speech SDK")
+            converted_file_path = convert_to_wav(temp_file_path, audio_format)
+            speech_file_path = converted_file_path
+
         # Create audio config and transcribe
-        audio_config = speech_client.create_audio_config_from_file(temp_file_path)
+        audio_config = speech_client.create_audio_config_from_file(speech_file_path)
         transcribed_text = speech_client.recognize_once(audio_config, language)
 
         response = TranscriptionResponse(
@@ -259,6 +275,18 @@ async def transcribe_audio(
             await db.create_transcription(user.oid, record)
 
         return response
+
+    except NoAudioTrackError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"MP4 file has no audio track: {e}",
+        ) from e
+
+    except AudioConversionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Audio conversion failed: {e}",
+        ) from e
 
     except SpeechConfigurationError as e:
         raise HTTPException(
@@ -285,9 +313,11 @@ async def transcribe_audio(
         ) from e
 
     finally:
-        # Clean up temporary file
+        # Clean up temporary files
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
+        if converted_file_path and os.path.exists(converted_file_path):
+            os.unlink(converted_file_path)
 
 
 @router.post(
@@ -296,14 +326,15 @@ async def transcribe_audio(
     summary="Transcribe audio with speaker diarization",
     description="Upload an audio file for transcription with speaker identification.",
     responses={
-        400: {"description": "Invalid audio format or max_speakers out of range"},
+        400: {"description": "Invalid audio format, max_speakers out of range, or MP4 has no audio track"},
         401: {"description": "Authentication required"},
         413: {"description": "File too large"},
+        422: {"description": "Audio conversion or speech recognition failed"},
         503: {"description": "Speech Services unavailable"},
     },
 )
 async def transcribe_audio_with_diarization(
-    file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, or M4A)")],
+    file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, MP4, M4A, OGG, FLAC)")],
     language: Annotated[str, Query(description="Language code for transcription")] = "en-US",
     max_speakers: Annotated[
         int, Query(description=f"Maximum number of speakers ({MIN_SPEAKERS}-{MAX_SPEAKERS})", ge=MIN_SPEAKERS, le=MAX_SPEAKERS)
@@ -314,6 +345,7 @@ async def transcribe_audio_with_diarization(
     """Transcribe an uploaded audio file with speaker diarization.
 
     Enables speaker identification in the transcription results.
+    MP3/MP4/M4A/OGG/FLAC files are converted to WAV for optimal Speech SDK processing.
     Returns segments with speaker labels and timestamps.
 
     Args:
@@ -337,6 +369,7 @@ async def transcribe_audio_with_diarization(
 
     # Save to temporary file for Speech SDK processing
     temp_file_path: Optional[str] = None
+    converted_file_path: Optional[str] = None
     try:
         # Create temp file with appropriate extension
         with tempfile.NamedTemporaryFile(
@@ -346,8 +379,15 @@ async def transcribe_audio_with_diarization(
             temp_file.write(content)
             temp_file_path = temp_file.name
 
+        # Convert to WAV if needed (MP3, MP4, etc.)
+        speech_file_path = temp_file_path
+        if needs_conversion(audio_format):
+            logger.info(f"Converting {audio_format} to WAV for diarized transcription")
+            converted_file_path = convert_to_wav(temp_file_path, audio_format)
+            speech_file_path = converted_file_path
+
         # Create audio config and perform diarized transcription
-        audio_config = speech_client.create_audio_config_from_file(temp_file_path)
+        audio_config = speech_client.create_audio_config_from_file(speech_file_path)
         segments_raw = speech_client.recognize_continuous_with_diarization(
             audio_config, language, max_speakers
         )
@@ -377,6 +417,18 @@ async def transcribe_audio_with_diarization(
             max_speakers=max_speakers,
         )
 
+    except NoAudioTrackError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"MP4 file has no audio track: {e}",
+        ) from e
+
+    except AudioConversionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Audio conversion failed: {e}",
+        ) from e
+
     except SpeechConfigurationError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -402,9 +454,11 @@ async def transcribe_audio_with_diarization(
         ) from e
 
     finally:
-        # Clean up temporary file
+        # Clean up temporary files
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
+        if converted_file_path and os.path.exists(converted_file_path):
+            os.unlink(converted_file_path)
 
 
 # Batch Transcription Endpoints

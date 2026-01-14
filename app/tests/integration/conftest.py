@@ -6,7 +6,7 @@ including database isolation and configurable service mocking.
 
 import os
 from typing import Generator
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -120,6 +120,15 @@ def mock_speech_client() -> MagicMock:
         },
     ]
     return client
+
+
+@pytest.fixture(autouse=True)
+def mock_converter() -> Generator[MagicMock, None, None]:
+    """Mock the audio converter to avoid ffmpeg dependency in tests."""
+    with patch("api.transcribe.needs_conversion", return_value=False), \
+         patch("api.transcribe.convert_to_wav") as mock_convert:
+        mock_convert.return_value = "/tmp/mock_converted.wav"
+        yield mock_convert
 
 
 @pytest.fixture

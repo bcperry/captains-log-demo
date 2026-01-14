@@ -52,6 +52,17 @@ def mock_speech_client() -> MagicMock:
     client.recognize_once.return_value = "This is the transcribed text."
     return client
 
+from typing import Generator
+
+
+@pytest.fixture(autouse=True)
+def mock_converter() -> Generator[MagicMock, None, None]:
+    """Mock the audio converter to avoid ffmpeg dependency in tests."""
+    with patch("api.transcribe.needs_conversion", return_value=False), \
+         patch("api.transcribe.convert_to_wav") as mock_convert:
+        mock_convert.return_value = "/tmp/mock_converted.wav"
+        yield mock_convert
+
 
 @pytest.fixture
 def client(
@@ -167,7 +178,7 @@ class TestFileValidation:
             "/transcribe",
             files=[
                 create_audio_file(
-                    content_type="audio/ogg", filename="test.ogg"
+                    content_type="audio/aiff", filename="test.aiff"
                 )
             ],
         )
@@ -360,7 +371,10 @@ class TestTranscriptionModels:
         assert "wav" in ALLOWED_EXTENSIONS
         assert "mp3" in ALLOWED_EXTENSIONS
         assert "m4a" in ALLOWED_EXTENSIONS
-        assert len(ALLOWED_EXTENSIONS) == 3
+        assert "mp4" in ALLOWED_EXTENSIONS
+        assert "ogg" in ALLOWED_EXTENSIONS
+        assert "flac" in ALLOWED_EXTENSIONS
+        assert len(ALLOWED_EXTENSIONS) == 6
 
     def test_max_file_size_constant(self) -> None:
         """Test that MAX_FILE_SIZE_BYTES is set appropriately."""
