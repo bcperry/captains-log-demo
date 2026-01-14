@@ -1199,6 +1199,24 @@
       "priority": 2,
       "passes": true,
       "notes": "FEATURE: Currently only WAV files may be fully supported. Users want to upload MP3 and MP4 files directly without manual conversion. Azure Speech SDK prefers WAV (PCM 16kHz 16-bit mono) so conversion may be needed. pydub with ffmpeg backend can handle this."
+    },
+    {
+      "id": "BUG-001",
+      "title": "Drag-and-drop doesn't accept MP4 video files",
+      "acceptanceCriteria": [
+        "MP4 files can be dragged and dropped into the audio upload zone",
+        "File input accept attribute includes both file extensions and MIME types",
+        "Accept attribute includes audio/mp4 and video/mp4 MIME types for .mp4 files",
+        "Drag-and-drop validates file type correctly for MP4 files from Windows Downloads",
+        "Test file: C:\\Users\\blaineperry\\Downloads\\Hackathon Pre-Planning-20251014_100616-Meeting Recording.mp4",
+        "File validation error message should be clear if file type is not supported",
+        "Playwright MCP tests verify drag-drop works with MP4 files",
+        "React frontend tests verify AudioUpload component accepts MP4 in file input",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG: When dragging MP4 files into the audio upload zone, nothing happens. Root cause: The file input accept attribute only specifies extensions (.mp4) but doesn't include MIME types (audio/mp4, video/mp4). MP4 files often report as video/mp4 MIME type, so browser's built-in validation rejects them during drag-drop. Fix: Update AudioUpload.tsx line 167 to use MIME types in accept attribute."
     }
   ]
 }

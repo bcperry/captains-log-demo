@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, type DragEvent, type ChangeEvent } from 
 import type { AudioUploadProps } from '../types/transcription'
 import {
   SUPPORTED_EXTENSIONS,
+  SUPPORTED_AUDIO_FORMATS,
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from '../types/transcription'
@@ -165,7 +166,10 @@ export function AudioUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept={SUPPORTED_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
+        accept={[
+          ...SUPPORTED_EXTENSIONS.map((ext) => `.${ext}`),
+          ...SUPPORTED_AUDIO_FORMATS,
+        ].join(',')}
         onChange={handleInputChange}
         className="hidden"
         disabled={disabled || isTranscribing}

@@ -1323,3 +1323,21 @@ Started: 2024-01-15
   - Check for "no audio" or "does not contain any stream" in ffmpeg stderr for NoAudioTrackError
   - Always mock `needs_conversion` and `convert_to_wav` in tests to avoid ffmpeg dependency
 ---
+
+## 2026-01-14 - BUG-001
+- What was implemented: Fixed drag-and-drop not accepting MP4 video files
+- Root cause: File input accept attribute only had extensions (`.mp4`) but not MIME types (`audio/mp4`, `video/mp4`). MP4 files often report as `video/mp4` MIME type, so browser's built-in validation rejected them during drag-drop.
+- Files changed:
+  - `frontend/src/components/AudioUpload.tsx` - Added SUPPORTED_AUDIO_FORMATS import, updated accept attribute to include both extensions AND MIME types
+  - `frontend/src/__tests__/upload.test.tsx` - Added test verifying accept attribute includes MP4 MIME types
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (main page)
+  - Application loads correctly without errors
+  - Screenshots taken: bug001-mp4-drag-drop-fixed.png
+  - Note: File upload zone requires authentication; verified fix via unit test
+- **Learnings:**
+  - Browser drag-drop validation uses MIME types, not just extensions
+  - Accept attribute should include both extensions (`.mp4`) AND MIME types (`video/mp4`, `audio/mp4`)
+  - MP4 files from Windows Downloads often report as `video/mp4` not `audio/mp4`
+  - The `SUPPORTED_AUDIO_FORMATS` constant already included `video/mp4` - just needed to use it in the accept attribute
+---
