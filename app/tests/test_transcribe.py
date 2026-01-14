@@ -378,7 +378,7 @@ class TestTranscriptionModels:
 
     def test_max_file_size_constant(self) -> None:
         """Test that MAX_FILE_SIZE_BYTES is set appropriately."""
-        assert MAX_FILE_SIZE_BYTES == 25 * 1024 * 1024  # 25 MB
+        assert MAX_FILE_SIZE_BYTES == 500 * 1024 * 1024  # 500 MB
 
 
 class TestTempFileCleanup:

@@ -1341,3 +1341,24 @@ Started: 2024-01-15
   - MP4 files from Windows Downloads often report as `video/mp4` not `audio/mp4`
   - The `SUPPORTED_AUDIO_FORMATS` constant already included `video/mp4` - just needed to use it in the accept attribute
 ---
+
+## 2026-01-14 - BUG-001
+- What was implemented: Increased file size limit from 25/100 MB to 500 MB for large meeting recordings
+- Root cause: Users unable to upload 500+ MB meeting recordings due to restrictive file limits
+- Files changed:
+  - `app/models/transcription.py` - MAX_FILE_SIZE_BYTES: 25 MB → 500 MB
+  - `frontend/src/types/transcription.ts` - MAX_FILE_SIZE_MB: 100 MB → 500 MB
+  - `app/tests/test_transcribe.py` - Updated test assertion for 500 MB limit
+  - `frontend/src/__tests__/upload.test.tsx` - Updated test assertions for 500 MB limit
+  - `app/main.py` - Updated API docs Rate Limits section
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Verified: Rate Limits section shows "Maximum file size: 500 MB"
+  - Verified: Supported formats includes WAV, MP3, M4A, MP4, OGG, FLAC
+  - Screenshots taken: bug001-swagger-500mb-limit.png
+- **Learnings:**
+  - Azure Speech Batch Transcription API supports files up to 2 GB
+  - Frontend validates file size before upload using MAX_FILE_SIZE_BYTES constant
+  - Backend validates in transcribe.py and returns 413 Payload Too Large for oversized files
+  - API documentation in main.py description string must be updated separately from constants
+---

@@ -63,8 +63,8 @@ Authorization: Bearer <your-access-token>
 
 ## Rate Limits
 
-- Maximum file size: 25 MB
-- Supported formats: WAV, MP3, M4A
+- Maximum file size: 500 MB (large meeting recordings supported via batch transcription)
+- Supported formats: WAV, MP3, M4A, MP4, OGG, FLAC
 
 ## Endpoints Overview
 

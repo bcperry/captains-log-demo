@@ -41,7 +41,7 @@ describe('AudioUpload', () => {
 
     it('shows max file size', () => {
       render(<AudioUpload />)
-      expect(screen.getByText(/100 MB/i)).toBeInTheDocument()
+      expect(screen.getByText(/500 MB/i)).toBeInTheDocument()
     })
 
     it('renders hidden file input', () => {
@@ -115,10 +115,10 @@ describe('AudioUpload', () => {
       const onError = vi.fn()
       render(<AudioUpload onError={onError} />)
 
-      // Create a file that exceeds 100MB
-      const largeContent = 'a'.repeat(101 * 1024 * 1024)
+      // Create a file that exceeds 500MB
+      const largeContent = 'a'.repeat(501 * 1024 * 1024)
       const file = new File([largeContent], 'large.mp3', { type: 'audio/mpeg' })
-      Object.defineProperty(file, 'size', { value: 101 * 1024 * 1024 })
+      Object.defineProperty(file, 'size', { value: 501 * 1024 * 1024 })
       const fileInput = screen.getByTestId('file-input')
 
       fireEvent.change(fileInput, { target: { files: [file] } })
@@ -334,12 +334,12 @@ describe('transcription types', () => {
 
   it('exports MAX_FILE_SIZE_MB', async () => {
     const types = await import('../types/transcription')
-    expect(types.MAX_FILE_SIZE_MB).toBe(100)
+    expect(types.MAX_FILE_SIZE_MB).toBe(500)
   })
 
   it('exports MAX_FILE_SIZE_BYTES', async () => {
     const types = await import('../types/transcription')
-    expect(types.MAX_FILE_SIZE_BYTES).toBe(100 * 1024 * 1024)
+    expect(types.MAX_FILE_SIZE_BYTES).toBe(500 * 1024 * 1024)
   })
 })
 
