@@ -25,6 +25,7 @@ class TranscriptionResponse(BaseModel):
                 "file_size_bytes": 1024000,
                 "transcribed_at": "2024-01-15T10:30:00Z",
                 "duration_ms": 5000,
+                "processing_time_ms": 1234,
             }
         }
     )
@@ -39,6 +40,9 @@ class TranscriptionResponse(BaseModel):
     )
     duration_ms: Optional[int] = Field(
         default=None, description="Duration of audio in milliseconds if available"
+    )
+    processing_time_ms: Optional[int] = Field(
+        default=None, description="Time taken to process transcription in milliseconds"
     )
 
 
@@ -80,6 +84,7 @@ class DiarizedTranscriptionResponse(BaseModel):
                 "max_speakers": 5,
                 "transcribed_at": "2024-01-15T10:30:00Z",
                 "duration_ms": 4000,
+                "processing_time_ms": 2345,
             }
         }
     )
@@ -99,6 +104,9 @@ class DiarizedTranscriptionResponse(BaseModel):
     )
     duration_ms: Optional[int] = Field(
         default=None, description="Duration of audio in milliseconds if available"
+    )
+    processing_time_ms: Optional[int] = Field(
+        default=None, description="Time taken to process transcription in milliseconds"
     )
 
 

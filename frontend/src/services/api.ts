@@ -100,7 +100,34 @@ export const updateUserPreferences = (
 }
 
 // Transcription endpoints
-export const transcribeAudio = (
+
+// Raw backend response types (snake_case, milliseconds)
+interface TranscriptionResponseRaw {
+  text: string
+  duration_ms: number | null
+  processing_time_ms: number | null
+  language: string
+  audio_format: string
+  file_size_bytes: number
+}
+
+interface DiarizedTranscriptionResponseRaw {
+  segments: Array<{
+    speaker_id: string
+    text: string
+    start_time_ms: number
+    end_time_ms: number
+  }>
+  full_text: string
+  duration_ms: number | null
+  processing_time_ms: number | null
+  speaker_count: number
+  language: string
+  audio_format: string
+  file_size_bytes: number
+}
+
+export const transcribeAudio = async (
   file: File,
   language?: string
 ): Promise<TranscriptionResponse> => {
@@ -109,13 +136,21 @@ export const transcribeAudio = (
   if (language) {
     formData.append('language', language)
   }
-  return request<TranscriptionResponse>('/transcribe', {
+  const raw = await request<TranscriptionResponseRaw>('/transcribe', {
     method: 'POST',
     body: formData,
   })
+
+  // Transform backend response to frontend format (convert ms to seconds)
+  return {
+    text: raw.text,
+    language: raw.language,
+    duration: raw.duration_ms ? raw.duration_ms / 1000 : 0,
+    processingTime: raw.processing_time_ms ? raw.processing_time_ms / 1000 : 0,
+  }
 }
 
-export const transcribeWithDiarization = (
+export const transcribeWithDiarization = async (
   file: File,
   maxSpeakers?: number,
   language?: string
@@ -134,10 +169,24 @@ export const transcribeWithDiarization = (
   const queryString = params.toString()
   const url = `/transcribe/diarize${queryString ? `?${queryString}` : ''}`
 
-  return request<DiarizedTranscriptionResponse>(url, {
+  const raw = await request<DiarizedTranscriptionResponseRaw>(url, {
     method: 'POST',
     body: formData,
   })
+
+  // Transform backend response to frontend format (convert ms to seconds)
+  return {
+    fullText: raw.full_text,
+    duration: raw.duration_ms ? raw.duration_ms / 1000 : 0,
+    processingTime: raw.processing_time_ms ? raw.processing_time_ms / 1000 : 0,
+    speakerCount: raw.speaker_count,
+    segments: raw.segments.map((seg) => ({
+      speakerId: seg.speaker_id,
+      text: seg.text,
+      startTimeMs: seg.start_time_ms,
+      endTimeMs: seg.end_time_ms,
+    })),
+  }
 }
 
 // Transcription history endpoints
