@@ -1148,6 +1148,29 @@
       "priority": 1,
       "passes": true,
       "notes": "FIXED: Azure Speech SDK was throwing SPXERR_INVALID_ARG (0x5) because region property was set after creating SpeechConfig with endpoint parameter. The fix removes region configuration when using endpoint-based configuration (custom endpoints or Government cloud). Verified with Playwright E2E testing - Speech Service shows Connection successful."
+    },
+    {
+      "id": "US-057",
+      "title": "Fix 'Method Not Allowed' error when running AI summary",
+      "acceptanceCriteria": [
+        "Investigate why AI summary/analyze endpoint returns 'Method Not Allowed' (405) error",
+        "Check if the frontend is calling the correct HTTP method (POST vs GET)",
+        "Verify the API endpoint path matches what the backend expects",
+        "Check if the /analyze or /summarize endpoint exists in the FastAPI routes",
+        "If endpoint is missing, create POST /analyze endpoint for AI analysis",
+        "Endpoint should accept transcription text and return AI-generated summary",
+        "Integrate with Azure OpenAI to generate summary, key points, action items",
+        "Frontend 'Analyze & Summarize' button should successfully call the endpoint",
+        "Return structured response with summary, key_points, action_items, sentiment",
+        "Handle Azure OpenAI errors gracefully with user-friendly messages",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn",
+        "PLAYWRIGHT: Transcribe audio, click Analyze & Summarize, verify AI results display"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG: Frontend 'Analyze & Summarize' button returns 405 Method Not Allowed. This typically means the HTTP method (GET/POST) doesn't match what the backend route expects, or the endpoint doesn't exist. Need to check if /analyze endpoint is defined and if frontend is using correct HTTP method."
     }
   ]
 }
