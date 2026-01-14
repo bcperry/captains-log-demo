@@ -8,6 +8,11 @@ import {
 } from '../types/transcription'
 import { useTranscription } from '../hooks/useTranscription'
 
+// Default max speakers for diarization
+const DEFAULT_MAX_SPEAKERS = 5
+const MIN_SPEAKERS = 1
+const MAX_SPEAKERS = 10
+
 /**
  * AudioUpload component for uploading and transcribing audio files.
  * Supports drag-and-drop and file picker.
@@ -21,6 +26,8 @@ export function AudioUpload({
   const [isDragOver, setIsDragOver] = useState(false)
   const [audioDuration, setAudioDuration] = useState<number | null>(null)
   const [durationLimit, setDurationLimit] = useState<number | null>(null)
+  const [enableDiarization, setEnableDiarization] = useState(false)
+  const [maxSpeakers, setMaxSpeakers] = useState(DEFAULT_MAX_SPEAKERS)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
 
@@ -34,6 +41,8 @@ export function AudioUpload({
     hasResult,
   } = useTranscription({
     language,
+    enableDiarization,
+    maxSpeakers,
     onComplete: onTranscriptionComplete,
     onError,
   })
@@ -303,6 +312,46 @@ export function AudioUpload({
                 )}
               </div>
             )}
+
+            {/* Speaker diarization toggle */}
+            <div className="bg-purple-50 rounded-lg p-4" data-testid="diarization-settings">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">👥</span>
+                  <h4 className="text-sm font-medium text-gray-700">Speaker Identification</h4>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableDiarization}
+                    onChange={(e) => setEnableDiarization(e.target.checked)}
+                    className="sr-only peer"
+                    disabled={isTranscribing}
+                    data-testid="diarization-toggle"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                Enable to identify who said what in multi-speaker recordings (meetings, interviews)
+              </p>
+              {enableDiarization && (
+                <div className="flex items-center gap-4">
+                  <label className="text-sm text-gray-600">Max speakers:</label>
+                  <input
+                    type="number"
+                    min={MIN_SPEAKERS}
+                    max={MAX_SPEAKERS}
+                    value={maxSpeakers}
+                    onChange={(e) => setMaxSpeakers(Math.min(MAX_SPEAKERS, Math.max(MIN_SPEAKERS, Number(e.target.value))))}
+                    className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                    disabled={isTranscribing}
+                    data-testid="max-speakers-input"
+                  />
+                  <span className="text-xs text-gray-400">(1-{MAX_SPEAKERS})</span>
+                </div>
+              )}
+            </div>
 
             {/* Progress bar */}
             {isTranscribing && (

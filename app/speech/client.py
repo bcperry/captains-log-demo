@@ -308,6 +308,92 @@ class SpeechClient:
         except SpeechServiceUnavailableError:
             return False
 
+    def recognize_continuous(
+        self,
+        audio_config: speechsdk.AudioConfig,
+        language: str = "en-US",
+        timeout_seconds: int = 600,
+    ) -> str:
+        """Perform continuous speech recognition for long audio files.
+
+        Unlike recognize_once() which only captures a single phrase (~15-30 seconds),
+        this method transcribes the entire audio file by listening for all speech.
+
+        Args:
+            audio_config: Audio configuration for the recognizer.
+            language: Language code for recognition (default: en-US).
+            timeout_seconds: Maximum time to wait for transcription (default: 10 min).
+
+        Returns:
+            Full transcribed text from the audio.
+
+        Raises:
+            SpeechRecognitionError: If recognition fails or returns no results.
+            SpeechServiceUnavailableError: If the service is unavailable.
+        """
+        import logging
+        import threading
+
+        logger = logging.getLogger(__name__)
+
+        recognizer = self.create_recognizer(audio_config, language)
+
+        results: list[str] = []
+        errors: list[str] = []
+        done_event = threading.Event()
+
+        def handle_recognized(evt: speechsdk.SpeechRecognitionEventArgs) -> None:
+            """Handle recognized speech events."""
+            if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                if evt.result.text:
+                    results.append(evt.result.text)
+                    logger.debug(f"Recognized: {evt.result.text[:50]}...")
+
+        def handle_canceled(evt: speechsdk.SpeechRecognitionCanceledEventArgs) -> None:
+            """Handle cancellation events."""
+            if evt.cancellation_details.reason == speechsdk.CancellationReason.Error:
+                errors.append(evt.cancellation_details.error_details)
+                logger.error(f"Canceled: {evt.cancellation_details.error_details}")
+            done_event.set()
+
+        def handle_session_stopped(evt: speechsdk.SessionEventArgs) -> None:
+            """Handle session stopped events - signals end of audio stream."""
+            logger.debug("Session stopped - audio processing complete")
+            done_event.set()
+
+        try:
+            # Connect event handlers
+            recognizer.recognized.connect(handle_recognized)
+            recognizer.canceled.connect(handle_canceled)
+            recognizer.session_stopped.connect(handle_session_stopped)
+
+            # Start continuous recognition
+            recognizer.start_continuous_recognition_async().get()
+
+            # Wait for completion or timeout
+            done_event.wait(timeout=timeout_seconds)
+
+            # Stop recognition
+            recognizer.stop_continuous_recognition_async().get()
+
+            if errors:
+                raise SpeechServiceUnavailableError(
+                    f"Continuous recognition failed: {errors[0]}"
+                )
+
+            if not results:
+                raise SpeechRecognitionError("No speech recognized in audio file")
+
+            # Join all recognized text
+            return " ".join(results)
+
+        except (SpeechRecognitionError, SpeechServiceUnavailableError):
+            raise
+        except Exception as e:
+            raise SpeechServiceError(
+                f"Continuous recognition failed: {e}"
+            ) from e
+
     def recognize_continuous_with_diarization(
         self,
         audio_config: speechsdk.AudioConfig,

@@ -122,13 +122,19 @@ export const transcribeWithDiarization = (
 ): Promise<DiarizedTranscriptionResponse> => {
   const formData = new FormData()
   formData.append('file', file)
+
+  // Build query parameters for diarization options
+  const params = new URLSearchParams()
   if (maxSpeakers) {
-    formData.append('max_speakers', maxSpeakers.toString())
+    params.append('max_speakers', maxSpeakers.toString())
   }
   if (language) {
-    formData.append('language', language)
+    params.append('language', language)
   }
-  return request<DiarizedTranscriptionResponse>('/transcribe/diarize', {
+  const queryString = params.toString()
+  const url = `/transcribe/diarize${queryString ? `?${queryString}` : ''}`
+
+  return request<DiarizedTranscriptionResponse>(url, {
     method: 'POST',
     body: formData,
   })

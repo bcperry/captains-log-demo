@@ -105,6 +105,7 @@ def mock_speech_client() -> MagicMock:
     client = MagicMock(spec=SpeechClient)
     client.create_audio_config_from_file.return_value = MagicMock()
     client.recognize_once.return_value = "Integration test transcribed text."
+    client.recognize_continuous.return_value = "Integration test transcribed text."
     client.recognize_continuous_with_diarization.return_value = [
         {
             "speaker_id": "Speaker1",

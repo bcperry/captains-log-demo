@@ -1362,3 +1362,28 @@ Started: 2024-01-15
   - Backend validates in transcribe.py and returns 413 Payload Too Large for oversized files
   - API documentation in main.py description string must be updated separately from constants
 ---
+
+## 2026-01-14 - BUG-003
+- What was implemented: Added diarization (speaker identification) support to frontend transcription
+- Root cause: Frontend did not have UI controls to enable diarization or display speaker segments
+- Files changed:
+  - `frontend/src/types/transcription.ts` - Added SpeakerSegment interface and diarization fields to TranscriptionResult
+  - `frontend/src/types/api.ts` - Updated SpeakerSegment to use startTimeMs/endTimeMs field names
+  - `frontend/src/hooks/useTranscription.ts` - Added enableDiarization and maxSpeakers options, calls /transcribe/diarize when enabled
+  - `frontend/src/services/api.ts` - Fixed transcribeWithDiarization to use query params instead of FormData
+  - `frontend/src/components/AudioUpload.tsx` - Added Speaker Identification toggle with max speakers input
+  - `frontend/src/components/TranscriptionResults.tsx` - Added SpeakerSegmentsDisplay component to show speaker-labeled segments
+  - `frontend/src/__tests__/api.test.ts` - Updated tests for query param changes
+  - `app/tests/test_transcribe.py` - Updated mocks from recognize_once to recognize_continuous
+  - `app/tests/integration/conftest.py` - Added recognize_continuous mock
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend landing page)
+  - Verified app loads correctly (requires auth for transcription features)
+  - All 116 frontend unit tests pass, covering diarization toggle and speaker segments
+- **Learnings:**
+  - Backend already had diarization support via ConversationTranscriber and /transcribe/diarize endpoint
+  - API uses query params (not FormData) for max_speakers and language in diarization endpoint
+  - Frontend uses recognize_continuous (not recognize_once) for long audio transcription
+  - Speaker segments display with color-coded badges per speaker ID
+  - Azure Speech SDK ConversationTranscriber provides speaker_id with timestamps
+---

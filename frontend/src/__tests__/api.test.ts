@@ -288,13 +288,13 @@ describe('API service', () => {
       const result = await transcribeWithDiarization(file, 3, 'en-US')
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8001/transcribe/diarize',
+        'http://localhost:8001/transcribe/diarize?max_speakers=3&language=en-US',
         expect.objectContaining({ method: 'POST' })
       )
       expect(result.speakerCount).toBe(2)
     })
 
-    it('includes max_speakers in FormData', async () => {
+    it('includes max_speakers in query params', async () => {
       setAccessToken('token')
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -312,8 +312,9 @@ describe('API service', () => {
       await transcribeWithDiarization(file, 5, 'en-US')
 
       const callArgs = mockFetch.mock.calls[0]
-      const formData = callArgs[1].body as FormData
-      expect(formData.get('max_speakers')).toBe('5')
+      const url = callArgs[0] as string
+      expect(url).toContain('max_speakers=5')
+      expect(url).toContain('language=en-US')
     })
   })
 
