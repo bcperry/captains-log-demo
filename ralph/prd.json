@@ -1202,21 +1202,26 @@
     },
     {
       "id": "BUG-001",
-      "title": "Drag-and-drop doesn't accept MP4 video files",
+      "title": "File size limit too small for meeting recordings (500 MB needed)",
       "acceptanceCriteria": [
-        "MP4 files can be dragged and dropped into the audio upload zone",
-        "File input accept attribute includes both file extensions and MIME types",
-        "Accept attribute includes audio/mp4 and video/mp4 MIME types for .mp4 files",
-        "Drag-and-drop validates file type correctly for MP4 files from Windows Downloads",
-        "Test file: C:\\Users\\blaineperry\\Downloads\\Hackathon Pre-Planning-20251014_100616-Meeting Recording.mp4",
-        "File validation error message should be clear if file type is not supported",
-        "Playwright MCP tests verify drag-drop works with MP4 files",
-        "React frontend tests verify AudioUpload component accepts MP4 in file input",
+        "Backend MAX_FILE_SIZE_BYTES increased from 25 MB to 500 MB in models/transcription.py",
+        "Frontend MAX_FILE_SIZE_MB increased from 100 MB to 500 MB in types/transcription.ts",
+        "File upload accepts files up to 500 MB without validation error",
+        "Test file: C:\\Users\\blaineperry\\Downloads\\Hackathon Pre-Planning-20251014_100616-Meeting Recording.mp4 (~500 MB)",
+        "Update test assertions in test_transcribe.py to match new 500 MB limit",
+        "Verify Azure Speech Services can handle 500 MB files (or use batch transcription)",
+        "Clear error message if file exceeds 500 MB limit",
+        "Frontend displays file size validation error correctly",
+        "Backend returns 413 Payload Too Large with clear message for oversized files",
+        "Consider using batch transcription for files > 100 MB",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "React frontend tests pass",
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG: When dragging MP4 files into the audio upload zone, nothing happens. Root cause: The file input accept attribute only specifies extensions (.mp4) but doesn't include MIME types (audio/mp4, video/mp4). MP4 files often report as video/mp4 MIME type, so browser's built-in validation rejects them during drag-drop. Fix: Update AudioUpload.tsx line 167 to use MIME types in accept attribute."
+      "notes": "Playwright MCP E2E verification completed 2026-01-14. Screenshot: bug001-swagger-500mb-limit.png"
     }
   ]
 }
