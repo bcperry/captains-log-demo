@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from api import auth_router, health_router, transcribe_router, transcriptions_router
+from api import auth_router, health_router, transcribe_router, transcriptions_router, analyze_router
 from auth.azure_auth import get_azure_scheme
 from config.settings import get_settings
 
@@ -216,6 +216,7 @@ if azure_scheme is not None:
 app.include_router(auth_router, dependencies=auth_dependencies)
 app.include_router(transcribe_router, dependencies=auth_dependencies)
 app.include_router(transcriptions_router, dependencies=auth_dependencies)
+app.include_router(analyze_router, dependencies=auth_dependencies)
 
 # Static files and SPA routing
 # Check if frontend dist directory exists (production build)
