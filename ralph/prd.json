@@ -1171,6 +1171,34 @@
       "priority": 1,
       "passes": true,
       "notes": "BUG: Frontend 'Analyze & Summarize' button returns 405 Method Not Allowed. This typically means the HTTP method (GET/POST) doesn't match what the backend route expects, or the endpoint doesn't exist. Need to check if /analyze endpoint is defined and if frontend is using correct HTTP method."
+    },
+    {
+      "id": "US-058",
+      "title": "Support MP3 and MP4 audio file formats for transcription",
+      "acceptanceCriteria": [
+        "Accept MP3 files (.mp3) for transcription upload",
+        "Accept MP4 files (.mp4) for transcription - extract audio track",
+        "Update frontend file input to accept audio/mpeg, audio/mp3, video/mp4 mime types",
+        "Update backend file validation to allow MP3 and MP4 extensions",
+        "Convert MP3/MP4 to WAV format before sending to Azure Speech SDK if needed",
+        "Use pydub or ffmpeg for audio format conversion",
+        "Ensure ffmpeg is available in Docker image for audio processing",
+        "Handle MP4 files by extracting audio stream only",
+        "Preserve audio quality during conversion (16kHz, 16-bit, mono for Speech SDK)",
+        "Update AudioUpload component to show MP3 and MP4 as accepted formats",
+        "Display appropriate error if MP4 has no audio track",
+        "Test transcription with various MP3 bitrates (128kbps, 256kbps, 320kbps)",
+        "Test transcription with MP4 files from common sources (phone recordings, screen captures)",
+        "test using a video at \"C:\\Users\\blaineperry\\Downloads\\Hackathon Pre-Planning-20251014_100616-Meeting Recording.mp4\"",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn",
+        "PLAYWRIGHT: Upload MP3 file, verify transcription succeeds",
+        "PLAYWRIGHT: Upload MP4 file, verify transcription succeeds"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "FEATURE: Currently only WAV files may be fully supported. Users want to upload MP3 and MP4 files directly without manual conversion. Azure Speech SDK prefers WAV (PCM 16kHz 16-bit mono) so conversion may be needed. pydub with ffmpeg backend can handle this."
     }
   ]
 }

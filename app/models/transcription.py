@@ -119,9 +119,13 @@ ALLOWED_CONTENT_TYPES: dict[str, str] = {
     "audio/mp4": "m4a",
     "audio/x-m4a": "m4a",
     "audio/m4a": "m4a",
+    "video/mp4": "mp4",  # MP4 video files (extract audio)
+    "audio/ogg": "ogg",
+    "audio/flac": "flac",
+    "audio/x-flac": "flac",
 }
 
-ALLOWED_EXTENSIONS: set[str] = {"wav", "mp3", "m4a"}
+ALLOWED_EXTENSIONS: set[str] = {"wav", "mp3", "m4a", "mp4", "ogg", "flac"}
 
 # Maximum file size: 25 MB
 MAX_FILE_SIZE_BYTES: int = 25 * 1024 * 1024

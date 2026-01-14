@@ -28,6 +28,13 @@ from speech.client import (
     clear_speech_client_cache,
     get_speech_client,
 )
+from speech.converter import (
+    AudioConversionError,
+    NoAudioTrackError,
+    convert_to_wav,
+    get_audio_duration_ms,
+    needs_conversion,
+)
 
 __all__ = [
     # Real-time speech client
@@ -52,4 +59,10 @@ __all__ = [
     "TranscriptionStatus",
     "clear_batch_client_cache",
     "get_batch_transcription_client",
+    # Audio conversion
+    "AudioConversionError",
+    "NoAudioTrackError",
+    "convert_to_wav",
+    "get_audio_duration_ms",
+    "needs_conversion",
 ]
