@@ -50,6 +50,22 @@ describe('AudioUpload', () => {
       expect(fileInput).toBeInTheDocument()
       expect(fileInput).toHaveClass('hidden')
     })
+
+    it('file input accept attribute includes both extensions and MIME types for MP4', () => {
+      render(<AudioUpload />)
+      const fileInput = screen.getByTestId('file-input')
+      const accept = fileInput.getAttribute('accept')
+      
+      // Verify extensions are included
+      expect(accept).toContain('.mp4')
+      expect(accept).toContain('.mp3')
+      expect(accept).toContain('.wav')
+      
+      // Verify MIME types are included (critical for drag-drop to work with MP4)
+      expect(accept).toContain('audio/mp4')
+      expect(accept).toContain('video/mp4')
+      expect(accept).toContain('audio/mpeg')
+    })
   })
 
   describe('file selection', () => {
