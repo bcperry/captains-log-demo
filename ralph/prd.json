@@ -2222,7 +2222,7 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "BICEP WARNINGS: Multiple unused identifiers blocking clean deployment:\n- resources.bicep(32): Variable 'cosmosDbEndpointSuffix' declared but never used\n- entra-auth.bicep(15): Parameter 'redirectPath' declared but never used\n\nThese should be removed unless needed for future compatibility."
     }
   ]

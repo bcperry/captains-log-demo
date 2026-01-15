@@ -11,9 +11,6 @@ param clientId string
 @allowed(['commercial', 'government'])
 param azureCloud string = 'government'
 
-@description('Redirect URI path for authentication callback')
-param redirectPath string = '/.auth/login/aad/callback'
-
 @description('Allowed token audiences (typically the API identifier URI)')
 param allowedAudiences array = []
 

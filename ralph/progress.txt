@@ -2187,3 +2187,18 @@ Started: 2024-01-15
   - Solution: Remove only the output statements, keep internal listKeys() calls for resource configuration
   - Bicep CLI has issues in WSL environments with path handling
 ---
+
+## 2026-01-15 - BUG-009
+- What was implemented: Removed unused Bicep parameter blocking compilation
+- Root cause: `redirectPath` parameter in entra-auth.bicep was declared but never used
+- Files changed:
+  - `infra/entra-auth.bicep` - Removed unused `redirectPath` parameter (lines 14-15)
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8003/docs (Swagger UI)
+  - Interactions verified: API documentation loads, endpoints visible
+  - Screenshots taken: bug009-swagger-docs.png
+- **Learnings:**
+  - Bicep linter flags unused parameters/variables with no-unused-params/no-unused-vars
+  - Always verify Bicep compiles cleanly before deployment
+  - The `cosmosDbEndpointSuffix` was already removed in a prior fix
+---
