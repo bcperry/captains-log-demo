@@ -2224,6 +2224,66 @@
       "priority": 2,
       "passes": true,
       "notes": "BICEP WARNINGS: Multiple unused identifiers blocking clean deployment:\n- resources.bicep(32): Variable 'cosmosDbEndpointSuffix' declared but never used\n- entra-auth.bicep(15): Parameter 'redirectPath' declared but never used\n\nThese should be removed unless needed for future compatibility."
+    },
+    {
+      "id": "BUG-021",
+      "title": "Cosmos DB resources still in resources.bicep despite US-071 removal",
+      "acceptanceCriteria": [
+        "Remove 'cosmosDbAccount' resource (Microsoft.DocumentDB/databaseAccounts) from resources.bicep",
+        "Remove 'cosmosDatabase' resource from resources.bicep",
+        "Remove 'transcriptionsContainer' Cosmos DB container resource from resources.bicep",
+        "Remove all Cosmos DB-related variables from resources.bicep",
+        "Remove all Cosmos DB-related parameters from resources.bicep",
+        "Remove Cosmos DB outputs from resources.bicep and main.bicep",
+        "Remove COSMOS_DB environment variables from Container App configuration",
+        "Remove Cosmos DB role assignments if any",
+        "Bicep build succeeds without Cosmos DB references",
+        "azd up succeeds without deploying Cosmos DB resources",
+        "Application runs correctly without Cosmos DB dependency",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-15 - US-071 removed Cosmos DB from application code but resources.bicep still contains full Cosmos DB infrastructure: cosmosDbAccount (Microsoft.DocumentDB/databaseAccounts@2024-05-15), cosmosDatabase, transcriptionsContainer, and related variables/outputs. These orphaned resources are still being deployed and incurring costs despite not being used by the application. Ralph repeatedly fails to remove these resources when asked."
+    },
+    {
+      "id": "BUG-022",
+      "title": "Container App startup probe failing - application not starting in Azure Government",
+      "acceptanceCriteria": [
+        "Container App startup probe passes within timeout period",
+        "Application starts successfully in Azure Container Apps",
+        "No 'Probe of StartUp failed' errors in system logs",
+        "Container replica count stays at 1 (not scaled to 0 due to failures)",
+        "Health endpoint /health responds successfully during startup",
+        "Investigate root cause: missing dependencies, configuration errors, or startup exceptions",
+        "Fix any Python import errors or missing environment variables",
+        "Verify Dockerfile CMD runs uvicorn correctly",
+        "Application is accessible at Container App URL",
+        "azd up completes with healthy container",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "CRITICAL BUG logged 2026-01-15 - Azure Container App system logs show 274+ consecutive startup probe failures (status code: 1). Container revision 'ca-6nobqi2gz72ee--azd-1768510828' is being deactivated by KEDA scaling (from 1 to 0 replicas) after repeated probe failures. Error messages: 'Probe of StartUp failed with status code: 1', 'Container api was terminated with exit code and reason ManuallyStopped'. This prevents the deployed application from running. Need to check: (1) Dockerfile entrypoint command, (2) Python startup errors/import failures, (3) Missing required environment variables, (4) Health check endpoint configuration in Bicep, (5) Port binding configuration."
+    },
+    {
+      "id": "BUG-023",
+      "title": "Azure Container Registry image pull unauthorized - ACR credentials not configured",
+      "acceptanceCriteria": [
+        "Container App can successfully pull images from Azure Container Registry",
+        "No 'ImagePullUnauthorized' errors in system logs",
+        "ACR admin credentials or managed identity configured correctly",
+        "Bicep template configures ACR pull permissions for Container App",
+        "Container App registry configuration includes correct credentials",
+        "Verify ACR is in same Azure Government region as Container App",
+        "azd up completes with successful image pull",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "CRITICAL BUG logged 2026-01-15 - Azure Container App system logs show repeated 'Container pull image failed with unauthorized error' (ImagePullUnauthorized) when trying to pull 'cr6nobqi2gz72ee.azurecr.us/web:latest'. This affects revision 'ca-6nobqi2gz72ee--dkrv30j'. The Container App Environment cannot authenticate to Azure Container Registry. Possible causes: (1) ACR admin user not enabled, (2) Container App not configured with ACR credentials in Bicep, (3) Managed identity not granted AcrPull role on registry, (4) Registry secrets not passed to Container App configuration. Need to verify resources.bicep has proper registry configuration with credentials or managed identity."
     }
   ]
 }
