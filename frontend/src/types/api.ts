@@ -43,6 +43,9 @@ export interface TranscriptionRecord {
   fileName: string
   fileSize: number
   createdAt: string
+  speakerCount?: number
+  speakerIds?: string[]
+  languageDetected?: string
 }
 
 export interface TranscriptionListResponse {

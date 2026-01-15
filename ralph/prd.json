@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
+        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '🎯' with 'Start' or use button variant styling",
-        "Replace '⏳' with 'Processing...' text",
-        "Replace '✅' success indicators with professional checkmarks or green highlights",
-        "Replace '❌' error indicators with professional error styling",
+        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
+        "Replace '\u23f3' with 'Processing...' text",
+        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
+        "Replace '\u274c' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -1591,8 +1591,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "FEATURE: Enhance transcription metadata to include speaker count and language. Useful for filtering and organizing recordings."
+      "passes": true,
+      "notes": "Implemented speaker metadata storage. TranscriptionRecord now includes speaker_ids and language_detected. Added query filters for speaker count (speaker_count, min_speakers, max_speakers). Frontend displays language and speaker count in list view."
     },
     {
       "id": "BUG-006",

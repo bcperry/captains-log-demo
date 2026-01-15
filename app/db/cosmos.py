@@ -193,7 +193,13 @@ class CosmosClient:
         return None
 
     async def list_transcriptions(
-        self, user_id: str, page: int = 1, per_page: int = 20
+        self,
+        user_id: str,
+        page: int = 1,
+        per_page: int = 20,
+        speaker_count: Optional[int] = None,
+        min_speakers: Optional[int] = None,
+        max_speakers: Optional[int] = None,
     ) -> tuple[list[TranscriptionRecord], int]:
         """List transcriptions for a user.
 
@@ -201,6 +207,9 @@ class CosmosClient:
             user_id: User ID (partition key)
             page: Page number (1-indexed)
             per_page: Results per page
+            speaker_count: Filter by exact speaker count
+            min_speakers: Filter for minimum speaker count
+            max_speakers: Filter for maximum speaker count
 
         Returns:
             Tuple of (transcriptions, total_count)
@@ -312,13 +321,28 @@ class InMemoryCosmosClient(CosmosClient):
         return None
 
     async def list_transcriptions(
-        self, user_id: str, page: int = 1, per_page: int = 20
+        self,
+        user_id: str,
+        page: int = 1,
+        per_page: int = 20,
+        speaker_count: Optional[int] = None,
+        min_speakers: Optional[int] = None,
+        max_speakers: Optional[int] = None,
     ) -> tuple[list[TranscriptionRecord], int]:
-        """List transcriptions from in-memory storage with pagination."""
+        """List transcriptions from in-memory storage with pagination and filtering."""
         if user_id not in _in_memory_transcriptions:
             return [], 0
 
         all_records = list(_in_memory_transcriptions[user_id].values())
+        
+        # Apply speaker count filters
+        if speaker_count is not None:
+            all_records = [r for r in all_records if r.get("speaker_count") == speaker_count]
+        if min_speakers is not None:
+            all_records = [r for r in all_records if (r.get("speaker_count") or 0) >= min_speakers]
+        if max_speakers is not None:
+            all_records = [r for r in all_records if (r.get("speaker_count") or 0) <= max_speakers]
+        
         # Sort by created_at descending
         all_records.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 

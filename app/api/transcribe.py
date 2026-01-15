@@ -370,6 +370,7 @@ async def transcribe_audio(
                 blob_url=blob_url,
                 blob_storage_url=blob_storage_url,
                 has_diarization=False,
+                language_detected=language,  # For non-diarized, use requested language
                 audio_hash=audio_hash,
                 cached=False,
             )
@@ -647,7 +648,9 @@ async def transcribe_audio_with_diarization(
                 blob_storage_url=blob_storage_url,
                 has_diarization=True,
                 speaker_count=len(unique_speakers),
+                speaker_ids=sorted(list(unique_speakers)),
                 segments=segments,
+                language_detected=language,  # Store detected/requested language
                 audio_hash=audio_hash,
                 cached=False,
             )

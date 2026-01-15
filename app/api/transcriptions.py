@@ -41,11 +41,14 @@ def get_blob_storage() -> BlobStorageClient:
     "",
     response_model=TranscriptionListResponse,
     summary="List user's transcriptions",
-    description="Get a paginated list of the authenticated user's transcriptions.",
+    description="Get a paginated list of the authenticated user's transcriptions. Filter by speaker count.",
 )
 async def list_transcriptions(
     page: Annotated[int, Query(description="Page number", ge=1)] = 1,
     per_page: Annotated[int, Query(description="Results per page", ge=1, le=100)] = 20,
+    speaker_count: Annotated[int | None, Query(description="Filter by exact speaker count")] = None,
+    min_speakers: Annotated[int | None, Query(description="Minimum speaker count", ge=1)] = None,
+    max_speakers: Annotated[int | None, Query(description="Maximum speaker count", ge=1)] = None,
     user: AuthenticatedUser = Depends(get_current_user_azure),
     db: CosmosClient = Depends(get_db),
 ) -> TranscriptionListResponse:
@@ -54,13 +57,21 @@ async def list_transcriptions(
     Args:
         page: Page number (1-indexed)
         per_page: Number of results per page
+        speaker_count: Filter by exact speaker count (e.g., 2 for 2-speaker conversations)
+        min_speakers: Filter for transcriptions with at least this many speakers
+        max_speakers: Filter for transcriptions with at most this many speakers
         user: Authenticated user from Entra ID token
         db: Cosmos DB client
 
     Returns:
         TranscriptionListResponse with paginated transcriptions
     """
-    transcriptions, total = await db.list_transcriptions(user.oid, page, per_page)
+    transcriptions, total = await db.list_transcriptions(
+        user.oid, page, per_page,
+        speaker_count=speaker_count,
+        min_speakers=min_speakers,
+        max_speakers=max_speakers,
+    )
 
     return TranscriptionListResponse(
         transcriptions=transcriptions,

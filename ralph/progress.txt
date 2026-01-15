@@ -1751,3 +1751,24 @@ Started: 2024-01-15
   - The acceptance criteria required the query endpoint which was missing
   - FastAPI route ordering matters - placed /by-hash/{audio_hash} before /{transcription_id} routes that could match
 ---
+
+## 2026-01-15 - US-069
+- What was implemented: Store transcription metadata with speaker count and language
+- Files changed:
+  - `app/models/transcription.py` - Added `speaker_ids` (list[str]) and `language_detected` (str) fields to TranscriptionRecord
+  - `app/api/transcribe.py` - Updated record creation to populate speaker_ids and language_detected
+  - `app/api/transcriptions.py` - Added speaker_count, min_speakers, max_speakers query filters to list endpoint
+  - `app/db/cosmos.py` - Updated list_transcriptions() to support speaker count filtering
+  - `frontend/src/components/MyRecordings.tsx` - Display language and speaker count in list view, speaker IDs in detail view
+  - `frontend/src/types/api.ts` - Added speakerCount, speakerIds, languageDetected to TranscriptionRecord
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI), http://localhost:3000 (Frontend)
+  - Verified GET /transcriptions shows speaker_count, min_speakers, max_speakers query parameters
+  - Verified TranscriptionRecord schema shows speaker_ids and language_detected fields
+  - Frontend loads correctly with Azure services connected
+  - Screenshots taken: us069-swagger-transcription-record-schema.png, us069-frontend-main-page.png
+- **Learnings:**
+  - Frontend already had speakerCount display - just needed languageDetected added
+  - Query parameters for speaker count filter enable "show me 2-speaker conversations" use case
+  - InMemoryCosmosClient needed to implement filtering for local development
+---
