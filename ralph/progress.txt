@@ -2306,3 +2306,19 @@ Started: 2024-01-15
   - azd buildArgs must be array format: `- KEY=${VAR}`, not map format: `KEY: ${VAR}`
   - YAML marshal error "cannot unmarshal !!map into []osutil.ExpandableString" indicates azd expects array
 ---
+
+## 2026-01-15 - BUG-027
+- What was implemented: Fixed AZURE_CLIENT_ID / AZURE_ENTRA_CLIENT_ID conflict in settings.py
+- Root cause: AliasChoices('azure_client_id', 'azure_entra_client_id') checked AZURE_CLIENT_ID first, which contains the managed identity client ID (0e644592...) instead of the Entra ID app registration (ec3c8d20...)
+- Fix: Changed AliasChoices order to ('azure_entra_client_id', 'azure_client_id') so AZURE_ENTRA_CLIENT_ID is preferred when both are set
+- Files changed:
+  - `app/config/settings.py` - Reversed AliasChoices order for azure_client_id field
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Interactions verified: Clicked Authorize button, OAuth2 modal shows correct client_id (ec3c8d20...)
+  - Screenshots taken: bug027-auth-modal-correct-client-id.png
+- **Learnings:**
+  - Pydantic AliasChoices checks aliases in order - first matching env var wins
+  - When multiple env vars might be set, order matters for priority
+  - Always verify OAuth2 client_id in Swagger UI modal matches expected app registration
+---

@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     azure_client_id: Optional[str] = Field(
         default=None,
         description="Azure Entra ID application (client) ID (backend API)",
-        validation_alias=AliasChoices("azure_client_id", "azure_entra_client_id"),
+        validation_alias=AliasChoices("azure_entra_client_id", "azure_client_id"),
     )
     azure_client_secret: Optional[str] = Field(
         default=None,

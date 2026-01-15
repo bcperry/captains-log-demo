@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
+        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '🎯' with 'Start' or use button variant styling",
-        "Replace '⏳' with 'Processing...' text",
-        "Replace '✅' success indicators with professional checkmarks or green highlights",
-        "Replace '❌' error indicators with professional error styling",
+        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
+        "Replace '\u23f3' with 'Processing...' text",
+        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
+        "Replace '\u274c' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2142,7 +2142,7 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' \u2192 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' \u2192 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] \u2192 ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     },
     {
       "id": "BUG-020",
@@ -2344,6 +2344,27 @@
       "priority": 1,
       "passes": true,
       "notes": "BUG logged 2026-01-15 - azd up fails with error: 'yaml: unmarshal errors: line 9: cannot unmarshal !!map into []osutil.ExpandableString'. The buildArgs in azure.yaml was added as a map/dict format but azd expects an array of strings. Current incorrect format:\n\ndocker:\n  buildArgs:\n    VITE_AZURE_CLIENT_ID: ${AZURE_ENTRA_CLIENT_ID}\n\nAzd buildArgs should be an array of 'KEY=VALUE' strings, not a map. Correct format:\n\ndocker:\n  buildArgs:\n    - VITE_AZURE_CLIENT_ID=${AZURE_ENTRA_CLIENT_ID}\n    - VITE_AZURE_TENANT_ID=${AZURE_ENTRA_TENANT_ID}\n    - VITE_AZURE_CLOUD=${AZURE_CLOUD}"
+    },
+    {
+      "id": "BUG-027",
+      "title": "AZURE_CLIENT_ID conflicts with AZURE_ENTRA_CLIENT_ID - backend uses wrong client ID for auth",
+      "acceptanceCriteria": [
+        "Backend authentication uses correct app registration client ID (ec3c8d20...)",
+        "Token validation succeeds without 'invalid claims' error",
+        "Rename AZURE_CLIENT_ID to AZURE_MANAGED_IDENTITY_CLIENT_ID in resources.bicep",
+        "OR change AliasChoices order in settings.py to check azure_entra_client_id first",
+        "OR remove AZURE_CLIENT_ID from container env and use DefaultAzureCredential",
+        "settings.azure_client_id returns the Entra ID app registration client ID",
+        "Token audience (aud) claim matches backend expected client ID",
+        "User can authenticate successfully in deployed app",
+        "Protected endpoints (/auth/me, /transcribe) work with valid token",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "CRITICAL BUG logged 2026-01-15 - Backend returns 'token contains invalid claims' because of client ID collision. Container App has TWO client IDs:\n\n  AZURE_CLIENT_ID = 0e644592... (managed identity for Azure resources)\n  AZURE_ENTRA_CLIENT_ID = ec3c8d20... (app registration for user auth)\n\nsettings.py uses AliasChoices('azure_client_id', 'azure_entra_client_id') which checks AZURE_CLIENT_ID FIRST. Since it's set, Pydantic uses the managed identity client ID (0e644592) instead of the app registration (ec3c8d20).\n\nResult:\n- Frontend MSAL gets token with audience = ec3c8d20 (correct app registration)\n- Backend validates against = 0e644592 (wrong - managed identity)\n- Token validation fails: audience mismatch = 'invalid claims'\n\nFix: Either (1) rename AZURE_CLIENT_ID to AZURE_MANAGED_IDENTITY_CLIENT_ID in Bicep so it doesn't match the alias, (2) change AliasChoices order to ('azure_entra_client_id', 'azure_client_id'), or (3) remove AZURE_CLIENT_ID from container env entirely."
     }
   ]
 }
