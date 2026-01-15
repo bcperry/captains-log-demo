@@ -1981,3 +1981,23 @@ Started: 2024-01-15
   - Response models need explicit fields to communicate cache hit status
   - Frontend can conditionally style success messages based on cache status
 ---
+
+## 2026-01-15 - BUG-014
+- What was implemented: Fixed AI analysis not being saved to blob storage after generation
+- Root cause: The /analyze endpoint only returned analysis results but did not save to blob storage
+- Files changed:
+  - `app/models/analysis.py` - Added optional `folder_path` field to AnalyzeRequest model
+  - `app/api/analyze.py` - Added BlobStorageClient dependency, saves analysis.json when folder_path provided, updates metadata.json with has_analysis: true
+  - `app/tests/test_analyze.py` - Added TestAnalyzeSaveToStorage test class with 5 new tests
+  - `frontend/src/services/api.ts` - Added optional folderPath parameter to analyzeTranscription function
+  - `frontend/src/hooks/useAnalysis.ts` - Simplified to pass folderPath directly to API (removed separate save call)
+  - `frontend/src/__tests__/results.test.tsx` - Updated tests for new API signature
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8001/docs (Swagger UI)
+  - Verified /analyze endpoint now includes folder_path field in request body
+  - Screenshot: bug014-analyze-endpoint-with-folder-path.png
+- **Learnings:**
+  - Backend should handle persistence, not rely on frontend to make separate save calls
+  - Always add error handling that logs but doesn't fail the main operation for auxiliary saves
+  - Update metadata.json atomically when saving related files (analysis.json)
+---

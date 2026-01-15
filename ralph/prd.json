@@ -1942,8 +1942,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "BUG logged 2026-01-15 - After performing AI analysis on transcription, the analysis results are not saved to blob storage. No analysis.json file appears in Azure Storage. User cannot see analysis in My Recordings view or after app restart. Backend /analyze endpoint likely not calling save_analysis_json() method, or method not implemented correctly. Related to US-072 which specifies this feature."
+      "passes": true,
+      "notes": "Fixed 2026-01-15 - Added folder_path to /analyze endpoint, saves analysis.json and updates metadata. Playwright verified via Swagger UI."
     }
   ]
 }

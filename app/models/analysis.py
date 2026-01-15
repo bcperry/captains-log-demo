@@ -48,6 +48,10 @@ class AnalyzeRequest(BaseModel):
         max_length=100000,
         description="Optional diarized transcript with speaker labels (e.g., 'Speaker 1 [00:00:01]: Hello')",
     )
+    folder_path: Optional[str] = Field(
+        default=None,
+        description="Optional folder path for saving analysis to blob storage (e.g., 'user-guid/recording_20240115_103000')",
+    )
 
 
 class AnalysisResult(BaseModel):
