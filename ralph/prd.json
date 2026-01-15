@@ -1435,6 +1435,28 @@
       "priority": 2,
       "passes": false,
       "notes": "DESIGN: Overall UI needs professional polish. Currently appears as a prototype with colorful elements, emojis, and inconsistent spacing. Need: consistent color scheme, professional typography, proper spacing, subtle effects, and clean layout structure."
+    },
+    {
+      "id": "BUG-005",
+      "title": "TypeScript compile error: unused 'formatTimeMs' function in TranscriptionResults",
+      "acceptanceCriteria": [
+        "TranscriptionResults.tsx compiles without TypeScript errors",
+        "formatTimeMs function either used or removed from component",
+        "If formatTimeMs is needed, use it in component to format time display",
+        "If formatTimeMs is not needed, remove the unused function declaration",
+        "Check if similar formatting is done elsewhere or needed",
+        "npm run build:deploy completes successfully",
+        "npm run build command succeeds without errors",
+        "tsc -b compiles without warnings or errors",
+        "vite build succeeds without errors",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "React frontend tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUILD ERROR: Frontend build fails with TypeScript error TS6133 in src/components/TranscriptionResults.tsx:35. The function 'formatTimeMs' is declared but never read. This breaks the npm run build:deploy pipeline. Either use the function or remove it."
     }
   ]
 }

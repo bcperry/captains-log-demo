@@ -1486,3 +1486,20 @@ Started: 2024-01-15
   - View switching without router achieved via state management in App.tsx
   - Extended SidebarProps with navigation props using TypeScript interface extension
 
+
+## 2026-01-15 - BUG-005
+- What was implemented: Removed unused formatTimeMs function from TranscriptionResults.tsx
+- Files changed: frontend/src/components/TranscriptionResults.tsx
+- Root cause: Function `formatTimeMs` (MM:SS format) was declared but never used - `formatTimeMsChat` (HH:MM:SS format) is used instead
+- **Playwright Verification:**
+  - Pages tested: Main application at http://127.0.0.1:5173
+  - Verified: App loads without TypeScript errors, UI renders correctly
+  - Screenshot: bug-005-verification.png
+- **Build Verification:**
+  - npm run build: SUCCESS (tsc -b && vite build completed)
+  - pytest: 331 tests passed
+  - React tests: 117 tests passed
+- **Learnings:**
+  - TypeScript strict mode catches unused declarations with TS6133 error
+  - When refactoring time formatting, check for duplicate/unused utility functions
+---
