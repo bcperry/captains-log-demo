@@ -267,18 +267,19 @@ async def transcribe_audio(
     temp_file_path: Optional[str] = None
     converted_file_path: Optional[str] = None
     blob_url: Optional[str] = None
+    folder_path: Optional[str] = None
     try:
-        # Upload to Blob Storage if configured
+        # Upload to Blob Storage using hierarchical user path
         if storage.is_configured():
             try:
-                blob_url = await storage.upload_audio_file(
+                blob_url, folder_path = await storage.upload_audio_with_user_path(
                     content=content,
                     audio_format=audio_format,
                     user_id=user.oid,
                     original_filename=file.filename,
                     metadata={"audio_hash": audio_hash},
                 )
-                logger.info(f"Saved audio file to blob storage: {blob_url}")
+                logger.info(f"Saved audio file to blob storage: {blob_url} (folder: {folder_path})")
             except BlobUploadError as e:
                 # Log error but continue with transcription
                 logger.warning(f"Failed to save audio to blob storage: {e}")
@@ -343,13 +344,13 @@ async def transcribe_audio(
                 audio_hash=audio_hash,
             )
 
-            # Save transcription JSON to blob storage
+            # Save transcription JSON to blob storage using folder path
             blob_storage_url: Optional[str] = None
-            if storage.is_configured():
+            if storage.is_configured() and folder_path:
                 try:
-                    blob_storage_url = await storage.upload_transcription_json(
+                    blob_storage_url = await storage.upload_transcription_with_user_path(
                         user_id=user.oid,
-                        transcription_id=transcription_id,
+                        folder_path=folder_path,
                         content_json=transcription_content.model_dump_json(),
                         metadata={"audio_hash": audio_hash},
                     )
@@ -369,6 +370,7 @@ async def transcribe_audio(
                 processing_time_ms=processing_time_ms,
                 blob_url=blob_url,
                 blob_storage_url=blob_storage_url,
+                folder_path=folder_path,
                 has_diarization=False,
                 language_detected=language,  # For non-diarized, use requested language
                 audio_hash=audio_hash,
@@ -515,18 +517,19 @@ async def transcribe_audio_with_diarization(
     temp_file_path: Optional[str] = None
     converted_file_path: Optional[str] = None
     blob_url: Optional[str] = None
+    folder_path: Optional[str] = None
     try:
-        # Upload to Blob Storage if configured
+        # Upload to Blob Storage using hierarchical user path
         if storage.is_configured():
             try:
-                blob_url = await storage.upload_audio_file(
+                blob_url, folder_path = await storage.upload_audio_with_user_path(
                     content=content,
                     audio_format=audio_format,
                     user_id=user.oid,
                     original_filename=file.filename,
                     metadata={"audio_hash": audio_hash},
                 )
-                logger.info(f"Saved audio file to blob storage: {blob_url}")
+                logger.info(f"Saved audio file to blob storage: {blob_url} (folder: {folder_path})")
             except BlobUploadError as e:
                 # Log error but continue with transcription
                 logger.warning(f"Failed to save audio to blob storage: {e}")
@@ -620,13 +623,13 @@ async def transcribe_audio_with_diarization(
                 audio_hash=audio_hash,
             )
 
-            # Save transcription JSON to blob storage
+            # Save transcription JSON to blob storage using folder path
             blob_storage_url: Optional[str] = None
-            if storage.is_configured():
+            if storage.is_configured() and folder_path:
                 try:
-                    blob_storage_url = await storage.upload_transcription_json(
+                    blob_storage_url = await storage.upload_transcription_with_user_path(
                         user_id=user.oid,
-                        transcription_id=transcription_id,
+                        folder_path=folder_path,
                         content_json=transcription_content.model_dump_json(),
                         metadata={"audio_hash": audio_hash},
                     )
@@ -646,6 +649,7 @@ async def transcribe_audio_with_diarization(
                 processing_time_ms=processing_time_ms,
                 blob_url=blob_url,
                 blob_storage_url=blob_storage_url,
+                folder_path=folder_path,
                 has_diarization=True,
                 speaker_count=len(unique_speakers),
                 speaker_ids=sorted(list(unique_speakers)),
@@ -778,15 +782,15 @@ async def create_batch_transcription(
     # Read and validate file size
     content = await _read_and_validate_file_size(file)
 
-    # Upload to Blob Storage
+    # Upload to Blob Storage using hierarchical user path
     try:
-        blob_url = await storage.upload_audio_file(
+        blob_url, folder_path = await storage.upload_audio_with_user_path(
             content=content,
             audio_format=audio_format,
             user_id=user.oid,
             original_filename=file.filename,
         )
-        logger.info(f"Uploaded audio file to blob storage: {blob_url}")
+        logger.info(f"Uploaded audio file to blob storage: {blob_url} (folder: {folder_path})")
     except BlobUploadError as e:
         logger.error(f"Failed to upload audio to blob storage: {e}")
         raise HTTPException(
@@ -827,6 +831,7 @@ async def create_batch_transcription(
             display_name=display_name,
             created_at=job.created_date_time,
             blob_url=blob_url,
+            folder_path=folder_path,
         )
 
     except BatchTranscriptionError as e:

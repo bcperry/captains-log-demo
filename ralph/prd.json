@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
+        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '🎯' with 'Start' or use button variant styling",
-        "Replace '⏳' with 'Processing...' text",
-        "Replace '✅' success indicators with professional checkmarks or green highlights",
-        "Replace '❌' error indicators with professional error styling",
+        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
+        "Replace '\u23f3' with 'Processing...' text",
+        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
+        "Replace '\u274c' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -1697,6 +1697,60 @@
       "priority": 1,
       "passes": true,
       "notes": "BUG logged 2026-01-15 - Slider currently stuck/limited at 1:30 in audio file with 1:53 total duration. Can drag LEFT to decrease duration (working), but cannot drag RIGHT to increase toward full 1:53 duration. Possible causes: (1) Max duration hardcoded to 1:30, (2) Input onChange event handler has upper bound bug, (3) Slider max attribute not set correctly to audio duration, (4) Event preventing drag right (CSS pointer-events or event.preventDefault)"
+    },
+    {
+      "id": "BUG-009",
+      "title": "Transcripts saved with GUID container instead of user/filename format",
+      "acceptanceCriteria": [
+        "Transcripts save to correct blob path: {container}/{USER_GUID}/{filename_TIMESTAMP}/transcript.json",
+        "NOT saving to: {container}/{random_guid}/ or other incorrect paths",
+        "Audio files saved to: {container}/{USER_GUID}/{filename_TIMESTAMP}/audio/{filename}",
+        "Blob storage path structure follows US-070 specification",
+        "Original uploaded filename preserved in path (with timestamp appended)",
+        "User GUID extracted from authenticated token (oid/sub claim)",
+        "Timestamp format: YYYYMMDD_HHMMSS appended to filename",
+        "Multiple recordings by same user go into separate {filename_TIMESTAMP} folders",
+        "Multiple recordings by different users go into separate {USER_GUID} folders",
+        "Verify Blob Storage path in Azure Portal matches expected structure",
+        "Check BlobStorageClient code for correct path construction",
+        "Verify user ID is being extracted before blob upload",
+        "mypy type checking passes",
+        "pytest tests pass with correct path assertions",
+        "PLAYWRIGHT: Login, upload recording, check Azure Portal blob structure matches {GUID}/{filename_TIMESTAMP}/ format",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-15 - Transcripts currently saving to incorrect blob container/path with random GUID instead of user-organized hierarchical structure. Expected format from US-070 not being implemented. Needs: (1) Verify user ID extraction from token, (2) Update BlobStorageClient.upload_transcription_with_user_path(), (3) Ensure filename_TIMESTAMP formatting correct, (4) Verify path construction logic"
+    },
+    {
+      "id": "BUG-010",
+      "title": "My Recordings view not loading saved transcripts on page reload",
+      "acceptanceCriteria": [
+        "My Recordings section loads list of user's previously saved transcriptions on page load",
+        "Transcriptions persist in Cosmos DB with user_id partition key",
+        "GET /transcriptions endpoint returns list of user's transcriptions",
+        "Each transcription item shows: filename, date uploaded, duration, speaker count",
+        "Click transcription item to view saved transcript details",
+        "Transcript text loads from blob storage JSON (see BUG-009)",
+        "Speaker segments load and display as chat bubbles",
+        "Page reload preserves My Recordings list (not cleared)",
+        "Empty state message when user has no previous recordings",
+        "Loading spinner shows while fetching transcription list",
+        "Error message displays if API call fails",
+        "Cosmos DB queries filtered by authenticated user ID",
+        "Transcriptions sorted by date (newest first)",
+        "mypy type checking passes",
+        "pytest tests pass for /transcriptions endpoint",
+        "React component unit tests pass",
+        "PLAYWRIGHT: Login, upload recording, go to My Recordings, verify appears in list",
+        "PLAYWRIGHT: Reload page, verify My Recordings list still shows previous recording",
+        "PLAYWRIGHT: Click recording item, verify transcript loads from blob storage",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG logged 2026-01-15 - My Recordings view does not persist across page reloads. Upon reload, no recordings appear (empty list) even though transcripts may exist in blob storage. Likely causes: (1) GET /transcriptions endpoint not implemented or not querying Cosmos DB, (2) Frontend not calling transcriptions API on mount, (3) Cosmos DB not storing transcription metadata with correct user partition, (4) Blob storage paths incorrect so transcripts not retrievable (related to BUG-009)"
     }
   ]
 }
