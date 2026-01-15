@@ -139,7 +139,7 @@ describe('TranscriptionResults', () => {
       fireEvent.click(screen.getByTestId('analyze-button'))
       
       await waitFor(() => {
-        expect(mockAnalyze).toHaveBeenCalledWith(mockTranscription.text)
+        expect(mockAnalyze).toHaveBeenCalledWith(mockTranscription.text, undefined)
       })
     })
 
@@ -284,6 +284,32 @@ describe('TranscriptionResults', () => {
       await waitFor(() => {
         expect(screen.getByTestId('analysis-error')).toBeInTheDocument()
         expect(screen.getByText(/Analysis service unavailable/)).toBeInTheDocument()
+      })
+    })
+
+    it('sends diarized transcript when transcription has segments', async () => {
+      const mockAnalyze = vi.mocked(api.analyzeTranscription)
+      mockAnalyze.mockResolvedValue(mockAnalysisResult)
+
+      const diarizedTranscription: TranscriptionResult = {
+        ...mockTranscription,
+        hasDiarization: true,
+        speakerCount: 2,
+        segments: [
+          { speakerId: 'Speaker_1', text: 'Hello there', startTimeMs: 0, endTimeMs: 1000 },
+          { speakerId: 'Speaker_2', text: 'Hi!', startTimeMs: 1100, endTimeMs: 2000 },
+        ],
+      }
+
+      render(<TranscriptionResults transcription={diarizedTranscription} />)
+      
+      fireEvent.click(screen.getByTestId('analyze-button'))
+      
+      await waitFor(() => {
+        expect(mockAnalyze).toHaveBeenCalledWith(
+          diarizedTranscription.text,
+          'Speaker 1 [00:00:00]: Hello there\nSpeaker 2 [00:00:01]: Hi!'
+        )
       })
     })
   })

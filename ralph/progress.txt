@@ -1411,3 +1411,30 @@ Started: 2024-01-15
   - get_audio_duration_ms() uses ffprobe to get accurate audio duration
   - When re-exporting types, use `export type { X } from './module'` syntax
 ---
+
+## 2026-01-14 - US-059
+- What was implemented: Diarization as default with chat-like transcript display and AI analysis
+- Root cause: Diarization was opt-in, transcript didn't show chat format, AI analysis didn't receive speaker context
+- Files changed:
+  - `frontend/src/hooks/useTranscription.ts` - Changed enableDiarization default from false to true
+  - `frontend/src/components/AudioUpload.tsx` - Changed enableDiarization state default to true
+  - `frontend/src/components/TranscriptionResults.tsx` - Added formatTimeMsChat for HH:MM:SS format, updated SpeakerSegmentsDisplay to show "📍 Speaker 1 [HH:MM:SS]: text" chat format, handleAnalyze now builds and sends diarized transcript
+  - `frontend/src/services/api.ts` - analyzeTranscription now accepts optional diarizedTranscript param
+  - `frontend/src/hooks/useAnalysis.ts` - analyze function now accepts optional diarizedTranscript param
+  - `app/models/analysis.py` - Added diarized_transcript optional field to AnalyzeRequest model
+  - `app/ai/__init__.py` - Added DIARIZED_ANALYSIS_SYSTEM_PROMPT for speaker-aware analysis, updated analyze_transcription to accept and use diarized_transcript
+  - `app/api/analyze.py` - Pass diarized_transcript to openai_client.analyze_transcription
+  - `app/api/transcribe.py` - Added store, db, storage params to diarize endpoint, stores TranscriptionRecord with segments
+  - `app/tests/test_analyze.py` - Updated test assertions for new diarized_transcript param, added test for diarized analysis
+  - `frontend/src/__tests__/upload.test.tsx` - Added transcribeWithDiarization mock, updated tests for diarization default
+  - `frontend/src/__tests__/results.test.tsx` - Updated analyzeTranscription assertions, added test for diarized transcript analysis
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend), http://localhost:8000/docs (Swagger UI)
+  - Interactions verified: App loads correctly, services connected, AnalyzeRequest schema shows diarized_transcript field
+  - Screenshots taken: us059-analyze-request-schema.png, us059-frontend-main.png
+- **Learnings:**
+  - When changing default behavior, update both hook defaults and component state defaults
+  - AI analysis benefits from speaker context - use separate prompts for diarized vs plain transcripts
+  - Diarize endpoint should store to Cosmos DB like the regular transcribe endpoint
+  - formatTimeMsChat uses HH:MM:SS for chat display, formatTimeMs uses MM:SS for duration display
+---

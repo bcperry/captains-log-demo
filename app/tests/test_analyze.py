@@ -98,7 +98,7 @@ class TestAnalyzeEndpoint:
         assert data["confidence"] == 0.85
 
         mock_openai_client.analyze_transcription.assert_called_once_with(
-            "Test transcription text"
+            "Test transcription text", None
         )
 
     def test_analyze_returns_key_points(
@@ -143,6 +143,24 @@ class TestAnalyzeEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["topics"] == ["Project planning", "Budget review"]
+
+    def test_analyze_with_diarized_transcript(
+        self,
+        client: TestClient,
+        mock_openai_client: MagicMock,
+        mock_analysis_result: AnalysisResult,
+    ) -> None:
+        """Test that diarized transcript is passed to OpenAI client."""
+        diarized = "Speaker 1 [00:00:01]: Hello\nSpeaker 2 [00:00:05]: Hi there"
+        response = client.post(
+            "/analyze",
+            json={"text": "Hello Hi there", "diarized_transcript": diarized},
+        )
+
+        assert response.status_code == 200
+        mock_openai_client.analyze_transcription.assert_called_once_with(
+            "Hello Hi there", diarized
+        )
 
     def test_analyze_requires_text(self, client: TestClient) -> None:
         """Test that text field is required."""

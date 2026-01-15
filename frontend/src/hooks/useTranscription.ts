@@ -47,7 +47,7 @@ const initialState: TranscriptionState = {
  * Hook for managing audio file upload and transcription state.
  */
 export function useTranscription(options: UseTranscriptionOptions = {}): UseTranscriptionReturn {
-  const { language = 'en-US', enableDiarization = false, maxSpeakers = 5, onComplete, onError } = options
+  const { language = 'en-US', enableDiarization = true, maxSpeakers = 5, onComplete, onError } = options
   const [state, setState] = useState<TranscriptionState>(initialState)
   const abortControllerRef = useRef<AbortController | null>(null)
   const { withAuth } = useAuthenticatedApi()

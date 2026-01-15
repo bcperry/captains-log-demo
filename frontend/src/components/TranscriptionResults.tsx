@@ -22,6 +22,15 @@ const downloadFile = (content: string, filename: string, mimeType: string) => {
   URL.revokeObjectURL(url)
 }
 
+// Format milliseconds to HH:MM:SS format for chat display
+const formatTimeMsChat = (ms: number): string => {
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
+
 // Format milliseconds to MM:SS format
 const formatTimeMs = (ms: number): string => {
   const totalSeconds = Math.floor(ms / 1000)
@@ -99,10 +108,21 @@ export function TranscriptionResults({
     setEditableText(transcription.text)
   }
 
-  // Handle analyze button click
+  // Handle analyze button click - sends diarized transcript for speaker-aware analysis
   const handleAnalyze = useCallback(async () => {
-    await analyze(editableText)
-  }, [analyze, editableText])
+    // Build diarized transcript string if segments are available
+    let diarizedTranscript: string | undefined
+    if (transcription?.hasDiarization && transcription?.segments && transcription.segments.length > 0) {
+      diarizedTranscript = transcription.segments
+        .map((seg) => {
+          const speakerName = seg.speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')
+          const timestamp = formatTimeMsChat(seg.startTimeMs)
+          return `${speakerName} [${timestamp}]: ${seg.text}`
+        })
+        .join('\n')
+    }
+    await analyze(editableText, diarizedTranscript)
+  }, [analyze, editableText, transcription])
 
   // Handle clear button click
   const handleClear = useCallback(() => {
@@ -415,41 +435,49 @@ function SpeakerSegmentsDisplay({ segments }: SpeakerSegmentsDisplayProps) {
 
   // Get unique speakers
   const uniqueSpeakers = [...new Set(segments.map((s) => s.speakerId))]
+  
+  // Format speaker name for chat display
+  const formatSpeakerName = (speakerId: string): string => {
+    const name = speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')
+    return name
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6" data-testid="speaker-segments">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">👥 Speaker Segments</h3>
+        <h3 className="text-lg font-semibold text-gray-800">💬 Conversation Transcript</h3>
         <div className="flex gap-2">
           {uniqueSpeakers.map((speakerId) => (
             <span
               key={speakerId}
               className={`px-2 py-1 text-xs rounded-full border ${getSpeakerColor(speakerId)}`}
             >
-              {speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')}
+              {formatSpeakerName(speakerId)}
             </span>
           ))}
         </div>
       </div>
 
-      <div className="space-y-3 max-h-96 overflow-y-auto" data-testid="segments-list">
-        {segments.map((segment, index) => (
-          <div
-            key={index}
-            className={`p-3 rounded-lg border ${getSpeakerColor(segment.speakerId)}`}
-            data-testid={`segment-${index}`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-medium text-sm">
-                {segment.speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')}
-              </span>
-              <span className="text-xs opacity-70">
-                {formatTimeMs(segment.startTimeMs)} - {formatTimeMs(segment.endTimeMs)}
-              </span>
+      <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="segments-list">
+        {segments.map((segment, index) => {
+          const speakerName = formatSpeakerName(segment.speakerId)
+          const timestamp = formatTimeMsChat(segment.startTimeMs)
+          
+          return (
+            <div
+              key={index}
+              className={`p-3 rounded-lg border ${getSpeakerColor(segment.speakerId)}`}
+              data-testid={`segment-${index}`}
+            >
+              <p className="text-sm">
+                <span className="font-medium">📍 {speakerName}</span>
+                <span className="text-xs opacity-70 ml-2">[{timestamp}]</span>
+                <span className="mx-2">:</span>
+                <span>{segment.text}</span>
+              </p>
             </div>
-            <p className="text-sm">{segment.text}</p>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

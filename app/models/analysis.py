@@ -43,6 +43,11 @@ class AnalyzeRequest(BaseModel):
         max_length=50000,
         description="The transcription text to analyze",
     )
+    diarized_transcript: Optional[str] = Field(
+        default=None,
+        max_length=100000,
+        description="Optional diarized transcript with speaker labels (e.g., 'Speaker 1 [00:00:01]: Hello')",
+    )
 
 
 class AnalysisResult(BaseModel):

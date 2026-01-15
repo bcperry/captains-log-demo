@@ -6,6 +6,7 @@ import * as api from '../services/api'
 // Mock the API module
 vi.mock('../services/api', () => ({
   transcribeAudio: vi.fn(),
+  transcribeWithDiarization: vi.fn(),
 }))
 
 // Mock the useAuthenticatedApi hook - execute API calls directly without token
@@ -224,12 +225,13 @@ describe('AudioUpload', () => {
 
   describe('transcription process', () => {
     it('starts transcription when button is clicked', async () => {
-      const mockTranscribe = vi.mocked(api.transcribeAudio)
+      const mockTranscribe = vi.mocked(api.transcribeWithDiarization)
       mockTranscribe.mockResolvedValue({
-        text: 'Transcribed text',
+        fullText: 'Transcribed text',
         duration: 60,
         processingTime: 5,
-        language: 'en-US',
+        speakerCount: 1,
+        segments: [{ speakerId: 'Speaker 1', text: 'Transcribed text', startTimeMs: 0, endTimeMs: 1000 }],
       })
 
       render(<AudioUpload />)
@@ -246,17 +248,18 @@ describe('AudioUpload', () => {
       fireEvent.click(screen.getByTestId('transcribe-button'))
 
       await waitFor(() => {
-        expect(mockTranscribe).toHaveBeenCalledWith(file, 'en-US')
+        expect(mockTranscribe).toHaveBeenCalledWith(file, 5, 'en-US')
       })
     })
 
     it('shows success message on completion', async () => {
-      const mockTranscribe = vi.mocked(api.transcribeAudio)
+      const mockTranscribe = vi.mocked(api.transcribeWithDiarization)
       mockTranscribe.mockResolvedValue({
-        text: 'Transcribed text',
+        fullText: 'Transcribed text',
         duration: 60,
         processingTime: 5,
-        language: 'en-US',
+        speakerCount: 1,
+        segments: [{ speakerId: 'Speaker 1', text: 'Transcribed text', startTimeMs: 0, endTimeMs: 1000 }],
       })
 
       const onComplete = vi.fn()
@@ -284,7 +287,7 @@ describe('AudioUpload', () => {
     })
 
     it('shows error message on failure', async () => {
-      const mockTranscribe = vi.mocked(api.transcribeAudio)
+      const mockTranscribe = vi.mocked(api.transcribeWithDiarization)
       mockTranscribe.mockRejectedValue(new Error('Transcription failed'))
 
       const onError = vi.fn()

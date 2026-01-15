@@ -21,7 +21,7 @@ export interface UseAnalysisOptions {
 
 export interface UseAnalysisReturn {
   state: AnalysisState
-  analyze: (text: string) => Promise<void>
+  analyze: (text: string, diarizedTranscript?: string) => Promise<void>
   cancel: () => void
   reset: () => void
   isAnalyzing: boolean
@@ -48,7 +48,7 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
   const { withAuth } = useAuthenticatedApi()
 
   const analyze = useCallback(
-    async (text: string) => {
+    async (text: string, diarizedTranscript?: string) => {
       if (!text.trim()) {
         const errorMsg = 'No text to analyze'
         setState((prev) => ({ ...prev, error: errorMsg }))
@@ -70,8 +70,8 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
           },
         }))
 
-        // Call API with authentication
-        const result = await withAuth(() => analyzeApi(text))
+        // Call API with authentication - pass diarized transcript if available
+        const result = await withAuth(() => analyzeApi(text, diarizedTranscript))
 
         // Check if cancelled
         if (abortControllerRef.current?.signal.aborted) {

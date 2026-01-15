@@ -358,21 +358,29 @@ async def transcribe_audio_with_diarization(
     max_speakers: Annotated[
         int, Query(description=f"Maximum number of speakers ({MIN_SPEAKERS}-{MAX_SPEAKERS})", ge=MIN_SPEAKERS, le=MAX_SPEAKERS)
     ] = DEFAULT_MAX_SPEAKERS,
+    store: Annotated[bool, Query(description="Store transcription in history")] = True,
     user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
+    db: CosmosClient = Depends(get_db),
+    storage: BlobStorageClient = Depends(get_blob_storage),
 ) -> DiarizedTranscriptionResponse:
     """Transcribe an uploaded audio file with speaker diarization.
 
     Enables speaker identification in the transcription results.
     MP3/MP4/M4A/OGG/FLAC files are converted to WAV for optimal Speech SDK processing.
     Returns segments with speaker labels and timestamps.
+    Optionally stores transcription with diarization data in history.
+    Saves audio file to Blob Storage when storage is configured.
 
     Args:
         file: Uploaded audio file
         language: Language code for transcription (default: en-US)
         max_speakers: Maximum number of speakers to identify (1-10)
+        store: Whether to store transcription in history (default: True)
         user: Authenticated user from Entra ID token
         speech_client: Azure Speech Services client
+        db: Database client
+        storage: Blob storage client
 
     Returns:
         DiarizedTranscriptionResponse with speaker segments and metadata
@@ -389,7 +397,22 @@ async def transcribe_audio_with_diarization(
     # Save to temporary file for Speech SDK processing
     temp_file_path: Optional[str] = None
     converted_file_path: Optional[str] = None
+    blob_url: Optional[str] = None
     try:
+        # Upload to Blob Storage if configured
+        if storage.is_configured():
+            try:
+                blob_url = await storage.upload_audio_file(
+                    content=content,
+                    audio_format=audio_format,
+                    user_id=user.oid,
+                    original_filename=file.filename,
+                )
+                logger.info(f"Saved audio file to blob storage: {blob_url}")
+            except BlobUploadError as e:
+                # Log error but continue with transcription
+                logger.warning(f"Failed to save audio to blob storage: {e}")
+
         # Create temp file with appropriate extension
         with tempfile.NamedTemporaryFile(
             suffix=f".{audio_format}",
@@ -438,7 +461,7 @@ async def transcribe_audio_with_diarization(
         full_text = " ".join(seg.text for seg in segments if seg.text)
         unique_speakers = set(seg.speaker_id for seg in segments)
 
-        return DiarizedTranscriptionResponse(
+        response = DiarizedTranscriptionResponse(
             segments=segments,
             full_text=full_text,
             language=language,
@@ -449,6 +472,25 @@ async def transcribe_audio_with_diarization(
             duration_ms=duration_ms,
             processing_time_ms=processing_time_ms,
         )
+
+        # Store transcription with diarization data in history if requested
+        if store:
+            record = TranscriptionRecord(
+                id=str(uuid.uuid4()),
+                user_id=user.oid,
+                text=full_text,
+                language=language,
+                audio_format=audio_format,
+                file_size_bytes=len(content),
+                duration_ms=duration_ms,
+                blob_url=blob_url,
+                has_diarization=True,
+                speaker_count=len(unique_speakers),
+                segments=segments,
+            )
+            await db.create_transcription(user.oid, record)
+
+        return response
 
     except NoAudioTrackError as e:
         raise HTTPException(

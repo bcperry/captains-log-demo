@@ -35,6 +35,27 @@ Given a transcription, extract and return a JSON object with these fields:
 Return ONLY valid JSON, no markdown formatting or explanation."""
 
 
+DIARIZED_ANALYSIS_SYSTEM_PROMPT = """You are an AI assistant that analyzes meeting transcriptions with speaker identification.
+The transcript includes speaker labels (e.g., "Speaker 1 [00:01:23]: Hello").
+
+Given a diarized transcription, extract and return a JSON object with these fields:
+
+- summary: A concise 2-3 sentence executive summary that references key speakers and their contributions
+- key_points: Array of 3-7 key points discussed, attributing to speakers when relevant (e.g., "Speaker 1 proposed...")
+- action_items: Array of action items, each with:
+  - task: Description of what needs to be done
+  - assignee: Person responsible - use speaker labels if names aren't mentioned (e.g., "Speaker 2")
+  - deadline: Due date if mentioned (or null)
+  - priority: "high", "medium", or "low"
+- participants: Array of speaker labels (e.g., ["Speaker 1", "Speaker 2"]) and any named participants
+- topics: Array of main topics discussed
+- sentiment: Overall sentiment - "positive", "neutral", or "negative"
+- confidence: Your confidence in this analysis from 0.0 to 1.0
+
+Focus on speaker perspectives and contributions in your analysis.
+Return ONLY valid JSON, no markdown formatting or explanation."""
+
+
 class OpenAIClientError(Exception):
     """Base exception for OpenAI client errors."""
 
@@ -169,11 +190,12 @@ class OpenAIClient:
             logger.error(f"Failed to validate analysis response: {e}")
             raise OpenAIClientError(f"Invalid analysis response format: {e}") from e
 
-    def analyze_transcription(self, text: str) -> AnalysisResult:
+    def analyze_transcription(self, text: str, diarized_transcript: Optional[str] = None) -> AnalysisResult:
         """Analyze a transcription using Azure OpenAI.
 
         Args:
             text: The transcription text to analyze
+            diarized_transcript: Optional diarized transcript with speaker labels for better analysis
 
         Returns:
             AnalysisResult with summary, key points, action items, etc.
@@ -184,12 +206,20 @@ class OpenAIClient:
         """
         client = self._get_client()
 
+        # Use diarized transcript and speaker-aware prompt if available
+        if diarized_transcript:
+            system_prompt = DIARIZED_ANALYSIS_SYSTEM_PROMPT
+            analysis_text = diarized_transcript
+        else:
+            system_prompt = ANALYSIS_SYSTEM_PROMPT
+            analysis_text = text
+
         try:
             response = client.chat.completions.create(
                 model=self.deployment,  # type: ignore[arg-type]
                 messages=[
-                    {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Analyze this transcription:\n\n{text}"},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Analyze this transcription:\n\n{analysis_text}"},
                 ],
                 temperature=0.3,
                 max_tokens=2000,
