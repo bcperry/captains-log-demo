@@ -1438,3 +1438,22 @@ Started: 2024-01-15
   - Diarize endpoint should store to Cosmos DB like the regular transcribe endpoint
   - formatTimeMsChat uses HH:MM:SS for chat display, formatTimeMs uses MM:SS for duration display
 ---
+
+## 2026-01-15 - US-059
+- What was implemented: Made diarization always enabled by default, removed toggle
+- Files changed:
+  - `frontend/src/components/AudioUpload.tsx` - Removed diarization toggle, made it always-on with "Enabled" badge, removed emoji
+  - `frontend/src/components/TranscriptionResults.tsx` - Removed 📍 emoji prefix from speaker names in segment display
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend login page)
+  - App loads without errors, both backend (port 8000) and frontend (port 3000) running
+  - Screenshot taken: us059-frontend-login.png
+- **Backend Tests:** 273 passed
+- **Frontend Tests:** 117 passed
+- **Learnings:**
+  - Diarization was already being called correctly via /transcribe/diarize endpoint
+  - useTranscription hook already defaulted enableDiarization to true
+  - SMS-style bubbles with speaker colors were already implemented
+  - Key change was removing the toggle UI to make it mandatory
+  - Speaker name formatting already handled 'Guest' -> 'Speaker' conversion
+---
