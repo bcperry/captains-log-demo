@@ -2170,3 +2170,20 @@ Started: 2024-01-15
   - Use `environment().suffixes.storage` for storage endpoint suffixes across all Azure clouds
   - The environment() function automatically provides correct endpoints for Commercial, Government, and China clouds
 ---
+
+## 2026-01-15 - BUG-008
+- What was implemented: Removed secret-containing outputs from Bicep templates
+- Root cause: AZURE_OPENAI_KEY and AZURE_SPEECH_KEY were exposed as outputs via listKeys() calls, which can be logged in deployment history
+- Files changed:
+  - `infra/resources.bicep` - Removed output AZURE_OPENAI_KEY and output AZURE_SPEECH_KEY (lines 601, 608)
+  - `infra/main.bicep` - Removed corresponding outputs that referenced resources.bicep outputs
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI), http://localhost:3000 (Frontend)
+  - Interactions verified: API documentation loads, frontend shows Service Status with Azure Speech and OpenAI connected
+  - Screenshots taken: bug008-api-docs.png, bug008-frontend-works.png
+- **Learnings:**
+  - Keys are still used internally in Bicep for Container App secrets and App Service settings (acceptable)
+  - The security issue was that keys were also in **outputs** which get logged in deployment history
+  - Solution: Remove only the output statements, keep internal listKeys() calls for resource configuration
+  - Bicep CLI has issues in WSL environments with path handling
+---
