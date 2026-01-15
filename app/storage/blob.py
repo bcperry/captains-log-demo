@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Optional
 
-from azure.core.exceptions import AzureError
+from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import (
     BlobSasPermissions,
@@ -177,6 +177,18 @@ class BlobStorageClient:
             service_client = self._get_service_client()
             container_client = service_client.get_container_client(self.container_name)
 
+            # Ensure container exists (auto-create if it doesn't)
+            try:
+                container_client.create_container()
+                logger.info(f"Created '{self.container_name}' container in blob storage")
+            except ResourceExistsError:
+                # Container already exists, which is fine
+                pass
+            except AzureError as create_err:
+                # Log but continue - container might exist but we lack create permission
+                if "ContainerAlreadyExists" not in str(create_err):
+                    logger.warning(f"Could not create '{self.container_name}' container: {create_err}")
+
             # Generate unique blob name
             blob_name = self._generate_blob_name(
                 original_filename, audio_format, user_id
@@ -210,6 +222,17 @@ class BlobStorageClient:
             return blob_client.url
 
         except AzureError as e:
+            error_msg = str(e)
+            if "ContainerNotFound" in error_msg:
+                logger.error(
+                    f"Storage container '{self.container_name}' not found. "
+                    f"Please ensure the container exists in your storage account. "
+                    f"Check AZURE_STORAGE_CONTAINER environment variable."
+                )
+                raise BlobUploadError(
+                    f"Storage container '{self.container_name}' not found in Azure Blob Storage. "
+                    "Please deploy infrastructure or create the container manually."
+                ) from e
             logger.error(f"Failed to upload audio file: {e}")
             raise BlobUploadError(f"Failed to upload audio file: {e}") from e
         except Exception as e:
@@ -327,6 +350,194 @@ class BlobStorageClient:
 
         return blob_url
 
+    def _generate_transcription_blob_name(
+        self,
+        user_id: str,
+        transcription_id: str,
+    ) -> str:
+        """Generate blob name for transcription JSON.
+
+        Format: {user_id}/{transcription_id}.json
+
+        Args:
+            user_id: User ID for ownership
+            transcription_id: Unique transcription ID
+
+        Returns:
+            Blob name path
+        """
+        return f"{user_id}/{transcription_id}.json"
+
+    async def upload_transcription_json(
+        self,
+        user_id: str,
+        transcription_id: str,
+        content_json: str,
+        metadata: Optional[dict[str, str]] = None,
+    ) -> str:
+        """Upload transcription JSON to blob storage.
+
+        Uploads to 'transcriptions' container with format {user_id}/{transcription_id}.json
+
+        Args:
+            user_id: User ID for ownership
+            transcription_id: Unique transcription ID
+            content_json: JSON string content
+            metadata: Additional metadata
+
+        Returns:
+            Full blob URL
+
+        Raises:
+            BlobUploadError: If upload fails
+        """
+        if not self.is_configured():
+            raise BlobUploadError("Azure Blob Storage is not configured")
+
+        try:
+            service_client = self._get_service_client()
+            # Use 'transcriptions' container for transcription content
+            container_client = service_client.get_container_client("transcriptions")
+
+            # Ensure container exists (auto-create if it doesn't)
+            try:
+                container_client.create_container()
+                logger.info("Created 'transcriptions' container in blob storage")
+            except ResourceExistsError:
+                # Container already exists, which is fine
+                pass
+            except AzureError as create_err:
+                # Log but continue - container might exist but we lack create permission
+                if "ContainerAlreadyExists" not in str(create_err):
+                    logger.warning(f"Could not create 'transcriptions' container: {create_err}")
+
+            blob_name = self._generate_transcription_blob_name(user_id, transcription_id)
+
+            blob_metadata = {
+                "user_id": user_id,
+                "transcription_id": transcription_id,
+                "upload_timestamp": datetime.now(UTC).isoformat(),
+            }
+            if metadata:
+                blob_metadata.update(metadata)
+
+            blob_client = container_client.get_blob_client(blob_name)
+            blob_client.upload_blob(
+                content_json.encode("utf-8"),
+                overwrite=True,
+                content_settings=ContentSettings(content_type="application/json"),
+                metadata=blob_metadata,
+            )
+
+            logger.info(f"Uploaded transcription JSON to blob: {blob_name}")
+            return blob_client.url
+
+        except AzureError as e:
+            error_msg = str(e)
+            if "ContainerNotFound" in error_msg:
+                logger.error(
+                    f"Transcriptions container not found. "
+                    f"Please ensure the 'transcriptions' container exists in your storage account. "
+                    f"Original error: {e}"
+                )
+                raise BlobUploadError(
+                    "Transcriptions container not found in Azure Blob Storage. "
+                    "Please deploy infrastructure or create the container manually."
+                ) from e
+            logger.error(f"Failed to upload transcription JSON: {e}")
+            raise BlobUploadError(f"Failed to upload transcription JSON: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error uploading transcription JSON: {e}")
+            raise BlobUploadError(f"Unexpected error uploading transcription JSON: {e}") from e
+
+    async def download_transcription_json(
+        self,
+        user_id: str,
+        transcription_id: str,
+    ) -> str:
+        """Download transcription JSON from blob storage.
+
+        Args:
+            user_id: User ID for ownership
+            transcription_id: Unique transcription ID
+
+        Returns:
+            JSON string content
+
+        Raises:
+            BlobNotFoundError: If blob doesn't exist
+            BlobStorageError: If download fails
+        """
+        if not self.is_configured():
+            raise BlobStorageError("Azure Blob Storage is not configured")
+
+        try:
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client("transcriptions")
+
+            blob_name = self._generate_transcription_blob_name(user_id, transcription_id)
+            blob_client = container_client.get_blob_client(blob_name)
+
+            # Download blob content
+            download_stream = blob_client.download_blob()
+            content = download_stream.readall()
+
+            return content.decode("utf-8")
+
+        except AzureError as e:
+            error_msg = str(e)
+            if "BlobNotFound" in error_msg or "NotFound" in error_msg:
+                raise BlobNotFoundError(f"Transcription not found: {transcription_id}") from e
+            if "ContainerNotFound" in error_msg:
+                logger.error(
+                    f"Transcriptions container not found. "
+                    f"Please ensure the 'transcriptions' container exists in your storage account."
+                )
+                raise BlobNotFoundError(
+                    f"Transcription not found: {transcription_id} (container does not exist)"
+                ) from e
+            logger.error(f"Failed to download transcription JSON: {e}")
+            raise BlobStorageError(f"Failed to download transcription JSON: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error downloading transcription JSON: {e}")
+            raise BlobStorageError(f"Unexpected error downloading transcription JSON: {e}") from e
+
+    def get_transcription_sas_url(
+        self,
+        user_id: str,
+        transcription_id: str,
+        expiry_hours: int = 1,
+    ) -> str:
+        """Generate a SAS URL for transcription JSON.
+
+        Args:
+            user_id: User ID for ownership
+            transcription_id: Transcription ID
+            expiry_hours: Hours until SAS expires
+
+        Returns:
+            SAS URL for the transcription JSON
+        """
+        blob_name = self._generate_transcription_blob_name(user_id, transcription_id)
+
+        # Temporarily override container for transcriptions
+        original_container = self._settings.azure_storage_container
+        self._settings.azure_storage_container = "transcriptions"
+
+        try:
+            sas_url = self.get_blob_sas_url(
+                blob_name=blob_name,
+                expiry_hours=expiry_hours,
+                permissions=BlobSasPermissions(read=True),
+            )
+            return sas_url
+        finally:
+            self._settings.azure_storage_container = original_container
+
+
+# In-memory transcription storage
+_in_memory_transcription_blobs: dict[str, str] = {}  # blob_name -> content
+
 
 # In-memory storage for development/testing (when Blob Storage is not configured)
 _in_memory_blobs: dict[str, tuple[bytes, dict[str, str]]] = {}  # blob_name -> (content, metadata)
@@ -378,10 +589,44 @@ class InMemoryBlobClient(BlobStorageClient):
         """Generate a fake SAS URL for in-memory blob."""
         return f"https://inmemory.blob.local/{self.container_name}/{blob_name}?sas=mock_token"
 
+    async def upload_transcription_json(
+        self,
+        user_id: str,
+        transcription_id: str,
+        content_json: str,
+        metadata: Optional[dict[str, str]] = None,
+    ) -> str:
+        """Upload transcription JSON to in-memory storage."""
+        blob_name = self._generate_transcription_blob_name(user_id, transcription_id)
+        _in_memory_transcription_blobs[blob_name] = content_json
+        return f"https://inmemory.blob.local/transcriptions/{blob_name}"
+
+    async def download_transcription_json(
+        self,
+        user_id: str,
+        transcription_id: str,
+    ) -> str:
+        """Download transcription JSON from in-memory storage."""
+        blob_name = self._generate_transcription_blob_name(user_id, transcription_id)
+        if blob_name not in _in_memory_transcription_blobs:
+            raise BlobNotFoundError(f"Transcription not found: {transcription_id}")
+        return _in_memory_transcription_blobs[blob_name]
+
+    def get_transcription_sas_url(
+        self,
+        user_id: str,
+        transcription_id: str,
+        expiry_hours: int = 1,
+    ) -> str:
+        """Generate a fake SAS URL for in-memory transcription."""
+        blob_name = self._generate_transcription_blob_name(user_id, transcription_id)
+        return f"https://inmemory.blob.local/transcriptions/{blob_name}?sas=mock_token"
+
 
 def clear_in_memory_blobs() -> None:
     """Clear in-memory blob storage. Useful for tests."""
     _in_memory_blobs.clear()
+    _in_memory_transcription_blobs.clear()
 
 
 @lru_cache

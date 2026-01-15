@@ -1588,3 +1588,20 @@ Started: 2024-01-15
   - TranscriptDisplay component already exists and handles chat-style bubble rendering
   - Conditional rendering with hasDiarization + segments.length check is important
 ---
+
+## 2026-01-15 - BUG-007
+- What was implemented: Fixed Blob Storage container not found error when saving transcription JSON
+- Root cause: The `upload_transcription_json` method used a hardcoded "transcriptions" container that wasn't created in Bicep infrastructure
+- Files changed:
+  - `infra/resources.bicep` - Added 'transcriptions' container resource alongside 'audio-uploads' container
+  - `app/storage/blob.py` - Added auto-create container logic with `ResourceExistsError` handling, improved error messages for ContainerNotFound errors
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend homepage), http://localhost:8000/docs (Swagger UI)
+  - Interactions verified: Application loads without errors, health/ready endpoints return correct status
+  - Screenshots taken: bug007-frontend-homepage.png, bug007-swagger-ui.png
+- **Learnings:**
+  - Blob storage methods should auto-create containers when possible for graceful handling
+  - Use `ResourceExistsError` exception to handle container already exists case
+  - Provide descriptive error messages mentioning the container name and possible solutions
+  - Infrastructure code must be kept in sync with application container naming
+---

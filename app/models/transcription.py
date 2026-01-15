@@ -155,6 +155,12 @@ class TranscriptionRecord(BaseModel):
     file_size_bytes: int = Field(..., description="Size of original audio file")
     duration_ms: Optional[int] = Field(default=None, description="Audio duration in milliseconds")
     blob_url: Optional[str] = Field(default=None, description="URL of the audio file in Blob Storage")
+    blob_storage_url: Optional[str] = Field(
+        default=None, description="URL of the transcription JSON in Blob Storage"
+    )
+    processing_time_ms: Optional[int] = Field(
+        default=None, description="Time taken to process transcription in milliseconds"
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         description="Timestamp when transcription was created",
@@ -283,3 +289,85 @@ class BatchTranscriptionResultResponse(BaseModel):
     language: str = Field(..., description="Language used for transcription")
     duration_ms: int = Field(..., description="Audio duration in milliseconds")
     speaker_count: int = Field(..., description="Number of speakers detected")
+
+
+class TranscriptionContentSegment(BaseModel):
+    """A speaker segment in the transcription content JSON."""
+
+    speaker_id: str = Field(..., description="Unique speaker identifier")
+    start_time: float = Field(..., description="Start time in seconds")
+    end_time: float = Field(..., description="End time in seconds")
+    text: str = Field(..., description="Transcribed text for this segment")
+
+
+class TranscriptionContent(BaseModel):
+    """Full transcription content stored in Blob Storage as JSON.
+
+    This model represents the complete transcription data saved to blob storage.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "transcript_id": "abc123-def456",
+                "user_id": "user-uuid",
+                "filename": "meeting_recording.wav",
+                "upload_date": "2024-01-15T10:30:00Z",
+                "duration": 120.5,
+                "speaker_segments": [
+                    {"speaker_id": "Speaker_1", "start_time": 0.0, "end_time": 5.5, "text": "Hello everyone"},
+                    {"speaker_id": "Speaker_2", "start_time": 5.8, "end_time": 10.2, "text": "Hi, thanks for joining"},
+                ],
+                "full_text": "Hello everyone Hi, thanks for joining",
+                "language": "en-US",
+                "processing_time_ms": 5234,
+            }
+        }
+    )
+
+    transcript_id: str = Field(..., description="Unique transcription ID")
+    user_id: str = Field(..., description="User ID who owns the transcription")
+    filename: Optional[str] = Field(default=None, description="Original audio filename")
+    upload_date: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="When the transcription was created",
+    )
+    duration: Optional[float] = Field(
+        default=None, description="Audio duration in seconds"
+    )
+    speaker_segments: list[TranscriptionContentSegment] = Field(
+        default_factory=list, description="Speaker segments with timestamps"
+    )
+    full_text: str = Field(..., description="Complete transcribed text")
+    language: str = Field(..., description="Language used for transcription")
+    processing_time_ms: Optional[int] = Field(
+        default=None, description="Processing time in milliseconds"
+    )
+
+
+class TranscriptionContentResponse(BaseModel):
+    """Response for transcription content retrieval endpoint."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "transcript_id": "abc123-def456",
+                "content": {
+                    "transcript_id": "abc123-def456",
+                    "user_id": "user-uuid",
+                    "filename": "meeting.wav",
+                    "upload_date": "2024-01-15T10:30:00Z",
+                    "duration": 120.5,
+                    "speaker_segments": [],
+                    "full_text": "This is the transcription",
+                    "language": "en-US",
+                    "processing_time_ms": 5234,
+                },
+                "blob_url": "https://storage.blob.core.windows.net/transcriptions/user/abc.json",
+            }
+        }
+    )
+
+    transcript_id: str = Field(..., description="Transcription ID")
+    content: TranscriptionContent = Field(..., description="Full transcription content")
+    blob_url: Optional[str] = Field(default=None, description="Blob storage URL for the content")

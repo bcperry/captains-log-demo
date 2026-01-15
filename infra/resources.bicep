@@ -194,6 +194,18 @@ resource audioUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/c
   }
 }
 
+// Container for transcription JSON files
+resource transcriptionsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'transcriptions'
+  properties: {
+    publicAccess: 'None'
+    metadata: {
+      purpose: 'transcription-json-storage'
+    }
+  }
+}
+
 // OpenAI model deployments
 var deployments = [
   {

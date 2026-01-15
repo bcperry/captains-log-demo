@@ -30,6 +30,8 @@ from models.transcription import (
     BatchTranscriptionStatusResponse,
     DiarizedTranscriptionResponse,
     SpeakerSegment,
+    TranscriptionContent,
+    TranscriptionContentSegment,
     TranscriptionRecord,
     TranscriptionResponse,
 )
@@ -280,15 +282,46 @@ async def transcribe_audio(
 
         # Store transcription in history if requested
         if store:
+            transcription_id = str(uuid.uuid4())
+
+            # Create transcription content JSON for blob storage
+            transcription_content = TranscriptionContent(
+                transcript_id=transcription_id,
+                user_id=user.oid,
+                filename=file.filename,
+                upload_date=datetime.now(UTC),
+                duration=duration_ms / 1000.0 if duration_ms else None,
+                speaker_segments=[],  # No diarization for basic transcription
+                full_text=transcribed_text,
+                language=language,
+                processing_time_ms=processing_time_ms,
+            )
+
+            # Save transcription JSON to blob storage
+            blob_storage_url: Optional[str] = None
+            if storage.is_configured():
+                try:
+                    blob_storage_url = await storage.upload_transcription_json(
+                        user_id=user.oid,
+                        transcription_id=transcription_id,
+                        content_json=transcription_content.model_dump_json(),
+                    )
+                    logger.info(f"Saved transcription JSON to blob storage: {blob_storage_url}")
+                except BlobUploadError as e:
+                    # Log but don't fail the transcription
+                    logger.warning(f"Failed to save transcription JSON to blob storage: {e}")
+
             record = TranscriptionRecord(
-                id=str(uuid.uuid4()),
+                id=transcription_id,
                 user_id=user.oid,
                 text=transcribed_text,
                 language=language,
                 audio_format=audio_format,
                 file_size_bytes=len(content),
                 duration_ms=duration_ms,
+                processing_time_ms=processing_time_ms,
                 blob_url=blob_url,
+                blob_storage_url=blob_storage_url,
                 has_diarization=False,
             )
             await db.create_transcription(user.oid, record)
@@ -475,15 +508,57 @@ async def transcribe_audio_with_diarization(
 
         # Store transcription with diarization data in history if requested
         if store:
+            transcription_id = str(uuid.uuid4())
+
+            # Convert speaker segments to content format (start/end in seconds)
+            content_segments = [
+                TranscriptionContentSegment(
+                    speaker_id=seg.speaker_id,
+                    start_time=seg.start_time_ms / 1000.0,
+                    end_time=seg.end_time_ms / 1000.0,
+                    text=seg.text,
+                )
+                for seg in segments
+            ]
+
+            # Create transcription content JSON for blob storage
+            transcription_content = TranscriptionContent(
+                transcript_id=transcription_id,
+                user_id=user.oid,
+                filename=file.filename,
+                upload_date=datetime.now(UTC),
+                duration=duration_ms / 1000.0 if duration_ms else None,
+                speaker_segments=content_segments,
+                full_text=full_text,
+                language=language,
+                processing_time_ms=processing_time_ms,
+            )
+
+            # Save transcription JSON to blob storage
+            blob_storage_url: Optional[str] = None
+            if storage.is_configured():
+                try:
+                    blob_storage_url = await storage.upload_transcription_json(
+                        user_id=user.oid,
+                        transcription_id=transcription_id,
+                        content_json=transcription_content.model_dump_json(),
+                    )
+                    logger.info(f"Saved transcription JSON to blob storage: {blob_storage_url}")
+                except BlobUploadError as e:
+                    # Log but don't fail the transcription
+                    logger.warning(f"Failed to save transcription JSON to blob storage: {e}")
+
             record = TranscriptionRecord(
-                id=str(uuid.uuid4()),
+                id=transcription_id,
                 user_id=user.oid,
                 text=full_text,
                 language=language,
                 audio_format=audio_format,
                 file_size_bytes=len(content),
                 duration_ms=duration_ms,
+                processing_time_ms=processing_time_ms,
                 blob_url=blob_url,
+                blob_storage_url=blob_storage_url,
                 has_diarization=True,
                 speaker_count=len(unique_speakers),
                 segments=segments,

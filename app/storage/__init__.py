@@ -1,6 +1,7 @@
 """Storage client module for Azure Blob Storage."""
 
 from storage.blob import (
+    BlobNotFoundError,
     BlobStorageClient,
     BlobStorageError,
     BlobUploadError,
@@ -8,6 +9,7 @@ from storage.blob import (
 )
 
 __all__ = [
+    "BlobNotFoundError",
     "BlobStorageClient",
     "BlobStorageError",
     "BlobUploadError",

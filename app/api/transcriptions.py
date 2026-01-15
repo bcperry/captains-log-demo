@@ -3,6 +3,8 @@
 This module provides endpoints for managing stored transcriptions.
 """
 
+import json
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -11,7 +13,16 @@ from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
 from db import get_cosmos_client
 from db.cosmos import CosmosClient
-from models.transcription import TranscriptionListResponse, TranscriptionRecord
+from models.transcription import (
+    TranscriptionContent,
+    TranscriptionContentResponse,
+    TranscriptionListResponse,
+    TranscriptionRecord,
+)
+from storage import BlobNotFoundError, get_storage_client
+from storage.blob import BlobStorageClient
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transcriptions", tags=["Transcription History"])
 
@@ -19,6 +30,11 @@ router = APIRouter(prefix="/transcriptions", tags=["Transcription History"])
 def get_db() -> CosmosClient:
     """FastAPI dependency for getting database client."""
     return get_cosmos_client()
+
+
+def get_blob_storage() -> BlobStorageClient:
+    """FastAPI dependency for getting the Blob Storage client."""
+    return get_storage_client()
 
 
 @router.get(
@@ -122,4 +138,93 @@ async def delete_transcription(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Transcription with ID '{transcription_id}' not found",
+        )
+
+
+@router.get(
+    "/{transcription_id}/content",
+    response_model=TranscriptionContentResponse,
+    summary="Get transcription content from blob storage",
+    description="Retrieve the full transcription content JSON from blob storage.",
+    responses={
+        404: {"description": "Transcription or content not found"},
+        503: {"description": "Blob storage unavailable"},
+    },
+)
+async def get_transcription_content(
+    transcription_id: Annotated[str, Path(description="Transcription ID")],
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    db: CosmosClient = Depends(get_db),
+    storage: BlobStorageClient = Depends(get_blob_storage),
+) -> TranscriptionContentResponse:
+    """Get the full transcription content from blob storage.
+
+    Args:
+        transcription_id: Transcription ID
+        user: Authenticated user from Entra ID token
+        db: Cosmos DB client
+        storage: Blob storage client
+
+    Returns:
+        TranscriptionContentResponse with full content from blob
+
+    Raises:
+        HTTPException: 404 if transcription or content not found
+    """
+    # First verify the transcription exists and belongs to this user
+    transcription = await db.get_transcription(user.oid, transcription_id)
+
+    if transcription is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription with ID '{transcription_id}' not found",
+        )
+
+    # Check if blob storage URL exists
+    if not transcription.blob_storage_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription content not available in blob storage for ID '{transcription_id}'",
+        )
+
+    try:
+        # Download content from blob storage
+        content_json = await storage.download_transcription_json(
+            user_id=user.oid,
+            transcription_id=transcription_id,
+        )
+
+        # Parse the JSON into TranscriptionContent model
+        content_data = json.loads(content_json)
+        content = TranscriptionContent(**content_data)
+
+        # Generate SAS URL for direct access
+        sas_url = storage.get_transcription_sas_url(
+            user_id=user.oid,
+            transcription_id=transcription_id,
+            expiry_hours=1,
+        )
+
+        return TranscriptionContentResponse(
+            transcript_id=transcription_id,
+            content=content,
+            blob_url=sas_url,
+        )
+
+    except BlobNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription content not found in blob storage for ID '{transcription_id}'",
+        )
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse transcription content JSON: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to parse transcription content",
+        )
+    except Exception as e:
+        logger.error(f"Failed to retrieve transcription content: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to retrieve transcription content: {e}",
         )
