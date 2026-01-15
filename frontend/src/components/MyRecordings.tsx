@@ -244,7 +244,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     }
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status]}`}>
-        {status === 'complete' ? '✓ Complete' : '🔍 Analyzed'}
+        {status === 'complete' ? 'Complete' : 'Analyzed'}
       </span>
     )
   }
@@ -268,7 +268,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
             disabled={deletingId === selectedRecording.id}
             className="px-4 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
           >
-            {deletingId === selectedRecording.id ? 'Deleting...' : '🗑️ Delete'}
+            {deletingId === selectedRecording.id ? 'Deleting...' : 'Delete'}
           </button>
         </div>
 
@@ -321,7 +321,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">📁 My Recordings</h2>
+          <h2 className="text-xl font-semibold text-gray-800">My Recordings</h2>
           {onBack && (
             <button
               onClick={onBack}
@@ -366,7 +366,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     <div className="bg-white rounded-lg shadow-md p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">📁 My Recordings</h2>
+        <h2 className="text-xl font-semibold text-gray-800">My Recordings</h2>
         {onBack && (
           <button
             onClick={onBack}
@@ -456,10 +456,10 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
                     {recording.text.length > 150 ? '...' : ''}
                   </p>
                   <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span>📅 {formatDate(recording.createdAt)}</span>
-                    <span>⏱️ {formatDuration(recording.durationMs)}</span>
-                    <span>📦 {formatFileSize(recording.fileSizeBytes)}</span>
-                    {recording.speakerCount && <span>👥 {recording.speakerCount} speakers</span>}
+                    <span>{formatDate(recording.createdAt)}</span>
+                    <span>{formatDuration(recording.durationMs)}</span>
+                    <span>{formatFileSize(recording.fileSizeBytes)}</span>
+                    {recording.speakerCount && <span>{recording.speakerCount} speakers</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
@@ -475,7 +475,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
                     disabled={deletingId === recording.id}
                     className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                   >
-                    {deletingId === recording.id ? '...' : '🗑️'}
+                    {deletingId === recording.id ? '...' : 'Delete'}
                   </button>
                 </div>
               </div>

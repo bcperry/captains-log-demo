@@ -32,29 +32,29 @@ const formatTimeMsChat = (ms: number): string => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-// Sentiment emoji mapping
-const getSentimentEmoji = (sentiment: string): string => {
+// Sentiment indicator mapping (professional styling)
+const getSentimentIndicator = (sentiment: string): { color: string; label: string } => {
   switch (sentiment.toLowerCase()) {
     case 'positive':
-      return '😊'
+      return { color: 'text-green-600', label: 'Positive' }
     case 'negative':
-      return '😔'
+      return { color: 'text-red-600', label: 'Negative' }
     default:
-      return '😐'
+      return { color: 'text-gray-600', label: 'Neutral' }
   }
 }
 
-// Priority color mapping
-const getPriorityColor = (priority: string): string => {
+// Priority color mapping (professional styling)
+const getPriorityIndicator = (priority: string): { color: string; bgColor: string } => {
   switch (priority.toLowerCase()) {
     case 'high':
-      return '🔴'
+      return { color: 'text-red-700', bgColor: 'bg-red-100' }
     case 'medium':
-      return '🟡'
+      return { color: 'text-yellow-700', bgColor: 'bg-yellow-100' }
     case 'low':
-      return '🟢'
+      return { color: 'text-green-700', bgColor: 'bg-green-100' }
     default:
-      return '⚪'
+      return { color: 'text-gray-700', bgColor: 'bg-gray-100' }
   }
 }
 
@@ -152,8 +152,10 @@ export function TranscriptionResults({
     <div className="space-y-6" data-testid="transcription-results">
       {/* Success banner */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4" data-testid="success-banner">
-        <div className="flex items-center text-green-700">
-          <span className="text-lg mr-2">✅</span>
+        <div className="flex items-center text-green-700 gap-2">
+          <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
           <span className="font-medium">
             Transcription completed successfully!
             {stats.hasDiarization && ` (${stats.speakerCount} speaker${stats.speakerCount !== 1 ? 's' : ''} identified)`}
@@ -163,27 +165,27 @@ export function TranscriptionResults({
 
       {/* Quick stats panel */}
       <div className="bg-gray-50 rounded-lg p-4" data-testid="stats-panel">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">📈 Quick Stats</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Stats</h3>
         <div className={`grid grid-cols-2 ${stats.hasDiarization ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
           <div className="text-center">
-            <p className="text-xs text-gray-500">⏱️ Processing Time</p>
+            <p className="text-xs text-gray-500">Processing Time</p>
             <p className="text-lg font-medium text-gray-800">{stats.processingTime.toFixed(1)}s</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-gray-500">🎵 Duration</p>
+            <p className="text-xs text-gray-500">Duration</p>
             <p className="text-lg font-medium text-gray-800">{stats.duration.toFixed(1)}s</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-gray-500">📝 Characters</p>
+            <p className="text-xs text-gray-500">Characters</p>
             <p className="text-lg font-medium text-gray-800">{stats.characters.toLocaleString()}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-gray-500">🔤 Words</p>
+            <p className="text-xs text-gray-500">Words</p>
             <p className="text-lg font-medium text-gray-800">{stats.words.toLocaleString()}</p>
           </div>
           {stats.hasDiarization && (
             <div className="text-center">
-              <p className="text-xs text-gray-500">👥 Speakers</p>
+              <p className="text-xs text-gray-500">Speakers</p>
               <p className="text-lg font-medium text-gray-800">{stats.speakerCount}</p>
             </div>
           )}
@@ -197,7 +199,7 @@ export function TranscriptionResults({
 
       {/* Transcription text area */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">📝 Transcription Results</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Transcription Results</h3>
         <textarea
           value={editableText}
           onChange={(e) => handleTextChange(e.target.value)}
@@ -209,7 +211,7 @@ export function TranscriptionResults({
 
         {/* AI Analysis section */}
         <div className="mt-6">
-          <h4 className="text-md font-semibold text-gray-700 mb-3">🤖 AI Analysis</h4>
+          <h4 className="text-md font-semibold text-gray-700 mb-3">AI Analysis</h4>
           <div className="flex gap-3 mb-4">
             <button
               onClick={handleAnalyze}
@@ -222,20 +224,26 @@ export function TranscriptionResults({
               data-testid="analyze-button"
             >
               {isAnalyzing ? (
-                <>
-                  <span className="animate-spin inline-block mr-2">⏳</span>
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                   Analyzing...
-                </>
+                </span>
               ) : (
-                '📊 Analyze & Summarize'
+                'Analyze & Summarize'
               )}
             </button>
           </div>
 
           {/* Analysis error */}
           {analysisState.error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-red-700" data-testid="analysis-error">
-              ❌ {analysisState.error}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-red-700 flex items-center gap-2" data-testid="analysis-error">
+              <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              {analysisState.error}
             </div>
           )}
 
@@ -253,7 +261,7 @@ export function TranscriptionResults({
             className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="download-txt-button"
           >
-            💾 Download TXT
+            Download TXT
           </button>
           <button
             onClick={handleDownloadJson}
@@ -261,7 +269,7 @@ export function TranscriptionResults({
             className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="download-json-button"
           >
-            📄 Download JSON
+            Download JSON
           </button>
           {hasResult && (
             <button
@@ -270,7 +278,7 @@ export function TranscriptionResults({
               className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="download-analysis-button"
             >
-              🧠 Download Analysis
+              Download Analysis
             </button>
           )}
           <button
@@ -279,7 +287,7 @@ export function TranscriptionResults({
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="clear-button"
           >
-            🗑️ Clear Results
+            Clear Results
           </button>
         </div>
       </div>
@@ -299,14 +307,14 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
     <div className="space-y-4" data-testid="analysis-display">
       {/* Summary */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4" data-testid="analysis-summary">
-        <h5 className="text-sm font-semibold text-blue-800 mb-2">📋 Summary</h5>
+        <h5 className="text-sm font-semibold text-blue-800 mb-2">Summary</h5>
         <p className="text-blue-700">{result.summary}</p>
       </div>
 
       {/* Key Points */}
       {result.keyPoints.length > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4" data-testid="analysis-key-points">
-          <h5 className="text-sm font-semibold text-green-800 mb-2">🔑 Key Points</h5>
+          <h5 className="text-sm font-semibold text-green-800 mb-2">Key Points</h5>
           <ul className="space-y-1">
             {result.keyPoints.map((point, index) => (
               <li key={index} className="text-green-700 flex items-start">
@@ -321,34 +329,37 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
       {/* Action Items */}
       {result.actionItems.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4" data-testid="analysis-action-items">
-          <h5 className="text-sm font-semibold text-yellow-800 mb-2">✅ Action Items</h5>
+          <h5 className="text-sm font-semibold text-yellow-800 mb-2">Action Items</h5>
           <div className="space-y-2">
-            {result.actionItems.map((item, index) => (
-              <div
-                key={index}
-                className="border border-yellow-300 rounded-lg overflow-hidden"
-              >
-                <button
-                  onClick={() => onToggleActionItem(index)}
-                  className="w-full px-3 py-2 text-left bg-yellow-100 hover:bg-yellow-200 transition-colors flex justify-between items-center"
-                  data-testid={`action-item-${index}`}
+            {result.actionItems.map((item, index) => {
+              const priorityStyle = getPriorityIndicator(item.priority)
+              return (
+                <div
+                  key={index}
+                  className="border border-yellow-300 rounded-lg overflow-hidden"
                 >
-                  <span className="text-yellow-800 truncate">
-                    Action {index + 1}: {item.task.slice(0, 50)}
-                    {item.task.length > 50 ? '...' : ''}
-                  </span>
-                  <span>{expandedActionItem === index ? '▼' : '▶'}</span>
-                </button>
-                {expandedActionItem === index && (
-                  <div className="p-3 bg-white space-y-1 text-sm" data-testid={`action-item-${index}-details`}>
-                    <p><strong>Task:</strong> {item.task}</p>
-                    {item.assignee && <p><strong>Assignee:</strong> {item.assignee}</p>}
-                    {item.deadline && <p><strong>Deadline:</strong> {item.deadline}</p>}
-                    <p><strong>Priority:</strong> {getPriorityColor(item.priority)} {item.priority}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+                  <button
+                    onClick={() => onToggleActionItem(index)}
+                    className="w-full px-3 py-2 text-left bg-yellow-100 hover:bg-yellow-200 transition-colors flex justify-between items-center"
+                    data-testid={`action-item-${index}`}
+                  >
+                    <span className="text-yellow-800 truncate">
+                      Action {index + 1}: {item.task.slice(0, 50)}
+                      {item.task.length > 50 ? '...' : ''}
+                    </span>
+                    <span>{expandedActionItem === index ? '▼' : '▶'}</span>
+                  </button>
+                  {expandedActionItem === index && (
+                    <div className="p-3 bg-white space-y-1 text-sm" data-testid={`action-item-${index}-details`}>
+                      <p><strong>Task:</strong> {item.task}</p>
+                      {item.assignee && <p><strong>Assignee:</strong> {item.assignee}</p>}
+                      {item.deadline && <p><strong>Deadline:</strong> {item.deadline}</p>}
+                      <p><strong>Priority:</strong> <span className={`px-2 py-0.5 rounded ${priorityStyle.bgColor} ${priorityStyle.color}`}>{item.priority}</span></p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -358,7 +369,7 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
         {/* Participants */}
         {result.participants.length > 0 && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4" data-testid="analysis-participants">
-            <h5 className="text-sm font-semibold text-gray-700 mb-2">👥 Participants</h5>
+            <h5 className="text-sm font-semibold text-gray-700 mb-2">Participants</h5>
             <ul className="space-y-1">
               {result.participants.map((participant, index) => (
                 <li key={index} className="text-gray-600 text-sm">• {participant}</li>
@@ -370,7 +381,7 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
         {/* Topics */}
         {result.topics.length > 0 && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4" data-testid="analysis-topics">
-            <h5 className="text-sm font-semibold text-gray-700 mb-2">📚 Topics</h5>
+            <h5 className="text-sm font-semibold text-gray-700 mb-2">Topics</h5>
             <ul className="space-y-1">
               {result.topics.map((topic, index) => (
                 <li key={index} className="text-gray-600 text-sm">• {topic}</li>
@@ -381,11 +392,16 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
 
         {/* Sentiment and Confidence */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4" data-testid="analysis-sentiment">
-          <h5 className="text-sm font-semibold text-gray-700 mb-2">💭 Sentiment & Confidence</h5>
+          <h5 className="text-sm font-semibold text-gray-700 mb-2">Sentiment & Confidence</h5>
           <div className="space-y-2">
-            <p className="text-gray-600 text-sm">
-              Sentiment: {getSentimentEmoji(result.sentiment)} {result.sentiment}
-            </p>
+            {(() => {
+              const sentimentStyle = getSentimentIndicator(result.sentiment)
+              return (
+                <p className="text-gray-600 text-sm">
+                  Sentiment: <span className={sentimentStyle.color}>{sentimentStyle.label}</span>
+                </p>
+              )
+            })()}
             <p className="text-gray-600 text-sm">
               AI Confidence: {Math.round(result.confidence * 100)}%
             </p>

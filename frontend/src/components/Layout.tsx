@@ -82,7 +82,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
             name: 'Azure Speech Service',
             connected: speechDep.healthy,
             message: speechDep.healthy
-              ? '🏛️ Azure Government Cloud'
+              ? 'Azure Government Cloud'
               : speechDep.message || 'Not configured',
           })
         }
@@ -123,14 +123,14 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         name: 'Azure Speech Service',
         connected: speechDep?.healthy ?? false,
         message: speechDep?.healthy
-          ? '✅ Connection successful'
+          ? 'Connection successful'
           : speechDep?.message || 'Connection failed',
       })
     } catch {
       setSpeechStatus({
         name: 'Azure Speech Service',
         connected: false,
-        message: '❌ Connection failed',
+        message: 'Connection failed',
       })
     }
   }, [])
@@ -146,14 +146,14 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         name: 'Azure OpenAI',
         connected: openAIDep?.healthy ?? false,
         message: openAIDep?.healthy
-          ? '✅ Connection successful'
+          ? 'Connection successful'
           : openAIDep?.message || 'Connection failed',
       })
     } catch {
       setOpenAIStatus({
         name: 'Azure OpenAI',
         connected: false,
-        message: '❌ Connection failed',
+        message: 'Connection failed',
       })
     }
   }, [])
