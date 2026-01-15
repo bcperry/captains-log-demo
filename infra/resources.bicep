@@ -250,7 +250,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       ingress: {
         external: true
-        targetPort: 8000
+        targetPort: 8001
         transport: 'auto'
         allowInsecure: false
         corsPolicy: {
