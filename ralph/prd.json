@@ -2326,6 +2326,24 @@
       "priority": 1,
       "passes": true,
       "notes": "Fixed 2026-01-15 - Playwright verified auth redirect uses correct client_id, tenant_id, and government URL (login.microsoftonline.us)"
+    },
+    {
+      "id": "BUG-026",
+      "title": "azure.yaml buildArgs syntax error - cannot unmarshal map into array",
+      "acceptanceCriteria": [
+        "azure.yaml parses without YAML errors",
+        "azd up runs successfully without 'cannot unmarshal !!map into []osutil.ExpandableString' error",
+        "Docker build args are passed correctly using azd-compatible syntax",
+        "VITE_AZURE_CLIENT_ID build arg is passed to Docker build",
+        "VITE_AZURE_TENANT_ID build arg is passed to Docker build",
+        "VITE_AZURE_CLOUD build arg is passed to Docker build",
+        "Frontend builds with correct Entra ID configuration baked in",
+        "azd up completes successfully with deployed app",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-15 - azd up fails with error: 'yaml: unmarshal errors: line 9: cannot unmarshal !!map into []osutil.ExpandableString'. The buildArgs in azure.yaml was added as a map/dict format but azd expects an array of strings. Current incorrect format:\n\ndocker:\n  buildArgs:\n    VITE_AZURE_CLIENT_ID: ${AZURE_ENTRA_CLIENT_ID}\n\nAzd buildArgs should be an array of 'KEY=VALUE' strings, not a map. Correct format:\n\ndocker:\n  buildArgs:\n    - VITE_AZURE_CLIENT_ID=${AZURE_ENTRA_CLIENT_ID}\n    - VITE_AZURE_TENANT_ID=${AZURE_ENTRA_TENANT_ID}\n    - VITE_AZURE_CLOUD=${AZURE_CLOUD}"
     }
   ]
 }
