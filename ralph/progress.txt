@@ -2001,3 +2001,31 @@ Started: 2024-01-15
   - Always add error handling that logs but doesn't fail the main operation for auxiliary saves
   - Update metadata.json atomically when saving related files (analysis.json)
 ---
+
+## 2026-01-15 - US-074
+- What was implemented: Transcription deletion from blob storage
+- Root cause: DELETE endpoint returned 501 Not Implemented, needed full implementation
+- Files changed:
+  - `app/storage/blob.py` - Added `delete_transcription_folder()` method to BlobStorageClient and InMemoryBlobClient
+  - `app/api/transcriptions.py` - Implemented DELETE /transcriptions/{transcription_id} endpoint with authorization
+  - `app/tests/test_transcriptions.py` - Added 4 tests for delete endpoint (success, not found, forbidden, removes all files)
+- **Implementation Details:**
+  - `delete_transcription_folder()` deletes all blobs in a folder (audio, transcript.json, metadata.json, analysis.json)
+  - Returns tuple of (deleted_blobs, failed_blobs) to handle partial failures gracefully
+  - Authorization: Checks if folder_path starts with user's OID, returns 403 if not owned
+  - Response codes: 204 success, 403 forbidden, 404 not found, 500 partial failure
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Verified DELETE endpoint appears with correct parameters and response codes
+  - Screenshots: us074-swagger-delete-endpoint.png, us074-delete-endpoint-expanded.png
+- **Frontend Already Implemented:**
+  - Delete button with confirmation dialog: "Are you sure you want to delete this recording?"
+  - Loading state: Shows "Deleting..." and disables button
+  - Error handling: Displays error message on failure
+  - Immediate UI update: Removes item from list after successful deletion
+- **Learnings:**
+  - Use list() to materialize blob iterator before modifying collection
+  - Folder prefix search needs trailing slash for exact matching
+  - Return deleted/failed lists to handle partial failures gracefully
+  - Frontend API already encodes folder path with encodeURIComponent for slash handling
+---
