@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTranscriptions, deleteTranscription, getTranscription } from '../services/api'
+import { TranscriptDisplay } from './TranscriptDisplay'
+import type { SpeakerSegment } from '../types/transcription'
+
+// Backend response segment type (snake_case)
+interface SpeakerSegmentRaw {
+  speaker_id: string
+  text: string
+  start_time_ms: number
+  end_time_ms: number
+}
 
 // Backend response types (snake_case)
 interface TranscriptionRecordRaw {
@@ -14,6 +24,7 @@ interface TranscriptionRecordRaw {
   created_at: string
   has_diarization: boolean
   speaker_count: number | null
+  segments: SpeakerSegmentRaw[] | null
 }
 
 interface TranscriptionListResponseRaw {
@@ -34,6 +45,7 @@ interface TranscriptionItem {
   createdAt: string
   hasDiarization: boolean
   speakerCount: number | null
+  segments: SpeakerSegment[] | null
   status: 'complete' | 'analyzed'
 }
 
@@ -70,6 +82,12 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     createdAt: raw.created_at,
     hasDiarization: raw.has_diarization,
     speakerCount: raw.speaker_count,
+    segments: raw.segments?.map(seg => ({
+      speakerId: seg.speaker_id,
+      text: seg.text,
+      startTimeMs: seg.start_time_ms,
+      endTimeMs: seg.end_time_ms,
+    })) ?? null,
     status: raw.has_diarization ? 'analyzed' : 'complete',
   })
 
@@ -250,9 +268,14 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
 
           <div className="mt-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Transcription</h3>
-            <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-              <p className="text-gray-700 whitespace-pre-wrap">{selectedRecording.text}</p>
-            </div>
+            {/* Show speaker bubbles if diarization is available */}
+            {selectedRecording.hasDiarization && selectedRecording.segments && selectedRecording.segments.length > 0 ? (
+              <TranscriptDisplay segments={selectedRecording.segments} />
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                <p className="text-gray-700 whitespace-pre-wrap">{selectedRecording.text}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
