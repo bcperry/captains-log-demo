@@ -2200,8 +2200,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "SECURITY ISSUE: Bicep linter warnings on lines 601, 608:\n- Warning outputs-should-not-contain-secrets: Outputs contain listKeys() function calls\n- Storage keys and connection strings exposed in outputs\n- Can be logged in deployment history\n- Should use Managed Identity for authentication instead"
+      "passes": true,
+      "notes": "Fixed 2026-01-15. Removed AZURE_OPENAI_KEY and AZURE_SPEECH_KEY outputs from resources.bicep and main.bicep. Keys are still used internally for Container App secrets and App Service settings (via listKeys()), but are no longer exposed in deployment outputs. Playwright verified frontend and API docs work."
     },
     {
       "id": "BUG-009",
