@@ -26,7 +26,7 @@ export function AudioUpload({
   const [isDragOver, setIsDragOver] = useState(false)
   const [audioDuration, setAudioDuration] = useState<number | null>(null)
   const [durationLimit, setDurationLimit] = useState<number | null>(null)
-  const [enableDiarization, setEnableDiarization] = useState(false)
+  const [enableDiarization, setEnableDiarization] = useState(true)
   const [maxSpeakers, setMaxSpeakers] = useState(DEFAULT_MAX_SPEAKERS)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)

@@ -208,10 +208,14 @@ export const deleteTranscription = (id: string): Promise<void> => {
 }
 
 // Analysis endpoints
-export const analyzeTranscription = (text: string): Promise<AnalysisResult> => {
+export const analyzeTranscription = (text: string, diarizedTranscript?: string): Promise<AnalysisResult> => {
+  const body: Record<string, unknown> = { text }
+  if (diarizedTranscript) {
+    body.diarized_transcript = diarizedTranscript
+  }
   return request<AnalysisResult>('/analyze', {
     method: 'POST',
-    body: { text },
+    body,
   })
 }
 

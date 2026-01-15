@@ -1290,6 +1290,37 @@
       "priority": 2,
       "passes": true,
       "notes": "FIXED: Added processing_time_ms and duration_ms to TranscriptionResponse and DiarizedTranscriptionResponse models. Backend now captures timing with time.monotonic() and gets audio duration via get_audio_duration_ms(). Frontend API service transforms ms to seconds for display. All tests pass."
+    },
+    {
+      "id": "US-059",
+      "status": "complete",
+      "title": "Diarization as default with chat-like transcript display and AI analysis",
+      "acceptanceCriteria": [
+        "Diarization enabled by default for all transcriptions (not optional)",
+        "TranscriptionResponse includes diarization segments with speaker labels",
+        "Frontend displays transcription in chat-like format: Speaker name, Timestamp, Text",
+        "Each speaker segment shows: '📍 Speaker 1 [HH:MM:SS]: [transcribed text]'",
+        "Support display of multiple speakers in conversation format",
+        "Diarized transcript passed to AI analysis endpoint for summarization",
+        "AI analysis receives full diarized text with speaker labels preserved",
+        "Analysis results show summary of conversation by speaker perspective",
+        "POST /analyze endpoint accepts diarized_transcript parameter",
+        "Frontend sends diarized content to /analyze for AI processing",
+        "AI summary output includes key points per speaker if applicable",
+        "Update TranscriptionRecord model to include diarization data",
+        "Store diarized transcription in Cosmos DB with speaker segments",
+        "Query transcription history and display in chat format",
+        "Support filtering/searching by speaker in history",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "React frontend tests pass",
+        "PLAYWRIGHT: Verify transcription displays in chat format with speakers",
+        "PLAYWRIGHT: Verify AI analysis receives and processes diarized transcript",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "FEATURE: Diarization should be default behavior for all meeting recordings. Transcript should display in chat-like format with speaker names, timestamps, and text (similar to messaging app). The complete diarized transcript including speaker labels should be passed to AI analysis for better context-aware summarization. This improves readability and enables AI to understand speaker perspectives and contributions."
     }
   ]
 }

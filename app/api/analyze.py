@@ -73,7 +73,7 @@ async def analyze_transcription(
     logger.info(f"Analyzing transcription for user {user.oid} ({len(request.text)} chars)")
 
     try:
-        result = openai_client.analyze_transcription(request.text)
+        result = openai_client.analyze_transcription(request.text, request.diarized_transcript)
         logger.info(f"Analysis complete: {len(result.keyPoints)} key points, {len(result.actionItems)} action items")
         return result
 
