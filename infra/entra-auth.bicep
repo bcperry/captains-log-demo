@@ -24,9 +24,10 @@ param requireAuthentication bool = true
 @allowed(['RedirectToLoginPage', 'AllowAnonymous', 'Return401', 'Return403'])
 param unauthenticatedAction string = 'Return401'
 
-// Determine the correct Entra ID endpoints based on cloud environment
-var isGovernment = azureCloud == 'government'
-var loginEndpoint = isGovernment ? 'https://login.microsoftonline.us/' : 'https://login.microsoftonline.com/'
+// Determine the correct Entra ID endpoints using environment() function for cloud compatibility
+// environment().authentication.loginEndpoint returns the correct login URL for any Azure cloud
+// (commercial, government, China, etc.) without hardcoding URLs
+var loginEndpoint = environment().authentication.loginEndpoint
 var issuer = '${loginEndpoint}${tenantId}/v2.0'
 var openIdIssuer = issuer
 
