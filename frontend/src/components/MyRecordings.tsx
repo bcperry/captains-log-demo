@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getTranscriptions, deleteTranscription, getTranscription } from '../services/api'
+import { getTranscriptions, deleteTranscription, getTranscription, getTranscriptionContent } from '../services/api'
 import { TranscriptDisplay } from './TranscriptDisplay'
 import type { SpeakerSegment } from '../types/transcription'
 
@@ -21,6 +21,7 @@ interface TranscriptionRecordRaw {
   file_size_bytes: number
   duration_ms: number | null
   blob_url: string | null
+  blob_storage_url: string | null
   created_at: string
   has_diarization: boolean
   speaker_count: number | null
@@ -46,6 +47,7 @@ interface TranscriptionItem {
   hasDiarization: boolean
   speakerCount: number | null
   segments: SpeakerSegment[] | null
+  blobStorageUrl: string | null
   status: 'complete' | 'analyzed'
 }
 
@@ -88,6 +90,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
       startTimeMs: seg.start_time_ms,
       endTimeMs: seg.end_time_ms,
     })) ?? null,
+    blobStorageUrl: raw.blob_storage_url,
     status: raw.has_diarization ? 'analyzed' : 'complete',
   })
 
@@ -129,17 +132,48 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     }
   }
 
+  const [loadingContent, setLoadingContent] = useState(false)
+
   const handleViewDetail = async (recording: TranscriptionItem) => {
     try {
+      setLoadingContent(true)
       // Fetch full transcription details
       const fullRecord = await getTranscription(recording.id) as unknown as TranscriptionRecordRaw
-      const transformed = transformRecord(fullRecord)
+      let transformed = transformRecord(fullRecord)
+
+      // If blob storage URL exists, fetch full content from blob storage
+      if (fullRecord.blob_storage_url) {
+        try {
+          const contentResponse = await getTranscriptionContent(recording.id)
+          // Convert speaker_segments from seconds to milliseconds
+          if (contentResponse.content.speaker_segments && contentResponse.content.speaker_segments.length > 0) {
+            transformed = {
+              ...transformed,
+              segments: contentResponse.content.speaker_segments.map(seg => ({
+                speakerId: seg.speaker_id,
+                text: seg.text,
+                startTimeMs: Math.round(seg.start_time * 1000),
+                endTimeMs: Math.round(seg.end_time * 1000),
+              })),
+              hasDiarization: true,
+              speakerCount: new Set(contentResponse.content.speaker_segments.map(s => s.speaker_id)).size,
+              durationMs: contentResponse.content.duration ? Math.round(contentResponse.content.duration * 1000) : transformed.durationMs,
+            }
+          }
+        } catch (blobErr) {
+          // Fall back to basic record if blob fetch fails
+          console.warn('Failed to fetch content from blob storage, using basic record:', blobErr)
+        }
+      }
+
       setSelectedRecording(transformed)
       if (onViewTranscription) {
         onViewTranscription(transformed)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transcription details')
+    } finally {
+      setLoadingContent(false)
     }
   }
 
@@ -431,9 +465,10 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={() => handleViewDetail(recording)}
-                    className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    disabled={loadingContent}
+                    className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
                   >
-                    View
+                    {loadingContent ? 'Loading...' : 'View'}
                   </button>
                   <button
                     onClick={() => handleDelete(recording.id)}

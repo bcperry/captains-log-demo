@@ -8,6 +8,7 @@ import type {
   DiarizedTranscriptionResponse,
   TranscriptionListResponse,
   TranscriptionRecord,
+  TranscriptionContentResponse,
   AnalysisResult,
 } from '../types'
 
@@ -205,6 +206,10 @@ export const getTranscription = (id: string): Promise<TranscriptionRecord> => {
 
 export const deleteTranscription = (id: string): Promise<void> => {
   return request<void>(`/transcriptions/${id}`, { method: 'DELETE' })
+}
+
+export const getTranscriptionContent = (id: string): Promise<TranscriptionContentResponse> => {
+  return request<TranscriptionContentResponse>(`/transcriptions/${id}/content`)
 }
 
 // Analysis endpoints
