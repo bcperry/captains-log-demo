@@ -2267,3 +2267,24 @@ Started: 2024-01-15
   - settings.py uses AliasChoices to accept both azure_tenant_id and azure_entra_tenant_id (same for client_id)
   - AZURE_CLIENT_ID is for managed identity, AZURE_ENTRA_CLIENT_ID is for Entra ID app registration
 ---
+
+## 2026-01-15 - BUG-025
+- What was implemented: Fixed frontend MSAL config - VITE_ env vars now passed at Docker build time
+- Root cause: Dockerfile ran `npm run build` without passing VITE_AZURE_CLIENT_ID, VITE_AZURE_TENANT_ID, VITE_AZURE_CLOUD as build args
+- The result was auth redirects to `https://login.microsoftonline.com/undefined/oauth2/v2.0/authorize?client_id=&...`
+- Files changed:
+  - `Dockerfile` - Added ARG for VITE_AZURE_CLIENT_ID, VITE_AZURE_TENANT_ID, VITE_AZURE_CLOUD; converted to ENV before npm run build
+  - `azure.yaml` - Added docker.buildArgs to pass azd environment variables to Docker build
+  - `deploy.ps1` - Added reading of AZURE_ENTRA_CLIENT_ID, AZURE_ENTRA_TENANT_ID from .env and passing as --build-arg to docker build
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8001 (Docker container)
+  - Clicked Sign in button, verified redirect URL
+  - Confirmed: client_id=test-client-id, tenant_id=test-tenant-id in URL
+  - Confirmed: Using login.microsoftonline.us (government) not login.microsoftonline.com (commercial)
+  - Screenshots taken: bug025-auth-redirect-fixed.png
+- **Learnings:**
+  - Vite environment variables (VITE_ prefix) are baked into JS bundle at build time, not read at runtime
+  - Docker multi-stage builds require ARG before the stage that needs it, then ENV to make it available to RUN commands
+  - azd supports docker.buildArgs in azure.yaml to pass environment variables to docker build
+  - PowerShell deploy scripts need explicit --build-arg flags for each variable
+---

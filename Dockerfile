@@ -3,6 +3,16 @@ FROM node:22-slim AS frontend-builder
 
 WORKDIR /frontend
 
+# Build arguments for Vite environment variables (baked into JS bundle at build time)
+ARG VITE_AZURE_CLIENT_ID=""
+ARG VITE_AZURE_TENANT_ID=""
+ARG VITE_AZURE_CLOUD="government"
+
+# Convert build args to environment variables for npm run build
+ENV VITE_AZURE_CLIENT_ID=${VITE_AZURE_CLIENT_ID}
+ENV VITE_AZURE_TENANT_ID=${VITE_AZURE_TENANT_ID}
+ENV VITE_AZURE_CLOUD=${VITE_AZURE_CLOUD}
+
 # Copy package files for dependency installation
 COPY frontend/package.json frontend/package-lock.json ./
 
@@ -12,12 +22,7 @@ RUN npm ci
 # Copy source files
 COPY frontend/ .
 
-# Copy root .env.example for build-time defaults (can be overridden via build args)
-# Vite loads .env from envDir (project root, one level up from frontend)
-COPY .env.example /app/.env.example
-
-# Build production bundle
-# Note: VITE_ prefixed env vars should be passed as build args for production builds
+# Build production bundle with VITE_ env vars baked in
 RUN npm run build
 
 # Stage 2: Build Python application
