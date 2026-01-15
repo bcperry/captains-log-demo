@@ -1628,3 +1628,25 @@ Started: 2024-01-15
   - Tests that share audio content can interfere via caching - need to clear in-memory storage between tests
   - CacheMetrics provides simple monitoring of cache hit/miss rates via logging
 ---
+
+## 2026-01-15 - US-066
+- What was implemented: Verified TranscriptDisplay component for speaker bubbles
+- Files verified:
+  - `frontend/src/components/TranscriptDisplay.tsx` - Chat-style bubble component with speaker colors, timestamps, copy functionality
+  - `frontend/src/components/MyRecordings.tsx` - Integrates TranscriptDisplay when diarization available
+  - `frontend/src/utils/transcriptUtils.ts` - Speaker color palette, grouping, alignment utilities
+  - `frontend/src/__tests__/transcript-display.test.tsx` - 22 passing tests for component
+- **Playwright Verification:**
+  - Pages tested: Visual test page with mock speaker segments
+  - Verified: Speaker bubbles render with alternating left/right alignment
+  - Verified: Different background colors (blue for Speaker 1, green for Speaker 2)
+  - Verified: Timestamps in HH:MM:SS format
+  - Verified: Rounded corners, proper padding, professional styling
+  - Screenshots taken: us066-speaker-bubbles.png
+- **Learnings:**
+  - TranscriptDisplay component was already fully implemented
+  - Uses Tailwind CSS for styling with professional color palette
+  - groupSegmentsBySpeaker() consolidates consecutive same-speaker segments
+  - getSpeakerAlignment() alternates speakers left/right
+  - Copy functionality for individual segments and full transcript
+---
