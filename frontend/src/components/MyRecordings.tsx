@@ -25,7 +25,9 @@ interface TranscriptionRecordRaw {
   created_at: string
   has_diarization: boolean
   speaker_count: number | null
+  speaker_ids: string[] | null
   segments: SpeakerSegmentRaw[] | null
+  language_detected: string | null
 }
 
 interface TranscriptionListResponseRaw {
@@ -46,8 +48,10 @@ interface TranscriptionItem {
   createdAt: string
   hasDiarization: boolean
   speakerCount: number | null
+  speakerIds: string[] | null
   segments: SpeakerSegment[] | null
   blobStorageUrl: string | null
+  languageDetected: string | null
   status: 'complete' | 'analyzed'
 }
 
@@ -84,6 +88,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     createdAt: raw.created_at,
     hasDiarization: raw.has_diarization,
     speakerCount: raw.speaker_count,
+    speakerIds: raw.speaker_ids,
     segments: raw.segments?.map(seg => ({
       speakerId: seg.speaker_id,
       text: seg.text,
@@ -91,6 +96,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
       endTimeMs: seg.end_time_ms,
     })) ?? null,
     blobStorageUrl: raw.blob_storage_url,
+    languageDetected: raw.language_detected,
     status: raw.has_diarization ? 'analyzed' : 'complete',
   })
 
@@ -292,10 +298,22 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
               <span className="text-gray-500">Uploaded:</span>
               <p className="font-medium">{formatDate(selectedRecording.createdAt)}</p>
             </div>
+            {selectedRecording.languageDetected && (
+              <div>
+                <span className="text-gray-500">Language:</span>
+                <p className="font-medium">{selectedRecording.languageDetected}</p>
+              </div>
+            )}
             {selectedRecording.speakerCount && (
               <div>
                 <span className="text-gray-500">Speakers:</span>
                 <p className="font-medium">{selectedRecording.speakerCount}</p>
+              </div>
+            )}
+            {selectedRecording.speakerIds && selectedRecording.speakerIds.length > 0 && (
+              <div className="col-span-2">
+                <span className="text-gray-500">Speaker IDs:</span>
+                <p className="font-medium">{selectedRecording.speakerIds.join(', ')}</p>
               </div>
             )}
           </div>
@@ -459,6 +477,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
                     <span>{formatDate(recording.createdAt)}</span>
                     <span>{formatDuration(recording.durationMs)}</span>
                     <span>{formatFileSize(recording.fileSizeBytes)}</span>
+                    {recording.languageDetected && <span>{recording.languageDetected}</span>}
                     {recording.speakerCount && <span>{recording.speakerCount} speakers</span>}
                   </div>
                 </div>

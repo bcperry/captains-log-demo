@@ -168,8 +168,15 @@ class TranscriptionRecord(BaseModel):
     # Optional diarization data
     has_diarization: bool = Field(default=False, description="Whether transcription has speaker diarization")
     speaker_count: Optional[int] = Field(default=None, description="Number of speakers if diarized")
+    speaker_ids: Optional[list[str]] = Field(
+        default=None, description="List of unique speaker IDs/labels from diarization"
+    )
     segments: Optional[list[SpeakerSegment]] = Field(
         default=None, description="Speaker segments if diarized"
+    )
+    # Language detection
+    language_detected: Optional[str] = Field(
+        default=None, description="Language detected by Azure Speech Services (may differ from requested language)"
     )
     # Audio hash for cache lookup (SHA256 of file content)
     audio_hash: Optional[str] = Field(
