@@ -5,6 +5,7 @@ import {
   groupSegmentsBySpeaker,
   getSpeakerColor,
   resetSpeakerColors,
+  applyCustomSpeakerNames,
 } from '../utils/transcriptUtils'
 import type { SpeakerSegment } from '../types/transcription'
 
@@ -301,6 +302,74 @@ describe('TranscriptDisplay', () => {
       // Check for common emojis that might be used
       const emojiPattern = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu
       expect(textContent.match(emojiPattern)).toBeNull()
+    })
+  })
+
+  describe('applyCustomSpeakerNames', () => {
+    const speakerNames = {
+      'Speaker_1': { name: 'Marvin', confidence: 'high' as const, ai_identified: true },
+      'Speaker_2': { name: 'Christine', confidence: 'medium' as const, ai_identified: true },
+    }
+
+    it('replaces "Speaker 1" with custom name', () => {
+      const text = 'Speaker 1 inquired about the project status.'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('Marvin inquired about the project status.')
+    })
+
+    it('replaces "Speaker_1" with custom name', () => {
+      const text = 'Speaker_1 presented the proposal.'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('Marvin presented the proposal.')
+    })
+
+    it('replaces "Speaker-1" with custom name', () => {
+      const text = 'Speaker-1 asked a question.'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('Marvin asked a question.')
+    })
+
+    it('replaces multiple speakers in same text', () => {
+      const text = 'Speaker 1 asked Speaker 2 about the deadline.'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('Marvin asked Christine about the deadline.')
+    })
+
+    it('handles case-insensitive matching', () => {
+      const text = 'speaker 1 and SPEAKER 2 discussed the issue.'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('Marvin and Christine discussed the issue.')
+    })
+
+    it('leaves unknown speaker numbers unchanged', () => {
+      const text = 'Speaker 1 and Speaker 3 were present.'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('Marvin and Speaker 3 were present.')
+    })
+
+    it('returns original text when speakerNames is undefined', () => {
+      const text = 'Speaker 1 spoke first.'
+      const result = applyCustomSpeakerNames(text, undefined)
+      expect(result).toBe('Speaker 1 spoke first.')
+    })
+
+    it('returns original text when speakerNames is empty', () => {
+      const text = 'Speaker 1 spoke first.'
+      const result = applyCustomSpeakerNames(text, {})
+      expect(result).toBe('Speaker 1 spoke first.')
+    })
+
+    it('handles text with no speaker references', () => {
+      const text = 'The meeting went well.'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('The meeting went well.')
+    })
+
+    it('handles participants array values (exact match)', () => {
+      // When participants are just "Speaker 1" without any other text
+      const text = 'Speaker 1'
+      const result = applyCustomSpeakerNames(text, speakerNames)
+      expect(result).toBe('Marvin')
     })
   })
 })

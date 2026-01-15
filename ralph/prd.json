@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
+        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
-        "Replace '\u23f3' with 'Processing...' text",
-        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
-        "Replace '\u274c' error indicators with professional error styling",
+        "Replace '🎯' with 'Start' or use button variant styling",
+        "Replace '⏳' with 'Processing...' text",
+        "Replace '✅' success indicators with professional checkmarks or green highlights",
+        "Replace '❌' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2109,6 +2109,40 @@
       "priority": 1,
       "passes": true,
       "notes": "CRITICAL BUG logged 2026-01-15 - Ralph completely misunderstood the issue. The problem is NOT that speakerNames isn't passed to TranscriptDisplay - it IS passed. The problem is a KEY FORMAT MISMATCH:\n\nanalysis.json contains:\n{\"speaker_names\": {\"Speaker_1\": {\"name\": \"Marvin\"}, \"Speaker_2\": {\"name\": \"Christine\"}}}\n\nBut transcript segments contain:\n{\"speaker\": \"Speaker-1\", \"text\": \"...\"}\n\nWhen TranscriptDisplay tries to lookup speakerNames['Speaker-1'], it FAILS because the key is 'Speaker_1' (underscore) not 'Speaker-1' (hyphen).\n\nThe fix is to normalize the key format when doing the lookup:\nconst normalizedSpeaker = segment.speaker.replace('-', '_');\nconst displayName = speakerNames[normalizedSpeaker]?.name || segment.speaker;\n\nThis is a simple string replacement issue that Ralph missed entirely. | FIXED 2026-01-15: Normalized speaker ID lookup to handle Guest-N -> Speaker_N mapping."
+    },
+    {
+      "id": "BUG-019",
+      "title": "AI Analysis sections not applying custom speaker names - still showing generic labels",
+      "acceptanceCriteria": [
+        "PROBLEM: Transcript chat bubbles NOW show custom names (Marvin, Christine) but AI Analysis sections do NOT",
+        "EXAMPLE - Key Points CURRENT: 'Speaker 1 inquired about...' (generic label)",
+        "EXAMPLE - Key Points SHOULD BE: 'Marvin inquired about...' (custom name from speaker_names)",
+        "EXAMPLE - Action Items CURRENT: {\"assignee\": \"Speaker 1\", \"task\": \"...\"} (generic)",
+        "EXAMPLE - Action Items SHOULD BE: {\"assignee\": \"Marvin\", \"task\": \"...\"} (custom name)",
+        "EXAMPLE - Participants CURRENT: ['Speaker 1', 'Speaker 2', 'Speaker 3', 'Speaker 4'] (generic)",
+        "EXAMPLE - Participants SHOULD BE: ['Marvin', 'Christine', 'Speaker 3', 'Speaker 4'] (custom names applied)",
+        "Apply speaker name mapping to keyPoints array text content (replace 'Speaker 1' with custom name)",
+        "Apply speaker name mapping to actionItems assignee field",
+        "Apply speaker name mapping to participants array",
+        "Apply speaker name mapping to summary text content",
+        "Handle both formats: 'Speaker 1', 'Speaker-1', 'Speaker_1' when searching for replacement",
+        "Use regex pattern to find and replace: /Speaker[\\s\\-_](\\d+)/g",
+        "Lookup replacement: const customName = speakerNames['Speaker_' + number]?.name || original",
+        "Update analysis display component to apply name mapping before rendering",
+        "Create utility function: applyCustomSpeakerNames(text, speakerNamesMapping)",
+        "Preserve original analysis.json (don't modify saved data, only display)",
+        "Custom names apply in real-time when viewing saved analysis",
+        "TypeScript compiles without errors",
+        "React component unit tests pass",
+        "PLAYWRIGHT: Edit speaker names, verify Key Points show custom names (not 'Speaker 1')",
+        "PLAYWRIGHT: Verify Action Items assignee shows custom name",
+        "PLAYWRIGHT: Verify Participants list shows custom names",
+        "PLAYWRIGHT: Verify Summary text uses custom names",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     }
   ]
 }
