@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
-import type { TranscriptionResult, SpeakerSegment } from '../types/transcription'
+import type { TranscriptionResult } from '../types/transcription'
 import type { AnalysisResult } from '../types/api'
+import { TranscriptDisplay } from './TranscriptDisplay'
 
 export interface TranscriptionResultsProps {
   transcription: TranscriptionResult | null
@@ -29,26 +30,6 @@ const formatTimeMsChat = (ms: number): string => {
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-}
-
-// Generate consistent color for speaker ID
-const getSpeakerColor = (speakerId: string): string => {
-  const colors = [
-    'bg-blue-100 text-blue-800 border-blue-300',
-    'bg-green-100 text-green-800 border-green-300',
-    'bg-purple-100 text-purple-800 border-purple-300',
-    'bg-orange-100 text-orange-800 border-orange-300',
-    'bg-pink-100 text-pink-800 border-pink-300',
-    'bg-teal-100 text-teal-800 border-teal-300',
-    'bg-yellow-100 text-yellow-800 border-yellow-300',
-    'bg-red-100 text-red-800 border-red-300',
-    'bg-indigo-100 text-indigo-800 border-indigo-300',
-    'bg-gray-100 text-gray-800 border-gray-300',
-  ]
-  // Extract number from speaker ID or use hash
-  const match = speakerId.match(/\d+/)
-  const index = match ? parseInt(match[0], 10) - 1 : speakerId.charCodeAt(0)
-  return colors[Math.abs(index) % colors.length]
 }
 
 // Sentiment emoji mapping
@@ -211,7 +192,7 @@ export function TranscriptionResults({
 
       {/* Speaker segments - show when diarization is enabled */}
       {stats.hasDiarization && transcription.segments && transcription.segments.length > 0 && (
-        <SpeakerSegmentsDisplay segments={transcription.segments} />
+        <TranscriptDisplay segments={transcription.segments} />
       )}
 
       {/* Transcription text area */}
@@ -410,66 +391,6 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
             </p>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-// Sub-component for displaying speaker segments with diarization
-interface SpeakerSegmentsDisplayProps {
-  segments: SpeakerSegment[]
-}
-
-function SpeakerSegmentsDisplay({ segments }: SpeakerSegmentsDisplayProps) {
-  if (!segments || segments.length === 0) {
-    return null
-  }
-
-  // Get unique speakers
-  const uniqueSpeakers = [...new Set(segments.map((s) => s.speakerId))]
-  
-  // Format speaker name for chat display
-  const formatSpeakerName = (speakerId: string): string => {
-    const name = speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')
-    return name
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6" data-testid="speaker-segments">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">💬 Conversation Transcript</h3>
-        <div className="flex gap-2">
-          {uniqueSpeakers.map((speakerId) => (
-            <span
-              key={speakerId}
-              className={`px-2 py-1 text-xs rounded-full border ${getSpeakerColor(speakerId)}`}
-            >
-              {formatSpeakerName(speakerId)}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="segments-list">
-        {segments.map((segment, index) => {
-          const speakerName = formatSpeakerName(segment.speakerId)
-          const timestamp = formatTimeMsChat(segment.startTimeMs)
-          
-          return (
-            <div
-              key={index}
-              className={`p-3 rounded-lg border ${getSpeakerColor(segment.speakerId)}`}
-              data-testid={`segment-${index}`}
-            >
-              <p className="text-sm">
-                <span className="font-medium">{speakerName}</span>
-                <span className="text-xs opacity-70 ml-2">[{timestamp}]</span>
-                <span className="mx-2">:</span>
-                <span>{segment.text}</span>
-              </p>
-            </div>
-          )
-        })}
       </div>
     </div>
   )

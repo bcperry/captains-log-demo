@@ -1503,3 +1503,34 @@ Started: 2024-01-15
   - TypeScript strict mode catches unused declarations with TS6133 error
   - When refactoring time formatting, check for duplicate/unused utility functions
 ---
+
+## 2026-01-15 - US-061
+- What was implemented: Created SMS/iMessage-style TranscriptDisplay component for diarized transcripts
+- Files changed:
+  - `frontend/src/components/TranscriptDisplay.tsx` - New component with chat bubble UI, alternating left/right speaker positioning, timestamps, copy-to-clipboard, and mobile-responsive layout
+  - `frontend/src/utils/transcriptUtils.ts` - Utility functions for speaker colors, segment grouping, and formatting
+  - `frontend/src/__tests__/transcript-display.test.tsx` - Unit tests for segment grouping logic and speaker color consistency (22 tests)
+  - `frontend/src/components/TranscriptionResults.tsx` - Refactored to use new TranscriptDisplay component, removed old SpeakerSegmentsDisplay
+  - `frontend/src/components/index.ts` - Added exports for TranscriptDisplay and utility functions
+- **Features Implemented:**
+  - Chat bubbles with alternating left/right positioning per speaker
+  - Speaker names and HH:MM:SS timestamps on each bubble
+  - Continuous segments from same speaker grouped together
+  - Professional color palette (8 distinct speaker colors)
+  - Copy individual segment or full transcript to clipboard
+  - Speaker legend with jump-to-speaker functionality
+  - Mobile-responsive layout (max-width 85%/70% on mobile/desktop)
+  - Smooth scroll behavior
+  - No emojis, professional typography
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend), http://localhost:8000/docs (API)
+  - Verified: App loads without errors, services connected, Swagger UI works
+  - Screenshots taken: us061-transcript-display-login-required.png, us061-api-swagger-ui.png
+  - Note: Full E2E transcript verification requires authentication and audio upload
+- **Learnings:**
+  - ESLint react-refresh rule requires utility functions in separate files from components
+  - Use `vi.waitFor()` in tests for async clipboard operations
+  - useMemo for expensive computations like segment grouping
+  - Tailwind color classes can be combined with dynamic class composition
+  - Storybook not set up in project - can be added later for component documentation
+---

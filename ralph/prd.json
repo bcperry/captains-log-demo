@@ -1370,8 +1370,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "FEATURE: Need new React component to render transcripts like text message conversations. Current display is too AI-like with emojis. Should look professional like SMS/iMessage app with speaker bubbles, timestamps, and colors."
+      "passes": true,
+      "notes": "FEATURE: Need new React component to render transcripts like text message conversations. Current display is too AI-like with emojis. Should look professional like SMS/iMessage app with speaker bubbles, timestamps, and colors. NOTE: Storybook not set up in project - stories can be added when Storybook is installed."
     },
     {
       "id": "US-062",
@@ -1457,6 +1457,166 @@
       "priority": 1,
       "passes": true,
       "notes": "BUILD ERROR: Frontend build fails with TypeScript error TS6133 in src/components/TranscriptionResults.tsx:35. The function 'formatTimeMs' is declared but never read. This breaks the npm run build:deploy pipeline. Either use the function or remove it."
+    },
+    {
+      "id": "US-064",
+      "title": "Save transcription results to Azure Blob Storage as JSON",
+      "acceptanceCriteria": [
+        "Save transcription JSON to Blob Storage after successful transcription",
+        "Filename format: {user_id}/{transcription_id}.json",
+        "JSON structure includes: transcript_id, user_id, filename, upload_date, duration, speaker_segments, full_text, language, processing_time_ms",
+        "Speaker segments array with: speaker_id, start_time, end_time, text",
+        "Upload to Azure Blob Storage container 'transcriptions'",
+        "Use SAS URL for secure access to transcription files",
+        "Handle Blob Storage failures gracefully (log but don't fail transcription)",
+        "Support both real Azure Blob Storage and in-memory fallback for testing",
+        "Transcription record in Cosmos DB includes blob_storage_url reference",
+        "Create GET /transcriptions/{id}/content endpoint to retrieve JSON from blob",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "FEATURE: Transcription text needs to be persisted in Blob Storage for durability and retrieval. Store as JSON with structured speaker segments for easy parsing. Link from Cosmos DB record to Blob Storage file."
+    },
+    {
+      "id": "US-065",
+      "title": "Load transcription from Blob Storage cache instead of re-transcribing",
+      "acceptanceCriteria": [
+        "Check Blob Storage for existing transcription before calling Azure Speech Services",
+        "Use audio file hash/fingerprint as cache key to detect duplicate uploads",
+        "Audio hash calculated from file content using SHA256",
+        "If transcription exists in blob for same audio hash, return cached result",
+        "Store audio hash in Cosmos DB transcription record",
+        "Skip Azure Speech Services call if cache hit occurs",
+        "Log cache hit/miss metrics for monitoring",
+        "Support cache invalidation if user forces re-transcription",
+        "Handle corrupted cache files gracefully (fall back to re-transcription)",
+        "Add 'use_cache' parameter to transcribe endpoint (default True)",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "React frontend tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "OPTIMIZATION: Avoid expensive re-transcription of identical audio files. Implement smart caching using audio file hash. Check Blob Storage before calling Azure Speech Services."
+    },
+    {
+      "id": "US-066",
+      "title": "Display transcription speaker segments as chat-style bubbles",
+      "acceptanceCriteria": [
+        "TranscriptDisplay component renders speaker segments from diarization",
+        "Each speaker segment rendered as distinct bubble/message",
+        "Bubble styling: rounded corners, background color, padding",
+        "Speaker name displayed at top: 'Speaker 1', 'Speaker 2', etc",
+        "Timestamp displayed for each segment: [HH:MM:SS]",
+        "Text content of segment inside bubble",
+        "Different speakers use different background colors (palette)",
+        "Segments from same speaker grouped to avoid redundant labels",
+        "Scrollable transcript view with proper spacing",
+        "Mobile-responsive bubble layout",
+        "Copy button for individual segments",
+        "Hover effects for interactivity",
+        "Unit tests for segment grouping and color assignment",
+        "React frontend tests pass",
+        "PLAYWRIGHT: Verify speaker bubbles display correctly",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "UI: Speaker bubbles not currently displaying in My Recordings view. Need to render diarized speaker segments as separate chat-style bubbles with speaker labels, timestamps, and text content."
+    },
+    {
+      "id": "US-067",
+      "title": "Load and display saved transcription from Blob Storage in My Recordings",
+      "acceptanceCriteria": [
+        "Click 'View' button on recording in My Recordings list",
+        "Fetch transcription JSON from Blob Storage via GET /transcriptions/{id}/content",
+        "Parse speaker_segments array from JSON response",
+        "Display full transcript with speaker bubbles (US-066)",
+        "Show transcription metadata: duration, speaker count, processing time",
+        "Handle missing/corrupted transcription files gracefully",
+        "Show loading state while fetching from blob",
+        "Cache loaded transcription in component state",
+        "Support keyboard navigation through transcript",
+        "Show 'Back to recordings' button to return to list",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "React frontend tests pass",
+        "PLAYWRIGHT: Click recording, verify transcript loads and displays correctly",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "FEATURE: Load saved transcriptions from Blob Storage when user clicks 'View' on a recording. Parse JSON and display speaker segments as bubbles."
+    },
+    {
+      "id": "US-068",
+      "title": "Add transcription hash/fingerprint calculation for deduplication",
+      "acceptanceCriteria": [
+        "Calculate SHA256 hash of audio file content",
+        "Store audio_hash in Cosmos DB transcription record",
+        "Index transcription_records by audio_hash for quick lookup",
+        "Query endpoint: GET /transcriptions/by-hash/{audio_hash}",
+        "Return existing transcription if hash match found",
+        "Support multi-user scenario: same audio uploaded by different users",
+        "Hash calculation happens before transcription attempt",
+        "Log hash value for debugging",
+        "Unit tests for hash calculation consistency",
+        "pytest tests pass",
+        "mypy type checking passes",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "OPTIMIZATION: Enable content-based deduplication. Calculate hash of audio file to detect if same file uploaded multiple times. Allows cache lookup before re-transcription."
+    },
+    {
+      "id": "US-069",
+      "title": "Store transcription metadata with speaker count and language",
+      "acceptanceCriteria": [
+        "TranscriptionRecord includes: num_speakers, speaker_ids, language_detected",
+        "Count unique speakers in diarization result",
+        "Store speaker IDs/labels in structured format",
+        "Store detected language if available from Azure",
+        "Display speaker count in My Recordings list view",
+        "Display language in recording details",
+        "Query by speaker count (e.g., 'show me 2-speaker conversations')",
+        "Cosmos DB schema updated with new fields",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "React frontend tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "FEATURE: Enhance transcription metadata to include speaker count and language. Useful for filtering and organizing recordings."
+    },
+    {
+      "id": "BUG-006",
+      "title": "Speaker bubbles not displaying in transcription view",
+      "acceptanceCriteria": [
+        "Transcription displays with distinct speaker bubbles (not continuous text)",
+        "Each speaker segment has separate bubble with speaker label",
+        "Timestamp shown for each speaker segment",
+        "Multiple speakers render with different colors",
+        "My Recordings view shows speaker bubbles when viewing transcript",
+        "Diarization data is being parsed correctly from API response",
+        "Check if recognize_continuous_with_diarization() is being called",
+        "Verify TranscriptionResponse includes speaker_segments field",
+        "Frontend receives diarized segments in API response",
+        "TranscriptDisplay component receives segments and renders bubbles",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "React frontend tests pass",
+        "PLAYWRIGHT: Verify speaker bubbles display in My Recordings",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG: Screenshot shows continuous text transcript without speaker bubbles/diarization. Should display conversation-style with distinct bubbles per speaker. Need to verify: (1) Diarization enabled in backend, (2) Speaker segments in API response, (3) Frontend rendering correctly."
     }
   ]
 }
