@@ -117,6 +117,12 @@ export interface ActionItem {
   priority: 'high' | 'medium' | 'low'
 }
 
+export interface SpeakerIdentification {
+  name: string
+  confidence: 'high' | 'medium' | 'low'
+  ai_identified: boolean
+}
+
 export interface AnalysisResult {
   summary: string
   keyPoints: string[]
@@ -125,4 +131,5 @@ export interface AnalysisResult {
   topics: string[]
   sentiment: 'positive' | 'neutral' | 'negative'
   confidence: number
+  speakerNames?: Record<string, SpeakerIdentification>
 }

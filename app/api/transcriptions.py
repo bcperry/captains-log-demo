@@ -372,6 +372,114 @@ async def save_transcription_analysis(
         )
 
 
+from models.analysis import SpeakerConfidence, SpeakerIdentification
+from pydantic import BaseModel, Field
+
+
+class SpeakerNameUpdate(BaseModel):
+    """Request body for updating speaker names."""
+
+    speaker_names: dict[str, dict] = Field(
+        ...,
+        description="Mapping of speaker IDs to SpeakerIdentification objects",
+        examples=[{
+            "Speaker_1": {"name": "Bob", "confidence": "high", "ai_identified": False},
+            "Speaker_2": {"name": "Christine", "confidence": "medium", "ai_identified": False},
+        }],
+    )
+
+
+class SpeakerNameResponse(BaseModel):
+    """Response for speaker name update."""
+
+    message: str
+    speaker_names: dict[str, dict]
+
+
+@router.put(
+    "/{transcription_id:path}/speakers",
+    response_model=SpeakerNameResponse,
+    summary="Update speaker names for a transcription",
+    description="Update or override AI-identified speaker names with user-edited names. Persists to analysis.json.",
+    responses={
+        404: {"description": "Transcription or analysis not found"},
+        503: {"description": "Blob storage unavailable"},
+    },
+)
+async def update_speaker_names(
+    transcription_id: Annotated[str, Path(description="Transcription ID (folder path)")],
+    update: SpeakerNameUpdate,
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    storage: BlobStorageClient = Depends(get_blob_storage),
+) -> SpeakerNameResponse:
+    """Update speaker names for a transcription.
+
+    Allows users to override AI-identified speaker names with their own edits.
+    Updates are persisted to analysis.json in blob storage.
+
+    Args:
+        transcription_id: Transcription ID (folder path)
+        update: SpeakerNameUpdate with speaker_names mapping
+        user: Authenticated user from Entra ID token
+        storage: Blob storage client
+
+    Returns:
+        SpeakerNameResponse with updated speaker names
+
+    Raises:
+        HTTPException: 404 if transcription/analysis not found, 503 on storage error
+    """
+    folder_path = transcription_id
+    if not folder_path.startswith(f"{user.oid}/"):
+        folder_path = f"{user.oid}/{transcription_id}"
+
+    try:
+        # Get existing analysis
+        try:
+            analysis_json = await storage.get_analysis_json(folder_path)
+            analysis = json.loads(analysis_json)
+        except BlobNotFoundError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Analysis not found for transcription '{transcription_id}'. Run analysis first.",
+            )
+
+        # Update speaker_names in the analysis
+        # Merge with existing speaker_names, user edits take precedence
+        existing_speaker_names = analysis.get("speakerNames", analysis.get("speaker_names", {}))
+        
+        for speaker_id, speaker_data in update.speaker_names.items():
+            # Validate and convert speaker_data
+            if isinstance(speaker_data, dict):
+                # Mark as user-edited (not AI identified)
+                speaker_data["ai_identified"] = False
+                existing_speaker_names[speaker_id] = speaker_data
+
+        # Update analysis with new speaker names (use camelCase for consistency)
+        analysis["speakerNames"] = existing_speaker_names
+        # Also update snake_case for backward compatibility
+        analysis["speaker_names"] = existing_speaker_names
+
+        # Save updated analysis back to blob storage
+        updated_json = json.dumps(analysis)
+        await storage.save_analysis_json(user.oid, folder_path, updated_json)
+
+        logger.info(f"Updated speaker names for transcription {transcription_id}")
+        return SpeakerNameResponse(
+            message="Speaker names updated successfully",
+            speaker_names=existing_speaker_names,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update speaker names: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to update speaker names: {e}",
+        )
+
+
 @router.get(
     "/{transcription_id:path}",
     response_model=TranscriptionRecord,

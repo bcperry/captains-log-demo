@@ -2030,7 +2030,7 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "FEATURE: Enhance AI analysis to automatically identify speaker names from conversation context. For example, if transcript says 'I wanted to ask, are they going to be on site the RDE IT team. So I guess for Christine, I wanted to ask...', AI should map Speaker-2 to Christine. User can override if AI gets it wrong. This greatly improves transcript readability by showing real names instead of generic Speaker-1, Speaker-2 labels."
     }
   ]

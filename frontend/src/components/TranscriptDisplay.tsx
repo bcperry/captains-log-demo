@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo } from 'react'
 import type { SpeakerSegment } from '../types/transcription'
+import type { SpeakerIdentification } from '../types/api'
 import {
   getSpeakerColor,
   groupSegmentsBySpeaker,
@@ -12,21 +13,46 @@ import {
 
 export interface TranscriptDisplayProps {
   segments: SpeakerSegment[]
+  speakerNames?: Record<string, SpeakerIdentification>
   onCopySegment?: (text: string, speakerId: string) => void
+}
+
+/**
+ * Get display name for a speaker, using AI-identified/user-edited name if available.
+ */
+function getDisplayName(speakerId: string, speakerNames?: Record<string, SpeakerIdentification>): string {
+  if (speakerNames) {
+    // Try exact match first
+    if (speakerNames[speakerId]) {
+      return speakerNames[speakerId].name
+    }
+    // Try with underscore format (Speaker_1 vs Speaker 1)
+    const underscoreId = speakerId.replace(' ', '_')
+    if (speakerNames[underscoreId]) {
+      return speakerNames[underscoreId].name
+    }
+    // Try with space format
+    const spaceId = speakerId.replace('_', ' ')
+    if (speakerNames[spaceId]) {
+      return speakerNames[spaceId].name
+    }
+  }
+  // Fall back to formatted speaker name
+  return formatSpeakerName(speakerId)
 }
 
 /**
  * TranscriptDisplay component renders diarized segments as SMS/iMessage-style chat bubbles.
  * Features:
  * - Alternating left/right speaker positioning
- * - Speaker name at top of first bubble per turn
+ * - Speaker name at top of first bubble per turn (uses AI-identified names when available)
  * - Timestamps in HH:MM:SS format
  * - Grouped consecutive segments from same speaker
  * - Professional color scheme
  * - Copy to clipboard for segments and full transcript
  * - Mobile responsive
  */
-export function TranscriptDisplay({ segments, onCopySegment }: TranscriptDisplayProps) {
+export function TranscriptDisplay({ segments, speakerNames, onCopySegment }: TranscriptDisplayProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
   const [copiedAll, setCopiedAll] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -49,10 +75,10 @@ export function TranscriptDisplay({ segments, onCopySegment }: TranscriptDisplay
     [onCopySegment]
   )
 
-  // Copy full transcript to clipboard
+  // Copy full transcript to clipboard (use identified names)
   const handleCopyAll = useCallback(async () => {
     const fullTranscript = groupedSegments
-      .map(g => `${g.speakerName} [${formatTimeMs(g.startTimeMs)}]: ${g.fullText}`)
+      .map(g => `${getDisplayName(g.speakerId, speakerNames)} [${formatTimeMs(g.startTimeMs)}]: ${g.fullText}`)
       .join('\n\n')
     try {
       await navigator.clipboard.writeText(fullTranscript)
@@ -61,7 +87,7 @@ export function TranscriptDisplay({ segments, onCopySegment }: TranscriptDisplay
     } catch (err) {
       console.error('Failed to copy:', err)
     }
-  }, [groupedSegments])
+  }, [groupedSegments, speakerNames])
 
   // Scroll to specific segment
   const scrollToSegment = useCallback((index: number) => {
@@ -89,6 +115,7 @@ export function TranscriptDisplay({ segments, onCopySegment }: TranscriptDisplay
           {/* Speaker legend */}
           {uniqueSpeakers.map(speakerId => {
             const color = getSpeakerColor(speakerId)
+            const displayName = getDisplayName(speakerId, speakerNames)
             return (
               <button
                 key={speakerId}
@@ -97,9 +124,9 @@ export function TranscriptDisplay({ segments, onCopySegment }: TranscriptDisplay
                   if (index >= 0) scrollToSegment(index)
                 }}
                 className={`px-2 py-1 text-xs font-medium rounded border ${color.bg} ${color.text} ${color.border} hover:opacity-80 transition-opacity`}
-                title={`Jump to ${formatSpeakerName(speakerId)}`}
+                title={`Jump to ${displayName}`}
               >
-                {formatSpeakerName(speakerId)}
+                {displayName}
               </button>
             )
           })}
@@ -124,6 +151,7 @@ export function TranscriptDisplay({ segments, onCopySegment }: TranscriptDisplay
           const color = getSpeakerColor(group.speakerId)
           const alignment = getSpeakerAlignment(group.speakerId, uniqueSpeakers)
           const isRight = alignment === 'right'
+          const displayName = getDisplayName(group.speakerId, speakerNames)
 
           return (
             <div
@@ -139,8 +167,8 @@ export function TranscriptDisplay({ segments, onCopySegment }: TranscriptDisplay
                 <div
                   className={`flex items-center gap-2 mb-1 ${isRight ? 'justify-end' : 'justify-start'}`}
                 >
-                  <span className={`text-xs font-medium ${color.text}`}>
-                    {group.speakerName}
+                  <span className={`text-xs font-medium ${color.text}`} data-testid={`speaker-name-${index}`}>
+                    {displayName}
                   </span>
                   <span className="text-xs text-gray-400">
                     {formatTimeMs(group.startTimeMs)}
