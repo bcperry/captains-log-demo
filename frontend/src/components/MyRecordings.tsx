@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTranscriptions, deleteTranscription, getTranscription, getTranscriptionContent, getAnalysis } from '../services/api'
 import { TranscriptDisplay } from './TranscriptDisplay'
+import { applyCustomSpeakerNames } from '../utils/transcriptUtils'
 import type { SpeakerSegment } from '../types/transcription'
 import type { AnalysisResult } from '../types/api'
 
@@ -504,13 +505,13 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
             <div className="mt-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">AI Analysis</h3>
               <div className="space-y-4">
-                {/* Summary */}
+                {/* Summary - apply speaker name mapping */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h5 className="text-sm font-semibold text-blue-800 mb-2">Summary</h5>
-                  <p className="text-blue-700">{savedAnalysis.summary}</p>
+                  <p className="text-blue-700">{applyCustomSpeakerNames(savedAnalysis.summary, savedAnalysis.speakerNames)}</p>
                 </div>
 
-                {/* Key Points */}
+                {/* Key Points - apply speaker name mapping */}
                 {savedAnalysis.keyPoints && savedAnalysis.keyPoints.length > 0 && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <h5 className="text-sm font-semibold text-green-800 mb-2">Key Points</h5>
@@ -518,36 +519,36 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
                       {savedAnalysis.keyPoints.map((point, index) => (
                         <li key={index} className="text-green-700 flex items-start">
                           <span className="mr-2">•</span>
-                          <span>{point}</span>
+                          <span>{applyCustomSpeakerNames(point, savedAnalysis.speakerNames)}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                {/* Action Items */}
+                {/* Action Items - apply speaker name mapping to task and assignee */}
                 {savedAnalysis.actionItems && savedAnalysis.actionItems.length > 0 && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <h5 className="text-sm font-semibold text-yellow-800 mb-2">Action Items</h5>
                     <div className="space-y-2">
                       {savedAnalysis.actionItems.map((item, index) => (
                         <div key={index} className="bg-white rounded p-2 text-sm">
-                          <p className="text-yellow-800">{item.task}</p>
-                          {item.assignee && <p className="text-gray-600 text-xs">Assignee: {item.assignee}</p>}
+                          <p className="text-yellow-800">{applyCustomSpeakerNames(item.task, savedAnalysis.speakerNames)}</p>
+                          {item.assignee && <p className="text-gray-600 text-xs">Assignee: {applyCustomSpeakerNames(item.assignee, savedAnalysis.speakerNames)}</p>}
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Participants and Topics */}
+                {/* Participants and Topics - apply speaker name mapping to participants */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {savedAnalysis.participants && savedAnalysis.participants.length > 0 && (
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                       <h5 className="text-sm font-semibold text-gray-700 mb-2">Participants</h5>
                       <ul className="space-y-1">
                         {savedAnalysis.participants.map((p, i) => (
-                          <li key={i} className="text-gray-600 text-sm">• {p}</li>
+                          <li key={i} className="text-gray-600 text-sm">• {applyCustomSpeakerNames(p, savedAnalysis.speakerNames)}</li>
                         ))}
                       </ul>
                     </div>

@@ -94,6 +94,54 @@ export function getUniqueSpeakers(segments: SpeakerSegment[]): string[] {
   return [...new Set(segments.map(s => s.speakerId))]
 }
 
+// Speaker identification type for name mapping
+export interface SpeakerNameMapping {
+  name: string
+  confidence: 'high' | 'medium' | 'low'
+  ai_identified: boolean
+}
+
+/**
+ * Apply custom speaker names to text content.
+ * Replaces generic speaker labels (Speaker 1, Speaker-1, Speaker_1) with custom names.
+ * This is a display-only transformation - does not modify saved data.
+ * 
+ * @param text - The text content to transform
+ * @param speakerNames - Mapping of speaker IDs (e.g., "Speaker_1") to custom names
+ * @returns Text with speaker labels replaced by custom names
+ */
+export function applyCustomSpeakerNames(
+  text: string,
+  speakerNames: Record<string, SpeakerNameMapping> | undefined
+): string {
+  if (!speakerNames || Object.keys(speakerNames).length === 0) {
+    return text
+  }
+
+  let result = text
+
+  // Pattern to match speaker labels: "Speaker 1", "Speaker-1", "Speaker_1"
+  // Uses regex to capture the speaker number
+  const speakerPattern = /Speaker[\s\-_](\d+)/gi
+
+  result = result.replace(speakerPattern, (match, number) => {
+    // Try to find a custom name for this speaker number
+    // Check multiple formats: Speaker_1, Speaker-1, Speaker 1
+    const formats = [`Speaker_${number}`, `Speaker-${number}`, `Speaker ${number}`]
+    
+    for (const format of formats) {
+      if (speakerNames[format]?.name) {
+        return speakerNames[format].name
+      }
+    }
+    
+    // No custom name found, return original match
+    return match
+  })
+
+  return result
+}
+
 // Determine if speaker should be on left or right (alternating based on speaker order)
 export function getSpeakerAlignment(speakerId: string, uniqueSpeakers: string[]): 'left' | 'right' {
   const index = uniqueSpeakers.indexOf(speakerId)

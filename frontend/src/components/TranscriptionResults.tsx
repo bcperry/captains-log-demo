@@ -4,6 +4,7 @@ import type { TranscriptionResult } from '../types/transcription'
 import type { AnalysisResult, SpeakerIdentification } from '../types/api'
 import { TranscriptDisplay } from './TranscriptDisplay'
 import { SpeakerNameEditor } from './SpeakerNameEditor'
+import { applyCustomSpeakerNames } from '../utils/transcriptUtils'
 
 export interface TranscriptionResultsProps {
   transcription: TranscriptionResult | null
@@ -278,7 +279,12 @@ export function TranscriptionResults({
                   />
                 </div>
               )}
-              <AnalysisDisplay result={analysisState.result} expandedActionItem={expandedActionItem} onToggleActionItem={toggleActionItem} />
+              <AnalysisDisplay 
+                result={analysisState.result} 
+                speakerNames={speakerNames}
+                expandedActionItem={expandedActionItem} 
+                onToggleActionItem={toggleActionItem} 
+              />
             </>
           )}
         </div>
@@ -328,17 +334,23 @@ export function TranscriptionResults({
 // Sub-component for displaying analysis results
 interface AnalysisDisplayProps {
   result: AnalysisResult
+  speakerNames: Record<string, SpeakerIdentification>
   expandedActionItem: number | null
   onToggleActionItem: (index: number) => void
 }
 
-function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: AnalysisDisplayProps) {
+function AnalysisDisplay({ result, speakerNames, expandedActionItem, onToggleActionItem }: AnalysisDisplayProps) {
+  // Apply custom speaker names to text content (display-only transformation)
+  const displaySummary = applyCustomSpeakerNames(result.summary, speakerNames)
+  const displayKeyPoints = result.keyPoints.map(point => applyCustomSpeakerNames(point, speakerNames))
+  const displayParticipants = result.participants.map(p => applyCustomSpeakerNames(p, speakerNames))
+  
   return (
     <div className="space-y-4" data-testid="analysis-display">
       {/* Summary */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4" data-testid="analysis-summary">
         <h5 className="text-sm font-semibold text-blue-800 mb-2">Summary</h5>
-        <p className="text-blue-700">{result.summary}</p>
+        <p className="text-blue-700">{displaySummary}</p>
       </div>
 
       {/* Key Points */}
@@ -346,7 +358,7 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
         <div className="bg-green-50 border border-green-200 rounded-lg p-4" data-testid="analysis-key-points">
           <h5 className="text-sm font-semibold text-green-800 mb-2">Key Points</h5>
           <ul className="space-y-1">
-            {result.keyPoints.map((point, index) => (
+            {displayKeyPoints.map((point, index) => (
               <li key={index} className="text-green-700 flex items-start">
                 <span className="mr-2">•</span>
                 <span>{point}</span>
@@ -363,6 +375,9 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
           <div className="space-y-2">
             {result.actionItems.map((item, index) => {
               const priorityStyle = getPriorityIndicator(item.priority)
+              // Apply speaker names to task and assignee
+              const displayTask = applyCustomSpeakerNames(item.task, speakerNames)
+              const displayAssignee = item.assignee ? applyCustomSpeakerNames(item.assignee, speakerNames) : undefined
               return (
                 <div
                   key={index}
@@ -374,15 +389,15 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
                     data-testid={`action-item-${index}`}
                   >
                     <span className="text-yellow-800 truncate">
-                      Action {index + 1}: {item.task.slice(0, 50)}
-                      {item.task.length > 50 ? '...' : ''}
+                      Action {index + 1}: {displayTask.slice(0, 50)}
+                      {displayTask.length > 50 ? '...' : ''}
                     </span>
                     <span>{expandedActionItem === index ? '▼' : '▶'}</span>
                   </button>
                   {expandedActionItem === index && (
                     <div className="p-3 bg-white space-y-1 text-sm" data-testid={`action-item-${index}-details`}>
-                      <p><strong>Task:</strong> {item.task}</p>
-                      {item.assignee && <p><strong>Assignee:</strong> {item.assignee}</p>}
+                      <p><strong>Task:</strong> {displayTask}</p>
+                      {displayAssignee && <p><strong>Assignee:</strong> {displayAssignee}</p>}
                       {item.deadline && <p><strong>Deadline:</strong> {item.deadline}</p>}
                       <p><strong>Priority:</strong> <span className={`px-2 py-0.5 rounded ${priorityStyle.bgColor} ${priorityStyle.color}`}>{item.priority}</span></p>
                     </div>
@@ -401,7 +416,7 @@ function AnalysisDisplay({ result, expandedActionItem, onToggleActionItem }: Ana
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4" data-testid="analysis-participants">
             <h5 className="text-sm font-semibold text-gray-700 mb-2">Participants</h5>
             <ul className="space-y-1">
-              {result.participants.map((participant, index) => (
+              {displayParticipants.map((participant, index) => (
                 <li key={index} className="text-gray-600 text-sm">• {participant}</li>
               ))}
             </ul>

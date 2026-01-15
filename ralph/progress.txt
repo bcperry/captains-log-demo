@@ -2131,3 +2131,26 @@ Started: 2024-01-15
   - Must normalize both prefix (Guest->Speaker) and separator (hyphen->underscore) for lookup
   - Use regex `/^Guest/i` for case-insensitive prefix replacement
 ---
+
+## 2026-01-15 - BUG-019
+- What was implemented: Fixed AI Analysis sections not applying custom speaker names
+- Root cause: MyRecordings.tsx and TranscriptionResults.tsx were displaying saved analysis text without applying speaker name mapping. TranscriptDisplay used speakerNames but analysis sections didn't.
+- Files changed:
+  - `frontend/src/utils/transcriptUtils.ts` - Added `applyCustomSpeakerNames()` utility function that replaces generic speaker labels (Speaker 1, Speaker-1, Speaker_1) with custom names using regex pattern matching
+  - `frontend/src/components/TranscriptionResults.tsx` - Imported and applied `applyCustomSpeakerNames()` to AnalysisDisplay component (summary, keyPoints, actionItems, participants)
+  - `frontend/src/components/MyRecordings.tsx` - Imported and applied `applyCustomSpeakerNames()` to saved analysis display (summary, keyPoints, actionItems, participants)
+  - `frontend/src/__tests__/transcript-display.test.tsx` - Added 10 unit tests for `applyCustomSpeakerNames()` function
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 My Recordings view
+  - Interactions verified: Viewed recording with custom speaker names (Marvin, Christine)
+  - Screenshots taken: bug019-speaker-names-fixed.png
+  - Verified Summary shows "Marvin", "Christine" instead of "Speaker 1", "Speaker 2"
+  - Verified Key Points show custom names
+  - Verified Action Items assignee shows custom names
+  - Verified Participants list shows custom names
+- **Learnings:**
+  - Use regex pattern `/Speaker[\s\-_](\d+)/gi` to match all speaker label formats (Speaker 1, Speaker-1, Speaker_1)
+  - Display-only transformation preserves original analysis.json data
+  - Need to apply transformations in both TranscriptionResults (new transcriptions) and MyRecordings (saved transcriptions)
+  - Test multiple key formats when looking up speaker names: Speaker_1, Speaker-1, Speaker 1
+---
