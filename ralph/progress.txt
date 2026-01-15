@@ -1605,3 +1605,26 @@ Started: 2024-01-15
   - Provide descriptive error messages mentioning the container name and possible solutions
   - Infrastructure code must be kept in sync with application container naming
 ---
+
+## 2026-01-15 - US-065
+- What was implemented: Audio transcription caching using SHA256 hash of audio file content
+- Files changed:
+  - `app/storage/cache.py` - New module with `compute_audio_hash()`, `CacheMetrics` class for cache hit/miss tracking
+  - `app/storage/__init__.py` - Export new cache utilities
+  - `app/models/transcription.py` - Added `audio_hash` and `cached` fields to `TranscriptionRecord` and `TranscriptionContent`
+  - `app/db/cosmos.py` - Added `get_transcription_by_audio_hash()` method for cache lookup
+  - `app/api/transcribe.py` - Added `use_cache` parameter to both `/transcribe` and `/transcribe/diarize` endpoints
+  - `app/tests/test_cache.py` - 16 tests for cache utilities
+  - `app/tests/test_transcribe.py` - Added `clear_storage` fixture to prevent test pollution from caching
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8099/docs (Swagger UI)
+  - Interactions verified: Expanded /transcribe and /transcribe/diarize endpoints
+  - Verified `use_cache` parameter visible in both endpoints with description and default value
+  - Screenshots: us065-transcribe-use-cache-param.png, us065-diarize-params-with-cache.png
+- **Learnings:**
+  - SHA256 hash provides reliable deduplication for audio files
+  - Cache lookup by audio hash enables returning cached transcriptions without re-processing
+  - `use_cache` parameter defaults to True but allows users to force re-transcription
+  - Tests that share audio content can interfere via caching - need to clear in-memory storage between tests
+  - CacheMetrics provides simple monitoring of cache hit/miss rates via logging
+---

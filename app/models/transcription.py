@@ -171,6 +171,12 @@ class TranscriptionRecord(BaseModel):
     segments: Optional[list[SpeakerSegment]] = Field(
         default=None, description="Speaker segments if diarized"
     )
+    # Audio hash for cache lookup (SHA256 of file content)
+    audio_hash: Optional[str] = Field(
+        default=None, description="SHA256 hash of audio file content for cache lookup"
+    )
+    # Cache metadata
+    cached: bool = Field(default=False, description="Whether this result was served from cache")
 
 
 class TranscriptionListResponse(BaseModel):
@@ -342,6 +348,9 @@ class TranscriptionContent(BaseModel):
     language: str = Field(..., description="Language used for transcription")
     processing_time_ms: Optional[int] = Field(
         default=None, description="Processing time in milliseconds"
+    )
+    audio_hash: Optional[str] = Field(
+        default=None, description="SHA256 hash of audio file content for cache lookup"
     )
 
 

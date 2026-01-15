@@ -225,6 +225,24 @@ class CosmosClient:
         # In production, this would delete from Cosmos DB
         return False
 
+    async def get_transcription_by_audio_hash(
+        self, user_id: str, audio_hash: str
+    ) -> Optional[TranscriptionRecord]:
+        """Get a transcription by audio file hash (for cache lookup).
+
+        Args:
+            user_id: User ID (partition key)
+            audio_hash: SHA256 hash of the audio file content
+
+        Returns:
+            TranscriptionRecord if found, None otherwise
+        """
+        if not self.is_configured():
+            return None
+        # In production, this would query Cosmos DB with:
+        # SELECT * FROM c WHERE c.user_id = @user_id AND c.audio_hash = @audio_hash
+        return None
+
 
 # In-memory storage for development/testing (when Cosmos DB is not configured)
 _in_memory_profiles: dict[str, dict[str, Any]] = {}
@@ -319,6 +337,18 @@ class InMemoryCosmosClient(CosmosClient):
                 del _in_memory_transcriptions[user_id][transcription_id]
                 return True
         return False
+
+    async def get_transcription_by_audio_hash(
+        self, user_id: str, audio_hash: str
+    ) -> Optional[TranscriptionRecord]:
+        """Get a transcription by audio hash from in-memory storage."""
+        if user_id not in _in_memory_transcriptions:
+            return None
+        
+        for record in _in_memory_transcriptions[user_id].values():
+            if record.get("audio_hash") == audio_hash:
+                return TranscriptionRecord(**record)
+        return None
 
 
 def clear_in_memory_storage() -> None:
