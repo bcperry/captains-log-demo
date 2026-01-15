@@ -238,6 +238,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${abbrs.appContainerApps}${resourceToken}'
   location: location
   tags: union(allTags, { 'azd-service-name': 'api' })
+  // Ensure AcrPull role assignment completes before Container App tries to pull images
+  dependsOn: [
+    acrPullRoleAssignment
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -362,6 +366,10 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: '${abbrs.webSitesAppService}${resourceToken}'
   location: location
   tags: union(allTags, { 'azd-service-name': 'web' })
+  // Ensure AcrPull role assignment completes before App Service tries to pull images
+  dependsOn: [
+    acrPullRoleAssignment
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {

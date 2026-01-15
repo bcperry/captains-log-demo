@@ -2232,3 +2232,19 @@ Started: 2024-01-15
   - Dockerfile EXPOSE and CMD port must be consistent (both use 8001)
   - Health/ready endpoints work correctly when app starts on correct port
 ---
+
+## 2026-01-15 - BUG-023
+- What was implemented: Added `dependsOn` to Container App and App Service to wait for AcrPull role assignment
+- Root cause: Container App was attempting to pull images before the AcrPull role assignment was fully provisioned in Azure
+- Files changed:
+  - `infra/resources.bicep` - Added `dependsOn: [acrPullRoleAssignment]` to both containerApp and appService resources
+- **Verification:**
+  - Bicep syntax validated with `az bicep build` and `az bicep lint` - both passed
+  - Application tests unaffected (305 passed, existing failures unrelated to infrastructure)
+  - Full verification requires `azd up` deployment to Azure
+- **Learnings:**
+  - Azure role assignments (RBAC) need time to propagate; `dependsOn` ensures creation order
+  - Container Apps with managed identity registry auth need AcrPull role before first image pull
+  - App Service with `acrUseManagedIdentityCreds: true` also needs the same dependency
+  - Bicep forward references in `dependsOn` work - resources can be defined after being referenced
+---
