@@ -118,19 +118,32 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
       if (savedAnalysis.speakerNames[speakerId]) {
         return savedAnalysis.speakerNames[speakerId].name
       }
-      // Try with underscore format (Speaker_1 vs Speaker 1)
-      const underscoreId = speakerId.replace(' ', '_')
+      // Try normalized format (Guest-1 -> Speaker_1, Speaker-1 -> Speaker_1)
+      const normalizedId = speakerId
+        .replace(/^Guest/i, 'Speaker')  // Guest -> Speaker prefix
+        .replace(/-/g, '_')              // hyphen -> underscore
+        .replace(/ /g, '_')              // space -> underscore
+      if (savedAnalysis.speakerNames[normalizedId]) {
+        return savedAnalysis.speakerNames[normalizedId].name
+      }
+      // Try with underscore format (Speaker-1 -> Speaker_1, Speaker 1 -> Speaker_1)
+      const underscoreId = speakerId.replace(/-/g, '_').replace(/ /g, '_')
       if (savedAnalysis.speakerNames[underscoreId]) {
         return savedAnalysis.speakerNames[underscoreId].name
       }
-      // Try with space format
-      const spaceId = speakerId.replace('_', ' ')
+      // Try with hyphen format (Speaker_1 -> Speaker-1, Speaker 1 -> Speaker-1)
+      const hyphenId = speakerId.replace(/_/g, '-').replace(/ /g, '-')
+      if (savedAnalysis.speakerNames[hyphenId]) {
+        return savedAnalysis.speakerNames[hyphenId].name
+      }
+      // Try with space format (Speaker_1 -> Speaker 1, Speaker-1 -> Speaker 1)
+      const spaceId = speakerId.replace(/_/g, ' ').replace(/-/g, ' ')
       if (savedAnalysis.speakerNames[spaceId]) {
         return savedAnalysis.speakerNames[spaceId].name
       }
     }
     // Fall back to formatted speaker name
-    return speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')
+    return speakerId.replace('_', ' ').replace(/-/g, ' ').replace(/^Guest/, 'Speaker ')
   }, [savedAnalysis])
 
   const handleDownloadTxt = useCallback(() => {

@@ -2112,3 +2112,22 @@ Started: 2024-01-15
   - savedAnalysis state in MyRecordings contains speakerNames from getAnalysis API call
   - Download TXT handler also needed to use custom speaker names for consistency
 ---
+
+## 2026-01-15 - BUG-017 & BUG-018
+- What was implemented: Fixed speaker name key mismatch that prevented custom names from displaying
+- Root cause: Transcript segments use `Guest-N` format but analysis.json uses `Speaker_N` format for speakerNames keys
+- Files changed:
+  - `frontend/src/components/TranscriptDisplay.tsx` - Added `normalizeSpeakerId()` function to convert Guest->Speaker and hyphen->underscore
+  - `frontend/src/components/MyRecordings.tsx` - Added same normalization logic to `getSpeakerDisplayName()`
+  - `.env` - Updated VITE_API_BASE_URL from port 8000 to 8001 for dev consistency
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000, My Recordings detail view
+  - Interactions verified: Viewed recording with custom speaker names (Marvin, Christine)
+  - Screenshots taken: bug017-018-speaker-names-fixed.png
+  - Verified chat bubbles now show "Marvin" and "Christine" instead of "Speaker -1" and "Speaker -2"
+- **Learnings:**
+  - Azure Speech batch transcription returns speaker IDs as `Guest-N` (hyphen format)
+  - AI analysis stores speaker names with `Speaker_N` (underscore format) keys
+  - Must normalize both prefix (Guest->Speaker) and separator (hyphen->underscore) for lookup
+  - Use regex `/^Guest/i` for case-insensitive prefix replacement
+---

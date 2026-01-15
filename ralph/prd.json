@@ -2079,7 +2079,36 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Fixed 2026-01-15 - TranscriptDisplay in MyRecordings now receives speakerNames from savedAnalysis. Also added getSpeakerDisplayName helper for download TXT with custom names."
+      "notes": "BUG NOT FIXED - Ralph's fix was incorrect. Speaker names ARE being loaded from analysis.json but NOT being applied to chat bubbles. See BUG-018 for detailed explanation. | FIXED 2026-01-15: Normalized speaker ID lookup to handle Guest-N -> Speaker_N mapping."
+    },
+    {
+      "id": "BUG-018",
+      "title": "CRITICAL: Speaker name mapping key mismatch prevents custom names from displaying",
+      "acceptanceCriteria": [
+        "PROBLEM IDENTIFICATION: analysis.json uses keys 'Speaker_1', 'Speaker_2' (UNDERSCORE) but transcript segments use 'Speaker-1', 'Speaker-2' (HYPHEN)",
+        "EXAMPLE - What's in analysis.json: {\"speaker_names\": {\"Speaker_1\": {\"name\": \"Marvin\"}, \"Speaker_2\": {\"name\": \"Christine\"}}}",
+        "EXAMPLE - What transcript segments contain: {\"speaker\": \"Speaker-1\", \"text\": \"...\"} and {\"speaker\": \"Speaker-2\", \"text\": \"...\"}",
+        "EXAMPLE - What displays NOW: Chat bubble shows 'Speaker-1' (from segment.speaker, custom name not found because lookup for 'Speaker-1' in speakerNames fails)",
+        "EXAMPLE - What SHOULD display: Chat bubble shows 'Marvin' (from speakerNames['Speaker_1'].name, correctly mapped)",
+        "FIX REQUIRED: Convert hyphen to underscore OR underscore to hyphen when looking up speaker names",
+        "SOLUTION 1: In TranscriptDisplay.getDisplayName(), normalize key: segment.speaker.replace('-', '_') before lookup",
+        "SOLUTION 2: OR save speaker_names with hyphen keys to match segment.speaker format",
+        "SOLUTION 3: OR convert all segment.speaker values from hyphen to underscore format",
+        "Verify speaker name lookup works with BOTH formats (backwards compatibility)",
+        "Log warning if speaker name lookup fails due to key mismatch",
+        "Display custom names in ALL views: upload page transcript, My Recordings detail view, downloadable TXT",
+        "Handle edge cases: Speaker-10, Speaker_10, Speaker 10 (space), etc.",
+        "TypeScript compiles without errors",
+        "React component unit tests with mocked speaker name mapping",
+        "pytest tests verify transcript segments format",
+        "PLAYWRIGHT: Verify transcript segments JSON structure (hyphen vs underscore)",
+        "PLAYWRIGHT: Edit speaker names, save, IMMEDIATELY verify chat bubbles change to custom names",
+        "PLAYWRIGHT: Console.log the segment.speaker value and speakerNames keys to confirm mismatch",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "CRITICAL BUG logged 2026-01-15 - Ralph completely misunderstood the issue. The problem is NOT that speakerNames isn't passed to TranscriptDisplay - it IS passed. The problem is a KEY FORMAT MISMATCH:\n\nanalysis.json contains:\n{\"speaker_names\": {\"Speaker_1\": {\"name\": \"Marvin\"}, \"Speaker_2\": {\"name\": \"Christine\"}}}\n\nBut transcript segments contain:\n{\"speaker\": \"Speaker-1\", \"text\": \"...\"}\n\nWhen TranscriptDisplay tries to lookup speakerNames['Speaker-1'], it FAILS because the key is 'Speaker_1' (underscore) not 'Speaker-1' (hyphen).\n\nThe fix is to normalize the key format when doing the lookup:\nconst normalizedSpeaker = segment.speaker.replace('-', '_');\nconst displayName = speakerNames[normalizedSpeaker]?.name || segment.speaker;\n\nThis is a simple string replacement issue that Ralph missed entirely. | FIXED 2026-01-15: Normalized speaker ID lookup to handle Guest-N -> Speaker_N mapping."
     }
   ]
 }
