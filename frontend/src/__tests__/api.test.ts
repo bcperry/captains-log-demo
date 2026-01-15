@@ -403,8 +403,8 @@ describe('API service', () => {
       setAccessToken('token')
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        headers: new Headers({ 'content-type': 'text/plain' }),
-        text: () => Promise.resolve(''),
+        status: 204,
+        headers: new Headers(),
       })
 
       await deleteTranscription('trans-123')
@@ -413,6 +413,19 @@ describe('API service', () => {
         'http://localhost:8001/transcriptions/trans-123',
         expect.objectContaining({ method: 'DELETE' })
       )
+    })
+
+    it('handles 204 No Content response without JSON parsing error', async () => {
+      setAccessToken('token')
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        // No json() method needed - should not be called for 204
+      })
+
+      // Should not throw "Unexpected end of JSON input"
+      await expect(deleteTranscription('trans-123')).resolves.toBeUndefined()
     })
   })
 

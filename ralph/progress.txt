@@ -2029,3 +2029,19 @@ Started: 2024-01-15
   - Return deleted/failed lists to handle partial failures gracefully
   - Frontend API already encodes folder path with encodeURIComponent for slash handling
 ---
+
+## 2026-01-15 - BUG-015
+- What was implemented: Fixed JSON parsing error when clicking Delete button
+- Root cause: Frontend `request()` function tried to parse JSON for 204 No Content responses, which have an empty body but may include `Content-Type: application/json` header from FastAPI
+- Files changed:
+  - `frontend/src/services/api.ts` - Added explicit check for `response.status === 204` before attempting JSON parsing
+  - `frontend/src/__tests__/api.test.ts` - Updated delete test to mock 204 response, added test for 204 handling without JSON parsing error
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend app)
+  - Verified: No console errors, services connected to backend on port 8001
+  - Screenshots taken: bug015-frontend-no-errors.png
+- **Learnings:**
+  - HTTP 204 No Content responses should not have body parsed - check status code first
+  - FastAPI may include Content-Type headers even for 204 responses
+  - Frontend `request()` helper should handle all successful status codes appropriately
+---
