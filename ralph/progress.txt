@@ -1891,3 +1891,21 @@ Started: 2024-01-15
   - URL encoding with encodeURIComponent() in frontend is essential for IDs containing special characters
   - Starlette/FastAPI decodes %2F back to / before route matching, so both `:path` and encoding are needed together
 ---
+
+## 2026-01-15 - BUG-012
+- What was implemented: Fixed transcript view to load speaker segments from transcript.json instead of plain text from metadata.json
+- Root cause: Backend `get_transcription` endpoint did not populate `blob_storage_url` field. Frontend only fetched full transcript content when `blob_storage_url` existed.
+- Files changed:
+  - `app/api/transcriptions.py` - Added `blob_storage_url` field to `get_transcription` response (line 288-293)
+  - `frontend/src/components/MyRecordings.tsx` - Improved condition to also check `has_diarization` flag as fallback
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 → My Recordings → View recording detail
+  - Interactions verified: Click View button → Speaker bubbles render correctly
+  - Screenshots taken: bug012-speaker-bubbles-working.png
+  - Verified: 4 speakers identified, chat bubbles with speaker names, timestamps, and text
+- **Learnings:**
+  - When returning model data, ensure all fields that frontend depends on are populated
+  - Frontend should have fallback conditions for critical UI features
+  - `TranscriptionRecord.blob_storage_url` field signals to frontend that full content is available
+  - Backend now constructs blob_storage_url from folder_path when storage is configured
+---

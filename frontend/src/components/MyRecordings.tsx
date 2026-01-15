@@ -147,8 +147,8 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
       const fullRecord = await getTranscription(recording.id) as unknown as TranscriptionRecordRaw
       let transformed = transformRecord(fullRecord)
 
-      // If blob storage URL exists, fetch full content from blob storage
-      if (fullRecord.blob_storage_url) {
+      // If blob storage URL exists or has diarization, fetch full content from blob storage
+      if (fullRecord.blob_storage_url || fullRecord.has_diarization) {
         try {
           const contentResponse = await getTranscriptionContent(recording.id)
           // Convert speaker_segments from seconds to milliseconds
