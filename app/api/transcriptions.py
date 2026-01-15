@@ -447,10 +447,12 @@ async def get_transcription(
     "/{transcription_id:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a transcription",
-    description="Delete a specific transcription by ID (folder path).",
+    description="Delete a specific transcription by ID (folder path). Removes all files in the transcription folder.",
     responses={
+        204: {"description": "Transcription deleted successfully"},
+        403: {"description": "Not authorized to delete this transcription"},
         404: {"description": "Transcription not found"},
-        501: {"description": "Delete not implemented for blob storage"},
+        500: {"description": "Partial deletion failure - some files could not be deleted"},
     },
 )
 async def delete_transcription(
@@ -460,7 +462,11 @@ async def delete_transcription(
 ) -> None:
     """Delete a specific transcription by ID.
 
-    Note: This would delete the folder and all contents from blob storage.
+    Deletes the entire transcription folder including:
+    - audio file
+    - transcript.json
+    - metadata.json
+    - analysis.json (if exists)
 
     Args:
         transcription_id: Transcription ID (folder path)
@@ -468,11 +474,62 @@ async def delete_transcription(
         storage: Blob storage client
 
     Raises:
-        HTTPException: 404 if transcription not found, 501 if not implemented
+        HTTPException: 403 if not authorized, 404 if not found, 500 on partial failure
     """
-    # For now, return 501 Not Implemented - blob deletion requires more work
-    # to safely delete entire folders
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Transcription deletion not yet implemented for blob storage",
-    )
+    # Construct folder path - verify user owns the transcription
+    folder_path = transcription_id
+    
+    # Check if the path already includes user's OID
+    if folder_path.startswith(f"{user.oid}/"):
+        # User owns this transcription
+        pass
+    elif "/" in folder_path:
+        # Path includes a different user's ID - not authorized
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this transcription",
+        )
+    else:
+        # Just a folder name, prepend user's OID
+        folder_path = f"{user.oid}/{transcription_id}"
+
+    try:
+        # Verify transcription exists before attempting delete
+        try:
+            await storage.get_metadata(folder_path)
+        except BlobNotFoundError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Transcription with ID '{transcription_id}' not found",
+            )
+
+        # Delete all blobs in the folder
+        deleted_blobs, failed_blobs = await storage.delete_transcription_folder(folder_path)
+
+        if failed_blobs:
+            logger.error(
+                f"Partial deletion failure for {folder_path}. "
+                f"Deleted: {deleted_blobs}, Failed: {failed_blobs}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Partial deletion failure. {len(failed_blobs)} files could not be deleted.",
+            )
+
+        logger.info(f"Successfully deleted transcription {folder_path} ({len(deleted_blobs)} files)")
+        # Return 204 No Content on success (no response body)
+        return None
+
+    except BlobNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription with ID '{transcription_id}' not found",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete transcription {transcription_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete transcription: {e}",
+        )

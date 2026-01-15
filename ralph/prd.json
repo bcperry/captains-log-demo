@@ -1944,6 +1944,39 @@
       "priority": 1,
       "passes": true,
       "notes": "Fixed 2026-01-15 - Added folder_path to /analyze endpoint, saves analysis.json and updates metadata. Playwright verified via Swagger UI."
+    },
+    {
+      "id": "US-074",
+      "title": "Implement transcription deletion from blob storage",
+      "acceptanceCriteria": [
+        "DELETE /transcriptions/{folder_path} endpoint implemented",
+        "Deletes entire transcription folder from blob storage including all files",
+        "Removes: audio file, transcript.json, metadata.json, analysis.json (if exists)",
+        "Folder path format: {USER_GUID}/{filename_TIMESTAMP}",
+        "Verify user owns the transcription before deletion (user_id from token matches folder owner)",
+        "Return 403 Forbidden if user tries to delete another user's transcription",
+        "Return 404 Not Found if transcription folder doesn't exist",
+        "Return 204 No Content on successful deletion",
+        "BlobStorageClient.delete_transcription_folder() method deletes all blobs in folder",
+        "Handle partial deletion failures gracefully (some files deleted, others fail)",
+        "Frontend Delete button in My Recordings removes item from list after successful deletion",
+        "Frontend Delete button on detail view redirects to My Recordings after deletion",
+        "Confirmation dialog before deletion: 'Are you sure you want to delete this transcription? This cannot be undone.'",
+        "Loading state during deletion (disable button, show spinner)",
+        "Error message if deletion fails with retry option",
+        "Update My Recordings list immediately after deletion (remove from UI)",
+        "mypy type checking passes",
+        "pytest tests for delete endpoint with authorization checks",
+        "pytest tests verify all files in folder are deleted",
+        "PLAYWRIGHT: Login, upload recording, delete from My Recordings, verify removed from list",
+        "PLAYWRIGHT: Verify transcription folder deleted from Azure Storage Explorer",
+        "PLAYWRIGHT: Try to view deleted transcription, verify 404 error",
+        "PLAYWRIGHT: Verify deletion confirmation dialog appears and works correctly",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "FEATURE: Currently Delete button returns error 'Transcription deletion not yet implemented for blob storage'. Need to implement DELETE endpoint that removes entire transcription folder (audio, transcript.json, metadata.json, analysis.json) from blob storage with proper authorization checks."
     }
   ]
 }

@@ -1349,6 +1349,72 @@ class BlobStorageClient:
         except AzureError as e:
             raise BlobStorageError(f"Failed to delete old recordings: {e}") from e
 
+    async def delete_transcription_folder(
+        self,
+        folder_path: str,
+    ) -> tuple[list[str], list[str]]:
+        """Delete all blobs in a transcription folder.
+
+        Deletes the entire transcription folder including:
+        - audio/{filename}
+        - transcript.json
+        - metadata.json
+        - analysis.json (if exists)
+
+        Args:
+            folder_path: Full folder path (e.g., "user_id/filename_timestamp")
+
+        Returns:
+            Tuple of (deleted_blobs, failed_blobs) - lists of blob names
+
+        Raises:
+            BlobNotFoundError: If no blobs exist in the folder
+            BlobStorageError: If deletion fails entirely
+        """
+        if not self.is_configured():
+            raise BlobStorageError("Azure Blob Storage is not configured")
+
+        deleted_blobs: list[str] = []
+        failed_blobs: list[str] = []
+
+        try:
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            # Ensure folder_path ends with / for proper prefix matching
+            prefix = folder_path if folder_path.endswith("/") else f"{folder_path}/"
+
+            # List all blobs in the folder
+            blobs = list(container_client.list_blobs(name_starts_with=prefix))
+
+            if not blobs:
+                raise BlobNotFoundError(f"No blobs found in folder: {folder_path}")
+
+            # Delete each blob
+            for blob in blobs:
+                try:
+                    blob_client = container_client.get_blob_client(blob.name)
+                    blob_client.delete_blob()
+                    deleted_blobs.append(blob.name)
+                    logger.info(f"Deleted blob: {blob.name}")
+                except AzureError as e:
+                    logger.warning(f"Failed to delete blob {blob.name}: {e}")
+                    failed_blobs.append(blob.name)
+
+            if deleted_blobs:
+                logger.info(
+                    f"Deleted {len(deleted_blobs)} blobs from folder {folder_path}"
+                )
+
+            return deleted_blobs, failed_blobs
+
+        except ResourceNotFoundError:
+            raise BlobNotFoundError(f"Folder not found: {folder_path}")
+        except BlobNotFoundError:
+            raise
+        except AzureError as e:
+            raise BlobStorageError(f"Failed to delete transcription folder: {e}") from e
+
 
 # In-memory transcription storage
 _in_memory_transcription_blobs: dict[str, str] = {}  # blob_name -> content
@@ -1672,6 +1738,42 @@ class InMemoryBlobClient(BlobStorageClient):
             deleted.append(key)
 
         return deleted
+
+    async def delete_transcription_folder(
+        self,
+        folder_path: str,
+    ) -> tuple[list[str], list[str]]:
+        """Delete all blobs in a transcription folder from in-memory storage."""
+        deleted_blobs: list[str] = []
+        failed_blobs: list[str] = []
+
+        # Ensure folder_path ends with / for proper prefix matching
+        prefix = folder_path if folder_path.endswith("/") else f"{folder_path}/"
+
+        # Find keys to delete
+        keys_to_delete = []
+        for blob_name in list(_in_memory_blobs.keys()):
+            if blob_name.startswith(prefix):
+                keys_to_delete.append(blob_name)
+
+        # Also check transcription blobs
+        for blob_name in list(_in_memory_transcription_blobs.keys()):
+            if blob_name.startswith(prefix):
+                keys_to_delete.append(blob_name)
+
+        if not keys_to_delete:
+            raise BlobNotFoundError(f"No blobs found in folder: {folder_path}")
+
+        # Delete the blobs
+        for key in keys_to_delete:
+            if key in _in_memory_blobs:
+                del _in_memory_blobs[key]
+                deleted_blobs.append(key)
+            if key in _in_memory_transcription_blobs:
+                del _in_memory_transcription_blobs[key]
+                deleted_blobs.append(key)
+
+        return deleted_blobs, failed_blobs
 
 
 def clear_in_memory_blobs() -> None:
