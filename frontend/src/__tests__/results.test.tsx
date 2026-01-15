@@ -243,7 +243,7 @@ describe('TranscriptionResults', () => {
       
       await waitFor(() => {
         expect(screen.getByTestId('analysis-sentiment')).toBeInTheDocument()
-        expect(screen.getByText(/😊 positive/)).toBeInTheDocument()
+        expect(screen.getByText(/Positive/)).toBeInTheDocument()
       })
     })
 

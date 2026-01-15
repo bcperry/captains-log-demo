@@ -49,7 +49,7 @@ export function Sidebar({
         <div className="h-full flex flex-col overflow-y-auto">
           {/* Sidebar header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 lg:hidden">
-            <h2 className="text-lg font-semibold text-gray-800">⚙️ Configuration</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Configuration</h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -73,7 +73,7 @@ export function Sidebar({
 
           {/* Desktop header */}
           <div className="hidden lg:block p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-800">⚙️ Configuration</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Configuration</h2>
           </div>
 
           {/* Sidebar content */}
@@ -81,7 +81,7 @@ export function Sidebar({
             {/* Navigation */}
             {onNavigate && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">📍 Navigation</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Navigation</h3>
                 <nav className="space-y-1">
                   <button
                     onClick={() => onNavigate('upload')}
@@ -154,7 +154,7 @@ export function Sidebar({
 
             {/* Service Status */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">🔗 Service Status</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Service Status</h3>
 
               {/* Azure Speech status */}
               <div
@@ -165,7 +165,15 @@ export function Sidebar({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span>{speechStatus.connected ? '✅' : '❌'}</span>
+                  {speechStatus.connected ? (
+                    <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span
                     className={`text-sm font-medium ${
                       speechStatus.connected ? 'text-green-800' : 'text-red-800'
@@ -180,7 +188,7 @@ export function Sidebar({
                       speechStatus.connected ? 'text-green-600' : 'text-red-600'
                     }`}
                   >
-                    {speechStatus.message}
+                    {speechStatus.message.replace(/^[✅❌🏛️]\s*/, '')}
                   </p>
                 )}
               </div>
@@ -194,7 +202,15 @@ export function Sidebar({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span>{openAIStatus.connected ? '✅' : '❌'}</span>
+                  {openAIStatus.connected ? (
+                    <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span
                     className={`text-sm font-medium ${
                       openAIStatus.connected ? 'text-green-800' : 'text-red-800'
@@ -209,7 +225,7 @@ export function Sidebar({
                       openAIStatus.connected ? 'text-green-600' : 'text-red-600'
                     }`}
                   >
-                    {openAIStatus.message}
+                    {openAIStatus.message.replace(/^[✅❌]\s*/, '')}
                   </p>
                 )}
               </div>
@@ -242,7 +258,7 @@ export function Sidebar({
                   onClick={onTestSpeech}
                   className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  🎤 Test Speech
+                  Test Speech
                 </button>
               )}
               {onTestOpenAI && (
@@ -250,7 +266,7 @@ export function Sidebar({
                   onClick={onTestOpenAI}
                   className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  🤖 Test OpenAI
+                  Test OpenAI
                 </button>
               )}
             </div>
