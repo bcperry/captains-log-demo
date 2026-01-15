@@ -71,6 +71,32 @@ export interface ReadyResponse {
   dependencies: DependencyStatus[]
 }
 
+// Transcription content types (from Blob Storage)
+export interface TranscriptionContentSegment {
+  speaker_id: string
+  start_time: number  // seconds
+  end_time: number    // seconds
+  text: string
+}
+
+export interface TranscriptionContent {
+  transcript_id: string
+  user_id: string
+  filename?: string
+  upload_date: string
+  duration?: number
+  speaker_segments: TranscriptionContentSegment[]
+  full_text: string
+  language: string
+  processing_time_ms?: number
+}
+
+export interface TranscriptionContentResponse {
+  transcript_id: string
+  content: TranscriptionContent
+  blob_url?: string
+}
+
 // Analysis types (from OpenAI)
 export interface ActionItem {
   task: string

@@ -1549,7 +1549,7 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "FEATURE: Load saved transcriptions from Blob Storage when user clicks 'View' on a recording. Parse JSON and display speaker segments as bubbles."
     },
     {

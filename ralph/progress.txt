@@ -1650,3 +1650,21 @@ Started: 2024-01-15
   - getSpeakerAlignment() alternates speakers left/right
   - Copy functionality for individual segments and full transcript
 ---
+
+## 2026-01-15 - US-067
+- What was implemented: Load and display saved transcription from Blob Storage in My Recordings
+- Files changed:
+  - `frontend/src/services/api.ts` - Added `getTranscriptionContent()` function to fetch transcription content from blob storage
+  - `frontend/src/types/api.ts` - Added `TranscriptionContentResponse`, `TranscriptionContent`, `TranscriptionContentSegment` types
+  - `frontend/src/components/MyRecordings.tsx` - Updated `handleViewDetail()` to fetch content from blob storage when `blob_storage_url` exists, converts segment times from seconds to milliseconds
+- **Playwright Verification:**
+  - Pages tested: http://127.0.0.1:8000/ (app landing page), http://127.0.0.1:8000/docs (Swagger UI)
+  - Verified `/transcriptions/{id}/content` endpoint exists in API docs
+  - Screenshots taken: us067-app-landing-page.png, us067-transcription-content-endpoint.png
+- **Learnings:**
+  - Backend stores `speaker_segments` in TranscriptionContent with `start_time`/`end_time` in seconds
+  - Frontend TranscriptDisplay expects `startTimeMs`/`endTimeMs` in milliseconds - must convert
+  - Added `loadingContent` state to show loading feedback when fetching from blob
+  - Fall back gracefully to basic record if blob fetch fails
+  - Use `blob_storage_url` field in TranscriptionRecord to check if content is in blob storage
+---
