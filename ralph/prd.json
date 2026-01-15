@@ -1570,7 +1570,7 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "OPTIMIZATION: Enable content-based deduplication. Calculate hash of audio file to detect if same file uploaded multiple times. Allows cache lookup before re-transcription."
     },
     {

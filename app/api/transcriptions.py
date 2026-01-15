@@ -142,6 +142,50 @@ async def delete_transcription(
 
 
 @router.get(
+    "/by-hash/{audio_hash}",
+    response_model=TranscriptionRecord,
+    summary="Get transcription by audio hash",
+    description="Find a transcription by SHA256 hash of the audio file content. Used for cache lookup.",
+    responses={
+        404: {"description": "No transcription found with this audio hash"},
+    },
+)
+async def get_transcription_by_hash(
+    audio_hash: Annotated[str, Path(description="SHA256 hash of audio file content")],
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    db: CosmosClient = Depends(get_db),
+) -> TranscriptionRecord:
+    """Get a transcription by its audio file hash.
+
+    This endpoint enables client-side cache lookups by computing the audio
+    hash before uploading, allowing detection of duplicate uploads.
+
+    Args:
+        audio_hash: SHA256 hash of the audio file content
+        user: Authenticated user from Entra ID token
+        db: Cosmos DB client
+
+    Returns:
+        TranscriptionRecord if found
+
+    Raises:
+        HTTPException: 404 if no transcription with this hash found
+    """
+    logger.debug(f"Looking up transcription by audio hash: {audio_hash[:16]}...")
+
+    transcription = await db.get_transcription_by_audio_hash(user.oid, audio_hash)
+
+    if transcription is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No transcription found with audio hash '{audio_hash[:16]}...'",
+        )
+
+    logger.info(f"Found transcription {transcription.id} for audio hash {audio_hash[:16]}...")
+    return transcription
+
+
+@router.get(
     "/{transcription_id}/content",
     response_model=TranscriptionContentResponse,
     summary="Get transcription content from blob storage",
