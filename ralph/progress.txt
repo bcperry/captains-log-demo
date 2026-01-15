@@ -1668,3 +1668,21 @@ Started: 2024-01-15
   - Fall back gracefully to basic record if blob fetch fails
   - Use `blob_storage_url` field in TranscriptionRecord to check if content is in blob storage
 ---
+
+## 2026-01-15 - US-070
+- What was implemented: Hierarchical Blob Storage organization by user and filename
+- Files changed:
+  - `app/storage/blob.py` - Added sanitize_filename(), upload_audio_with_user_path(), upload_transcription_with_user_path(), download_audio_from_user_path(), download_transcription_from_user_path(), get_user_folder_sas_url(), archive_old_recordings(), delete_old_recordings()
+  - `app/storage/__init__.py` - Exported sanitize_filename
+  - `app/tests/test_blob_storage.py` - Added tests for all new methods
+- **Playwright Verification:**
+  - Pages tested: /docs (Swagger UI)
+  - Interactions verified: API documentation loads, OAuth2 Authorize modal works
+  - Screenshots taken: swagger-ui-verification.png, oauth2-modal-verification.png
+- **Learnings:**
+  - Hierarchical blob paths: {user_id}/{sanitized_filename}_YYYYMMDD_HHMMSS/audio/{filename}.{ext}
+  - Transcripts stored alongside audio: {folder_path}/transcript.json
+  - sanitize_filename removes special chars, spaces→underscores, limits to 100 chars
+  - User-scoped SAS URLs use ContainerSasPermissions with prefix filter
+  - Archive/delete functions check blob.last_modified against retention cutoff
+---
