@@ -470,7 +470,7 @@ function SpeakerSegmentsDisplay({ segments }: SpeakerSegmentsDisplayProps) {
               data-testid={`segment-${index}`}
             >
               <p className="text-sm">
-                <span className="font-medium">📍 {speakerName}</span>
+                <span className="font-medium">{speakerName}</span>
                 <span className="text-xs opacity-70 ml-2">[{timestamp}]</span>
                 <span className="mx-2">:</span>
                 <span>{segment.text}</span>
