@@ -2202,3 +2202,18 @@ Started: 2024-01-15
   - Always verify Bicep compiles cleanly before deployment
   - The `cosmosDbEndpointSuffix` was already removed in a prior fix
 ---
+
+## 2026-01-15 - BUG-021
+- What was implemented: Removed all Cosmos DB resources from Azure Bicep infrastructure
+- Files changed:
+  - `infra/resources.bicep` - Removed cosmosDbAccount, cosmosDbDatabase, usersContainer, transcriptionsContainer resources, removed Cosmos DB secrets and env vars from Container App and App Service, removed Cosmos DB outputs
+  - `infra/main.bicep` - Removed AZURE_COSMOS_ENDPOINT and AZURE_COSMOS_DATABASE outputs
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs, http://localhost:8000/health, http://localhost:8000/ready
+  - Interactions verified: Swagger UI loads correctly, health returns "healthy", ready returns "ready" with only speech_services and azure_openai dependencies (no cosmos)
+  - Screenshots taken: bug021-cosmosdb-removed-docs.png
+- **Learnings:**
+  - Cosmos DB was only referenced in infrastructure (bicep) after US-071 removed it from application code
+  - Ready endpoint confirms no Cosmos DB dependency - only shows speech_services and azure_openai
+  - Bicep resources removal is straightforward but must remove all related: resources, secrets, env vars, and outputs
+---

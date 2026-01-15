@@ -42,75 +42,6 @@ var complianceTags = {
 }
 var allTags = union(tags, complianceTags)
 
-// Azure Cosmos DB Account for data storage
-resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
-  name: '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
-  location: azureRegion
-  kind: 'GlobalDocumentDB'
-  tags: allTags
-  properties: {
-    databaseAccountOfferType: 'Standard'
-    consistencyPolicy: {
-      defaultConsistencyLevel: 'Session'
-    }
-    locations: [
-      {
-        locationName: azureRegion
-        failoverPriority: 0
-        isZoneRedundant: false
-      }
-    ]
-    enableAutomaticFailover: false
-    enableMultipleWriteLocations: false
-    publicNetworkAccess: 'Enabled'
-    capabilities: [
-      {
-        name: 'EnableServerless'
-      }
-    ]
-  }
-}
-
-// Cosmos DB Database
-resource cosmosDbDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = {
-  parent: cosmosDbAccount
-  name: 'captains-log'
-  properties: {
-    resource: {
-      id: 'captains-log'
-    }
-  }
-}
-
-// Cosmos DB Containers
-resource usersContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
-  parent: cosmosDbDatabase
-  name: 'users'
-  properties: {
-    resource: {
-      id: 'users'
-      partitionKey: {
-        paths: ['/partition_key']
-        kind: 'Hash'
-      }
-    }
-  }
-}
-
-resource transcriptionsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
-  parent: cosmosDbDatabase
-  name: 'transcriptions'
-  properties: {
-    resource: {
-      id: 'transcriptions'
-      partitionKey: {
-        paths: ['/user_id']
-        kind: 'Hash'
-      }
-    }
-  }
-}
-
 // Azure OpenAI Service - Essential for GPT and embeddings
 resource azureOpenAI 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
   name: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
@@ -345,10 +276,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'azure-openai-key'
           value: azureOpenAI.listKeys().key1
         }
-        {
-          name: 'azure-cosmos-key'
-          value: cosmosDbAccount.listKeys().primaryMasterKey
-        }
       ]
     }
     template: {
@@ -388,18 +315,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_OPENAI_MODEL_NAME'
               value: deployments[0].name
-            }
-            {
-              name: 'AZURE_COSMOS_ENDPOINT'
-              value: cosmosDbAccount.properties.documentEndpoint
-            }
-            {
-              name: 'AZURE_COSMOS_KEY'
-              secretRef: 'azure-cosmos-key'
-            }
-            {
-              name: 'AZURE_COSMOS_DATABASE'
-              value: cosmosDbDatabase.name
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -498,9 +413,6 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       AZURE_OPENAI_API_VERSION: '2024-02-15-preview'
       AZURE_OPENAI_EMBEDDING_MODEL_NAME: deployments[1].name
       AZURE_OPENAI_EMBEDDING_MODEL_VERSION: deployments[1].modelVersion
-      AZURE_COSMOS_ENDPOINT: cosmosDbAccount.properties.documentEndpoint
-      AZURE_COSMOS_KEY: cosmosDbAccount.listKeys().primaryMasterKey
-      AZURE_COSMOS_DATABASE: cosmosDbDatabase.name
       AZURE_STORAGE_ACCOUNT: storageAccount.name
       AZURE_STORAGE_CONTAINER: audioUploadsContainer.name
       AZURE_STORAGE_ENDPOINT: 'https://${storageAccount.name}.blob.${blobEndpointSuffix}'
@@ -604,10 +516,6 @@ output AZURE_OPENAI_API_VERSION string = '2024-02-15-preview'
 output AZURE_OPENAI_EMBEDDING_MODEL_NAME string = deployments[1].name
 output AZURE_OPENAI_EMBEDDING_MODEL_VERSION string = deployments[1].modelVersion
 output AZURE_SPEECH_ENDPOINT string = 'https://${azureSpeechService.name}.cognitiveservices.${cognitiveServicesEndpointSuffix}/'
-
-// Cosmos DB outputs
-output AZURE_COSMOS_ENDPOINT string = cosmosDbAccount.properties.documentEndpoint
-output AZURE_COSMOS_DATABASE string = cosmosDbDatabase.name
 
 // Container Apps outputs
 output CONTAINER_APP_URL string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
