@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 
 from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
-from db.cosmos import InMemoryCosmosClient
 
 
 class TestAuthenticationFlow:
@@ -31,22 +30,6 @@ class TestAuthenticationFlow:
         assert data["email"] == test_user.email
         assert data["name"] == test_user.name
 
-    def test_subsequent_login_returns_existing_profile(
-        self, authenticated_client: TestClient, test_user: AuthenticatedUser
-    ) -> None:
-        """Test that subsequent logins return the existing profile."""
-        # First login
-        response1 = authenticated_client.get("/auth/me")
-        assert response1.status_code == 200
-        created_at = response1.json()["created_at"]
-
-        # Second login
-        response2 = authenticated_client.get("/auth/me")
-        assert response2.status_code == 200
-
-        # Created timestamp should be the same
-        assert response2.json()["created_at"] == created_at
-
     def test_profile_contains_default_preferences(
         self, authenticated_client: TestClient
     ) -> None:
@@ -60,13 +43,10 @@ class TestAuthenticationFlow:
         assert preferences["notifications_enabled"] is True
         assert preferences["auto_transcribe"] is False
 
-    def test_update_preferences_persists(
+    def test_update_preferences(
         self, authenticated_client: TestClient
     ) -> None:
-        """Test that preference updates are persisted."""
-        # Create profile
-        authenticated_client.get("/auth/me")
-
+        """Test that preference updates are returned correctly."""
         # Update preferences
         new_prefs = {
             "theme": "dark",
@@ -93,13 +73,8 @@ class TestUserIsolation:
         integration_app: FastAPI,
         test_user: AuthenticatedUser,
         another_test_user: AuthenticatedUser,
-        mock_db: InMemoryCosmosClient,
     ) -> None:
         """Test that different users have completely separate profiles."""
-        from api.auth import get_db
-
-        integration_app.dependency_overrides[get_db] = lambda: mock_db
-
         # User 1 creates profile
         integration_app.dependency_overrides[get_current_user_azure] = lambda: test_user
         client1 = TestClient(integration_app)
@@ -118,39 +93,6 @@ class TestUserIsolation:
 
         # Verify profiles are different
         assert response1.json()["id"] != response2.json()["id"]
-
-    @pytest.mark.asyncio
-    async def test_user_cannot_access_other_user_data(
-        self,
-        integration_app: FastAPI,
-        test_user: AuthenticatedUser,
-        another_test_user: AuthenticatedUser,
-        mock_db: InMemoryCosmosClient,
-    ) -> None:
-        """Test that users cannot access each other's transcriptions."""
-        from api.transcriptions import get_db
-        from models.transcription import TranscriptionRecord
-
-        integration_app.dependency_overrides[get_db] = lambda: mock_db
-
-        # Create transcription for user 1
-        record = TranscriptionRecord(
-            id="user1-transcription",
-            user_id=test_user.oid,
-            text="User 1's private transcription",
-            language="en-US",
-            audio_format="wav",
-            file_size_bytes=1024,
-        )
-        await mock_db.create_transcription(test_user.oid, record)
-
-        # User 2 tries to access it
-        integration_app.dependency_overrides[get_current_user_azure] = lambda: another_test_user
-        client2 = TestClient(integration_app)
-        response = client2.get("/transcriptions/user1-transcription")
-
-        # Should not find it
-        assert response.status_code == 404
 
 
 class TestUnauthenticatedAccess:

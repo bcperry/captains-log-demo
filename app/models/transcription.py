@@ -395,3 +395,48 @@ class TranscriptionContentResponse(BaseModel):
     transcript_id: str = Field(..., description="Transcription ID")
     content: TranscriptionContent = Field(..., description="Full transcription content")
     blob_url: Optional[str] = Field(default=None, description="Blob storage URL for the content")
+
+
+class TranscriptionMetadata(BaseModel):
+    """Transcription metadata stored as JSON in Blob Storage.
+
+    This replaces Cosmos DB for transcription metadata persistence.
+    Stored as metadata.json alongside transcript.json in each transcription folder.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "meeting_20240115_103000",
+                "user_id": "user-uuid-123",
+                "filename": "meeting_recording.wav",
+                "upload_time": "2024-01-15T10:30:00Z",
+                "duration_ms": 120000,
+                "speaker_count": 3,
+                "language": "en-US",
+                "audio_format": "wav",
+                "file_size_bytes": 2048000,
+                "folder_path": "user-uuid/meeting_recording_20240115_103000",
+                "audio_hash": "sha256hash...",
+            }
+        }
+    )
+
+    id: str = Field(..., description="Unique transcription ID (derived from folder path)")
+    user_id: str = Field(..., description="User ID who owns the transcription")
+    filename: str = Field(..., description="Original audio filename")
+    upload_time: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="When the transcription was created",
+    )
+    duration_ms: Optional[int] = Field(default=None, description="Audio duration in milliseconds")
+    speaker_count: Optional[int] = Field(default=None, description="Number of speakers detected")
+    language: str = Field(default="en-US", description="Language used for transcription")
+    audio_format: str = Field(default="wav", description="Audio file format")
+    file_size_bytes: int = Field(default=0, description="Size of original audio file")
+    folder_path: str = Field(..., description="Blob storage folder path")
+    audio_hash: Optional[str] = Field(
+        default=None, description="SHA256 hash of audio file for cache lookup"
+    )
+    text: Optional[str] = Field(default=None, description="Brief preview of transcribed text")
+    has_diarization: bool = Field(default=False, description="Whether transcription has speaker diarization")

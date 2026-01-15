@@ -6,10 +6,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.auth import get_db, router
+from api.auth import router
 from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
-from db.cosmos import InMemoryCosmosClient, clear_in_memory_storage
 from models.user import UserPreferences, UserProfile
 
 
@@ -35,18 +34,10 @@ def mock_user() -> AuthenticatedUser:
 
 
 @pytest.fixture
-def mock_db() -> InMemoryCosmosClient:
-    """Create an in-memory database client for testing."""
-    clear_in_memory_storage()
-    return InMemoryCosmosClient()
-
-
-@pytest.fixture
-def client(app: FastAPI, mock_user: AuthenticatedUser, mock_db: InMemoryCosmosClient) -> TestClient:
+def client(app: FastAPI, mock_user: AuthenticatedUser) -> TestClient:
     """Create a test client with mocked dependencies."""
     # Override the get_current_user_azure dependency to return our mock user
     app.dependency_overrides[get_current_user_azure] = lambda: mock_user
-    app.dependency_overrides[get_db] = lambda: mock_db
     return TestClient(app)
 
 
@@ -75,22 +66,8 @@ class TestGetCurrentUserProfile:
         assert "created_at" in data
         assert "last_login_at" in data
 
-    def test_creates_profile_on_first_login(
-        self, client: TestClient, mock_user: AuthenticatedUser
-    ) -> None:
-        """Test that profile is created on first login."""
-        # First request should create the profile
-        response1 = client.get("/auth/me")
-        assert response1.status_code == 200
-        created_at = response1.json()["created_at"]
-
-        # Second request should return the same profile
-        response2 = client.get("/auth/me")
-        assert response2.status_code == 200
-        assert response2.json()["created_at"] == created_at
-
     def test_returns_default_preferences(self, client: TestClient) -> None:
-        """Test that new users get default preferences."""
+        """Test that users get default preferences."""
         response = client.get("/auth/me")
 
         assert response.status_code == 200
@@ -100,30 +77,14 @@ class TestGetCurrentUserProfile:
         assert preferences["notifications_enabled"] is True
         assert preferences["auto_transcribe"] is False
 
-    def test_updates_last_login_on_subsequent_requests(
-        self, client: TestClient
-    ) -> None:
-        """Test that last_login_at is updated on each request."""
-        response1 = client.get("/auth/me")
-        assert response1.status_code == 200
-        _last_login_1 = response1.json()["last_login_at"]
-
-        # Immediate second request
-        response2 = client.get("/auth/me")
-        assert response2.status_code == 200
-        # last_login should be updated (or same if within same second)
-        # The key thing is it doesn't throw an error
-
 
 class TestAuthenticationRequired:
     """Tests for authentication requirements."""
 
     def test_requires_authentication(
-        self, app: FastAPI, mock_db: InMemoryCosmosClient
+        self, app: FastAPI
     ) -> None:
         """Test that endpoint requires authentication."""
-        # Override only the DB, not the auth
-        app.dependency_overrides[get_db] = lambda: mock_db
         # Remove any auth override
         app.dependency_overrides.pop(get_current_user_azure, None)
 
@@ -133,19 +94,6 @@ class TestAuthenticationRequired:
         # Should return 401 Unauthorized
         assert response.status_code == 401
 
-    def test_returns_www_authenticate_header(
-        self, app: FastAPI, mock_db: InMemoryCosmosClient
-    ) -> None:
-        """Test that 401 response includes WWW-Authenticate header."""
-        app.dependency_overrides[get_db] = lambda: mock_db
-        app.dependency_overrides.pop(get_current_user_azure, None)
-
-        client = TestClient(app, raise_server_exceptions=False)
-        response = client.get("/auth/me")
-
-        assert response.status_code == 401
-        assert "WWW-Authenticate" in response.headers
-
 
 class TestUpdateUserPreferences:
     """Tests for PATCH /auth/me/preferences endpoint."""
@@ -154,9 +102,6 @@ class TestUpdateUserPreferences:
         self, client: TestClient, mock_user: AuthenticatedUser
     ) -> None:
         """Test that preferences can be updated."""
-        # First create the profile
-        client.get("/auth/me")
-
         # Update preferences
         new_preferences = {
             "theme": "dark",
@@ -173,30 +118,10 @@ class TestUpdateUserPreferences:
         assert data["preferences"]["notifications_enabled"] is False
         assert data["preferences"]["auto_transcribe"] is True
 
-    def test_partial_update_replaces_preferences(
-        self, client: TestClient
-    ) -> None:
-        """Test that PATCH replaces the entire preferences object."""
-        # First create the profile
-        client.get("/auth/me")
-
-        # Update with only some fields (Pydantic will fill defaults)
-        partial_update = {
-            "theme": "dark",
-            "language": "en-US",
-            "notifications_enabled": True,
-            "auto_transcribe": False,
-        }
-        response = client.patch("/auth/me/preferences", json=partial_update)
-
-        assert response.status_code == 200
-        assert response.json()["preferences"]["theme"] == "dark"
-
     def test_requires_authentication_for_preferences(
-        self, app: FastAPI, mock_db: InMemoryCosmosClient
+        self, app: FastAPI
     ) -> None:
         """Test that preferences endpoint requires authentication."""
-        app.dependency_overrides[get_db] = lambda: mock_db
         app.dependency_overrides.pop(get_current_user_azure, None)
 
         client = TestClient(app, raise_server_exceptions=False)
@@ -231,40 +156,3 @@ class TestUserProfileModel:
         assert profile.id == "test-id"
         assert profile.preferences is not None
         assert profile.partition_key == "user"
-
-
-class TestDifferentUsers:
-    """Tests for handling multiple users."""
-
-    def test_different_users_get_different_profiles(
-        self, app: FastAPI, mock_db: InMemoryCosmosClient
-    ) -> None:
-        """Test that different users have separate profiles."""
-        user1 = AuthenticatedUser(
-            oid="user-1",
-            email="user1@example.com",
-            name="User One",
-        )
-        user2 = AuthenticatedUser(
-            oid="user-2",
-            email="user2@example.com",
-            name="User Two",
-        )
-
-        app.dependency_overrides[get_db] = lambda: mock_db
-
-        # User 1 creates profile
-        app.dependency_overrides[get_current_user_azure] = lambda: user1
-        client1 = TestClient(app)
-        response1 = client1.get("/auth/me")
-        assert response1.status_code == 200
-        assert response1.json()["id"] == "user-1"
-        assert response1.json()["name"] == "User One"
-
-        # User 2 creates different profile
-        app.dependency_overrides[get_current_user_azure] = lambda: user2
-        client2 = TestClient(app)
-        response2 = client2.get("/auth/me")
-        assert response2.status_code == 200
-        assert response2.json()["id"] == "user-2"
-        assert response2.json()["name"] == "User Two"

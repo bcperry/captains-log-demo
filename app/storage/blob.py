@@ -8,6 +8,7 @@ Hierarchical storage structure:
 - Transcripts: {container}/{user_id}/{sanitized_filename}_YYYYMMDD_HHMMSS/transcript.json
 """
 
+import json
 import logging
 import os
 import re
@@ -843,6 +844,214 @@ class BlobStorageClient:
                 raise BlobNotFoundError(f"Transcription not found at: {folder_path}") from e
             raise BlobStorageError(f"Failed to download transcription: {e}") from e
 
+    async def save_metadata(
+        self,
+        user_id: str,
+        folder_path: str,
+        metadata_json: str,
+    ) -> str:
+        """Save transcription metadata JSON to blob storage.
+
+        Stores as: {container}/{folder_path}/metadata.json
+
+        Args:
+            user_id: User ID for ownership
+            folder_path: Folder path from upload_audio_with_user_path
+            metadata_json: JSON string with metadata
+
+        Returns:
+            Full blob URL
+
+        Raises:
+            BlobUploadError: If upload fails
+        """
+        if not self.is_configured():
+            raise BlobUploadError("Azure Blob Storage is not configured")
+
+        try:
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            # Ensure container exists
+            try:
+                container_client.create_container()
+            except ResourceExistsError:
+                pass
+            except AzureError:
+                pass
+
+            blob_name = f"{folder_path}/metadata.json"
+
+            blob_metadata = {
+                "user_id": user_id,
+                "content_type": "metadata",
+                "upload_timestamp": datetime.now(UTC).isoformat(),
+                "folder_path": folder_path,
+            }
+
+            blob_client = container_client.get_blob_client(blob_name)
+            blob_client.upload_blob(
+                metadata_json.encode("utf-8"),
+                overwrite=True,
+                content_settings=ContentSettings(content_type="application/json"),
+                metadata=blob_metadata,
+            )
+
+            logger.info(f"Saved metadata JSON to: {blob_name}")
+            return blob_client.url
+
+        except AzureError as e:
+            raise BlobUploadError(f"Failed to save metadata JSON: {e}") from e
+        except Exception as e:
+            raise BlobUploadError(f"Unexpected error saving metadata JSON: {e}") from e
+
+    async def get_metadata(
+        self,
+        folder_path: str,
+    ) -> str:
+        """Download metadata JSON from blob storage.
+
+        Args:
+            folder_path: Folder path (e.g., "{user_id}/{filename}_{timestamp}")
+
+        Returns:
+            JSON string content
+
+        Raises:
+            BlobNotFoundError: If metadata doesn't exist
+            BlobStorageError: If download fails
+        """
+        if not self.is_configured():
+            raise BlobStorageError("Azure Blob Storage is not configured")
+
+        try:
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            blob_name = f"{folder_path}/metadata.json"
+            blob_client = container_client.get_blob_client(blob_name)
+
+            download_stream = blob_client.download_blob()
+            return download_stream.readall().decode("utf-8")
+
+        except AzureError as e:
+            error_msg = str(e)
+            if "BlobNotFound" in error_msg or "NotFound" in error_msg:
+                raise BlobNotFoundError(f"Metadata not found at: {folder_path}") from e
+            raise BlobStorageError(f"Failed to download metadata: {e}") from e
+
+    async def list_user_transcriptions(
+        self,
+        user_id: str,
+        page: int = 1,
+        per_page: int = 20,
+    ) -> tuple[list[dict], int]:
+        """List all transcriptions for a user by scanning blob storage.
+
+        Scans for metadata.json files under the user's folder prefix.
+
+        Args:
+            user_id: User ID to list transcriptions for
+            page: Page number (1-indexed)
+            per_page: Results per page
+
+        Returns:
+            Tuple of (list of metadata dicts, total count)
+
+        Raises:
+            BlobStorageError: If listing fails
+        """
+        if not self.is_configured():
+            raise BlobStorageError("Azure Blob Storage is not configured")
+
+        try:
+
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            # List all blobs under user's folder and find metadata.json files
+            metadata_blobs: list[str] = []
+            blobs = container_client.list_blobs(name_starts_with=f"{user_id}/")
+
+            for blob in blobs:
+                if blob.name.endswith("/metadata.json"):
+                    metadata_blobs.append(blob.name)
+
+            # Sort by name (which includes timestamp) in reverse order (newest first)
+            metadata_blobs.sort(reverse=True)
+
+            total = len(metadata_blobs)
+
+            # Apply pagination
+            start = (page - 1) * per_page
+            end = start + per_page
+            paginated_blobs = metadata_blobs[start:end]
+
+            # Fetch metadata content for each blob
+            metadata_list: list[dict] = []
+            for blob_name in paginated_blobs:
+                try:
+                    blob_client = container_client.get_blob_client(blob_name)
+                    download_stream = blob_client.download_blob()
+                    content = download_stream.readall().decode("utf-8")
+                    metadata = json.loads(content)
+                    metadata_list.append(metadata)
+                except Exception as e:
+                    logger.warning(f"Failed to read metadata from {blob_name}: {e}")
+                    continue
+
+            return metadata_list, total
+
+        except AzureError as e:
+            raise BlobStorageError(f"Failed to list user transcriptions: {e}") from e
+
+    async def get_transcription_by_audio_hash(
+        self,
+        user_id: str,
+        audio_hash: str,
+    ) -> dict | None:
+        """Find a transcription by audio hash for cache lookup.
+
+        Scans metadata.json files for matching audio_hash.
+
+        Args:
+            user_id: User ID to search for
+            audio_hash: SHA256 hash of audio file content
+
+        Returns:
+            Metadata dict if found, None otherwise
+        """
+        if not self.is_configured():
+            return None
+
+        try:
+
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            # List all metadata.json files for user
+            blobs = container_client.list_blobs(name_starts_with=f"{user_id}/")
+
+            for blob in blobs:
+                if blob.name.endswith("/metadata.json"):
+                    try:
+                        blob_client = container_client.get_blob_client(blob.name)
+                        download_stream = blob_client.download_blob()
+                        content = download_stream.readall().decode("utf-8")
+                        metadata: dict = json.loads(content)
+
+                        if metadata.get("audio_hash") == audio_hash:
+                            return metadata
+                    except Exception as e:
+                        logger.warning(f"Failed to read metadata from {blob.name}: {e}")
+                        continue
+
+            return None
+
+        except AzureError as e:
+            logger.error(f"Failed to search by audio hash: {e}")
+            return None
+
     def get_user_folder_sas_url(
         self,
         user_id: str,
@@ -1170,6 +1379,81 @@ class InMemoryBlobClient(BlobStorageClient):
         if blob_name not in _in_memory_transcription_blobs:
             raise BlobNotFoundError(f"Transcription not found at: {folder_path}")
         return _in_memory_transcription_blobs[blob_name]
+
+    async def save_metadata(
+        self,
+        user_id: str,
+        folder_path: str,
+        metadata_json: str,
+    ) -> str:
+        """Save metadata JSON to in-memory storage."""
+        blob_name = f"{folder_path}/metadata.json"
+        _in_memory_transcription_blobs[blob_name] = metadata_json
+        return f"https://inmemory.blob.local/{self.container_name}/{blob_name}"
+
+    async def get_metadata(
+        self,
+        folder_path: str,
+    ) -> str:
+        """Download metadata JSON from in-memory storage."""
+        blob_name = f"{folder_path}/metadata.json"
+        if blob_name not in _in_memory_transcription_blobs:
+            raise BlobNotFoundError(f"Metadata not found at: {folder_path}")
+        return _in_memory_transcription_blobs[blob_name]
+
+    async def list_user_transcriptions(
+        self,
+        user_id: str,
+        page: int = 1,
+        per_page: int = 20,
+    ) -> tuple[list[dict], int]:
+        """List transcriptions from in-memory storage."""
+
+        # Find all metadata.json files for this user
+        metadata_blobs: list[str] = []
+        for blob_name in _in_memory_transcription_blobs:
+            if blob_name.startswith(f"{user_id}/") and blob_name.endswith("/metadata.json"):
+                metadata_blobs.append(blob_name)
+
+        # Sort by name (which includes timestamp) in reverse order (newest first)
+        metadata_blobs.sort(reverse=True)
+
+        total = len(metadata_blobs)
+
+        # Apply pagination
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_blobs = metadata_blobs[start:end]
+
+        # Parse metadata content
+        metadata_list: list[dict] = []
+        for blob_name in paginated_blobs:
+            try:
+                content = _in_memory_transcription_blobs[blob_name]
+                metadata = json.loads(content)
+                metadata_list.append(metadata)
+            except Exception:
+                continue
+
+        return metadata_list, total
+
+    async def get_transcription_by_audio_hash(
+        self,
+        user_id: str,
+        audio_hash: str,
+    ) -> dict | None:
+        """Find transcription by audio hash in in-memory storage."""
+
+        for blob_name, content in _in_memory_transcription_blobs.items():
+            if blob_name.startswith(f"{user_id}/") and blob_name.endswith("/metadata.json"):
+                try:
+                    metadata: dict = json.loads(content)
+                    if metadata.get("audio_hash") == audio_hash:
+                        return metadata
+                except Exception:
+                    continue
+
+        return None
 
     def get_user_folder_sas_url(
         self,

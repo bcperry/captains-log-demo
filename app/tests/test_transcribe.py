@@ -55,15 +55,15 @@ def mock_speech_client() -> MagicMock:
 
 from typing import Generator
 
-from db.cosmos import clear_in_memory_storage
+from storage.blob import clear_in_memory_blobs
 
 
 @pytest.fixture(autouse=True)
 def clear_storage() -> Generator[None, None, None]:
-    """Clear in-memory storage before and after each test."""
-    clear_in_memory_storage()
+    """Clear in-memory blob storage before and after each test."""
+    clear_in_memory_blobs()
     yield
-    clear_in_memory_storage()
+    clear_in_memory_blobs()
 
 
 @pytest.fixture(autouse=True)
