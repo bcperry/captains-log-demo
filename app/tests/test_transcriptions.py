@@ -4,11 +4,15 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.transcriptions import get_db, router
+from api.transcriptions import get_blob_storage, get_db, router
 from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
 from db.cosmos import InMemoryCosmosClient, clear_in_memory_storage
 from models.transcription import SpeakerSegment, TranscriptionRecord
+from storage.blob import InMemoryBlobClient, clear_in_memory_blobs
+
+# Mock user OID that matches the mock_user fixture
+MOCK_USER_OID = "test-user-123"
 
 
 @pytest.fixture
@@ -40,12 +44,20 @@ def mock_db() -> InMemoryCosmosClient:
 
 
 @pytest.fixture
+def mock_blob_storage() -> InMemoryBlobClient:
+    """Create an in-memory blob storage client for testing."""
+    clear_in_memory_blobs()
+    return InMemoryBlobClient()
+
+
+@pytest.fixture
 def client(
-    app: FastAPI, mock_user: AuthenticatedUser, mock_db: InMemoryCosmosClient
+    app: FastAPI, mock_user: AuthenticatedUser, mock_db: InMemoryCosmosClient, mock_blob_storage: InMemoryBlobClient
 ) -> TestClient:
     """Create a test client with mocked dependencies."""
     app.dependency_overrides[get_current_user_azure] = lambda: mock_user
     app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_blob_storage] = lambda: mock_blob_storage
     return TestClient(app)
 
 
@@ -298,3 +310,101 @@ class TestTranscriptionRecordModel:
         assert record.has_diarization is True
         assert record.speaker_count == 2
         assert record.segments is not None and len(record.segments) == 2
+
+
+class TestTranscriptionContent:
+    """Tests for GET /transcriptions/{id}/content endpoint."""
+
+    def test_returns_content_for_transcription(
+        self, client: TestClient
+    ) -> None:
+        """Test retrieval of transcription content from blob storage."""
+        import json
+
+        from db.cosmos import _in_memory_transcriptions
+        from storage.blob import _in_memory_transcription_blobs
+
+        # Create a transcription record with blob_storage_url
+        transcription_id = "test-content-id"
+        user_id = MOCK_USER_OID
+        content_json = {
+            "transcript_id": transcription_id,
+            "user_id": user_id,
+            "filename": "test.wav",
+            "upload_date": "2024-01-15T10:30:00Z",
+            "duration": 60.0,
+            "speaker_segments": [
+                {"speaker_id": "Speaker_1", "start_time": 0.0, "end_time": 5.0, "text": "Hello world"}
+            ],
+            "full_text": "Hello world",
+            "language": "en-US",
+            "processing_time_ms": 1234,
+        }
+
+        # Store in in-memory transcription blobs
+        blob_name = f"{user_id}/{transcription_id}.json"
+        _in_memory_transcription_blobs[blob_name] = json.dumps(content_json)
+
+        # Store transcription record in Cosmos
+        if user_id not in _in_memory_transcriptions:
+            _in_memory_transcriptions[user_id] = {}
+        _in_memory_transcriptions[user_id][transcription_id] = {
+            "id": transcription_id,
+            "user_id": user_id,
+            "text": "Hello world",
+            "language": "en-US",
+            "audio_format": "wav",
+            "file_size_bytes": 1000,
+            "blob_storage_url": f"https://inmemory.blob.local/transcriptions/{blob_name}",
+            "has_diarization": True,
+            "created_at": "2024-01-15T10:30:00Z",
+        }
+
+        response = client.get(f"/transcriptions/{transcription_id}/content")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["transcript_id"] == transcription_id
+        assert data["content"]["full_text"] == "Hello world"
+        assert data["content"]["language"] == "en-US"
+        assert len(data["content"]["speaker_segments"]) == 1
+        assert "blob_url" in data
+
+    def test_returns_404_for_nonexistent_transcription(
+        self, client: TestClient
+    ) -> None:
+        """Test that 404 is returned for non-existent transcription."""
+        response = client.get("/transcriptions/nonexistent-id/content")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_returns_404_when_no_blob_storage_url(
+        self, client: TestClient
+    ) -> None:
+        """Test that 404 is returned when transcription has no blob_storage_url."""
+        from db.cosmos import _in_memory_transcriptions
+
+        transcription_id = "no-blob-url-id"
+        user_id = MOCK_USER_OID
+
+        if user_id not in _in_memory_transcriptions:
+            _in_memory_transcriptions[user_id] = {}
+        _in_memory_transcriptions[user_id][transcription_id] = {
+            "id": transcription_id,
+            "user_id": user_id,
+            "text": "Test",
+            "language": "en-US",
+            "audio_format": "wav",
+            "file_size_bytes": 1000,
+            "blob_storage_url": None,  # No blob URL
+            "has_diarization": False,
+            "created_at": "2024-01-15T10:30:00Z",
+        }
+
+        response = client.get(f"/transcriptions/{transcription_id}/content")
+        assert response.status_code == 404
+        assert "not available" in response.json()["detail"].lower()
+
+    def test_requires_authentication(self, unauthenticated_client: TestClient) -> None:
+        """Test that authentication is required."""
+        response = unauthenticated_client.get("/transcriptions/test-id/content")
+        assert response.status_code == 401

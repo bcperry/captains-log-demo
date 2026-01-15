@@ -1534,3 +1534,32 @@ Started: 2024-01-15
   - Tailwind color classes can be combined with dynamic class composition
   - Storybook not set up in project - can be added later for component documentation
 ---
+
+## 2026-01-15 - US-064
+- What was implemented: Fixed test fixtures for TranscriptionContent endpoint tests
+- Root cause: Test fixtures referenced `mock_auth` which didn't exist, tests needed proper `client` fixture with blob storage override
+- Files changed:
+  - `app/tests/test_transcriptions.py` - Fixed test fixtures: added `MOCK_USER_OID` constant, added `mock_blob_storage` fixture, removed invalid `mock_auth` parameter, updated `test_requires_authentication` to use `unauthenticated_client`
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Interactions verified: GET /transcriptions/{id}/content endpoint visible, TranscriptionContent schema verified with all fields
+  - Screenshots taken: us064-transcription-content-endpoint.png, us064-transcription-content-schema.png
+- **All Acceptance Criteria Met:**
+  - Save transcription JSON to Blob Storage after successful transcription ✓
+  - Filename format: {user_id}/{transcription_id}.json ✓
+  - JSON structure includes required fields (transcript_id, user_id, filename, upload_date, duration, speaker_segments, full_text, language, processing_time_ms) ✓
+  - Speaker segments array with speaker_id, start_time, end_time, text ✓
+  - Upload to Azure Blob Storage container 'transcriptions' ✓
+  - Use SAS URL for secure access ✓
+  - Handle Blob Storage failures gracefully ✓
+  - Support both real Azure Blob Storage and in-memory fallback ✓
+  - Transcription record includes blob_storage_url reference ✓
+  - GET /transcriptions/{id}/content endpoint exists ✓
+  - mypy type checking passes ✓
+  - pytest tests pass (335 passed) ✓
+  - Application loads without errors ✓
+- **Learnings:**
+  - Test fixtures must be explicitly defined in conftest.py or test file
+  - FastAPI dependency overrides need to include all dependencies used by endpoint (db AND blob_storage)
+  - Use InMemoryBlobClient for tests instead of mocking at lower level
+---
