@@ -44,10 +44,17 @@ $Repository = "web"
 $ResourceGroupId = $EnvVars["RESOURCE_GROUP_ID"]
 $ResourceGroupName = if ($ResourceGroupId -match "/resourceGroups/([^/]+)") { $Matches[1] } else { $null }
 
+# Frontend build args for Vite (baked into JS bundle at build time)
+$ViteAzureClientId = $EnvVars["AZURE_ENTRA_CLIENT_ID"]
+$ViteAzureTenantId = $EnvVars["AZURE_ENTRA_TENANT_ID"]
+$ViteAzureCloud = if ($EnvVars["AZURE_CLOUD"]) { $EnvVars["AZURE_CLOUD"] } else { "government" }
+
 # Validate required variables
 if (-not $AcrName) { throw "AZURE_CONTAINER_REGISTRY_NAME not found in environment file" }
 if (-not $AcrEndpoint) { throw "AZURE_CONTAINER_REGISTRY_ENDPOINT not found in environment file" }
 if (-not $ResourceGroupName) { throw "Could not extract resource group name from RESOURCE_GROUP_ID" }
+if (-not $ViteAzureClientId) { throw "AZURE_ENTRA_CLIENT_ID not found in environment file (required for frontend auth)" }
+if (-not $ViteAzureTenantId) { throw "AZURE_ENTRA_TENANT_ID not found in environment file (required for frontend auth)" }
 
 Write-Host "🔧 Configuration:" -ForegroundColor Cyan
 Write-Host "  - Image Name: $ImageName" -ForegroundColor White
@@ -56,11 +63,18 @@ Write-Host "  - ACR Endpoint: $AcrEndpoint" -ForegroundColor White
 Write-Host "  - Repository: $Repository" -ForegroundColor White
 Write-Host "  - Resource Group: $ResourceGroupName" -ForegroundColor White
 Write-Host "  - Tag: $ImageTag" -ForegroundColor White
+Write-Host "  - VITE_AZURE_CLIENT_ID: $ViteAzureClientId" -ForegroundColor White
+Write-Host "  - VITE_AZURE_TENANT_ID: $ViteAzureTenantId" -ForegroundColor White
+Write-Host "  - VITE_AZURE_CLOUD: $ViteAzureCloud" -ForegroundColor White
 
 try {
-    # Step 1: Build the Docker image
-    Write-Host "🔨 Building Docker image..." -ForegroundColor Yellow
-    docker build -t $ImageName .
+    # Step 1: Build the Docker image with frontend auth config baked in
+    Write-Host "🔨 Building Docker image with frontend auth configuration..." -ForegroundColor Yellow
+    docker build `
+        --build-arg VITE_AZURE_CLIENT_ID=$ViteAzureClientId `
+        --build-arg VITE_AZURE_TENANT_ID=$ViteAzureTenantId `
+        --build-arg VITE_AZURE_CLOUD=$ViteAzureCloud `
+        -t $ImageName .
     if ($LASTEXITCODE -ne 0) {
         throw "Docker build failed"
     }

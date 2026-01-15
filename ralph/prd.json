@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
+        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
-        "Replace '\u23f3' with 'Processing...' text",
-        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
-        "Replace '\u274c' error indicators with professional error styling",
+        "Replace '🎯' with 'Start' or use button variant styling",
+        "Replace '⏳' with 'Processing...' text",
+        "Replace '✅' success indicators with professional checkmarks or green highlights",
+        "Replace '❌' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2142,7 +2142,7 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' \u2192 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' \u2192 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] \u2192 ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     },
     {
       "id": "BUG-020",
@@ -2305,6 +2305,27 @@
       "priority": 1,
       "passes": true,
       "notes": "CRITICAL BUG logged 2026-01-15 - Container App deployment is missing Entra ID authentication environment variables. Current state: (1) AZURE_CLIENT_ID is set to managed identity client ID (0e644592...) instead of Entra ID app registration (ec3c8d20...), (2) AZURE_TENANT_ID is completely missing, (3) AZURE_ENTRA_CLIENT_ID is missing. The .env file has AZURE_ENTRA_TENANT_ID=03f141f3... and AZURE_ENTRA_CLIENT_ID=ec3c8d20... but these are NOT passed to Container App env vars in resources.bicep lines 294-338. The Bicep passes entraIdTenantId and entraIdClientId to entraAuth module but NOT to the container's environment. Fix: Add env entries for AZURE_TENANT_ID (from entraIdTenantId param) and AZURE_ENTRA_CLIENT_ID (from entraIdClientId param) to the Container App template."
+    },
+    {
+      "id": "BUG-025",
+      "title": "Frontend MSAL config missing - VITE_ env vars not passed at Docker build time",
+      "acceptanceCriteria": [
+        "Dockerfile accepts ARG for VITE_AZURE_CLIENT_ID",
+        "Dockerfile accepts ARG for VITE_AZURE_TENANT_ID",
+        "Dockerfile accepts ARG for VITE_AZURE_CLOUD",
+        "Dockerfile passes these as ENV vars before npm run build",
+        "azd or deployment process passes correct values as --build-arg",
+        "Built frontend has correct client_id baked in (not empty or placeholder)",
+        "Built frontend has correct tenant_id baked in (not 'undefined')",
+        "Built frontend uses correct authority URL (login.microsoftonline.us for government)",
+        "Login redirect goes to correct Microsoft login URL with client_id parameter",
+        "AADSTS900144 error no longer occurs",
+        "User can successfully authenticate via deployed app",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Fixed 2026-01-15 - Playwright verified auth redirect uses correct client_id, tenant_id, and government URL (login.microsoftonline.us)"
     }
   ]
 }
