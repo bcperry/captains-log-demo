@@ -364,3 +364,229 @@ class TestBlobStorageClientSASGeneration:
             client.get_blob_sas_url("user123/file.wav")
         
         assert "not configured" in str(exc_info.value)
+
+
+class TestSanitizeFilename:
+    """Tests for the sanitize_filename function."""
+
+    def test_sanitize_removes_special_characters(self) -> None:
+        """Test sanitize_filename removes special characters."""
+        from storage.blob import sanitize_filename
+
+        assert sanitize_filename("test@file#name!.wav") == "testfilename"
+        assert sanitize_filename("file with spaces.mp3") == "file_with_spaces"
+
+    def test_sanitize_handles_empty_filename(self) -> None:
+        """Test sanitize_filename handles empty or None."""
+        from storage.blob import sanitize_filename
+
+        assert sanitize_filename("") == "unnamed"
+        assert sanitize_filename("   ") == "unnamed"
+
+    def test_sanitize_limits_length(self) -> None:
+        """Test sanitize_filename limits to 100 characters."""
+        from storage.blob import sanitize_filename
+
+        long_name = "a" * 150
+        result = sanitize_filename(long_name)
+        assert len(result) <= 100
+
+    def test_sanitize_preserves_valid_characters(self) -> None:
+        """Test sanitize_filename preserves valid characters."""
+        from storage.blob import sanitize_filename
+
+        # Extension is stripped, only the base name is sanitized
+        assert sanitize_filename("valid-file_name.test") == "valid-file_name"
+        assert sanitize_filename("Meeting2024-01-15") == "Meeting2024-01-15"
+
+    def test_sanitize_strips_extension(self) -> None:
+        """Test sanitize_filename removes file extension."""
+        from storage.blob import sanitize_filename
+
+        # The function removes the extension during sanitization
+        assert "wav" not in sanitize_filename("test.wav") or sanitize_filename("test.wav") == "test"
+
+
+class TestUserPathMethods:
+    """Tests for hierarchical user path storage methods."""
+
+    def setup_method(self) -> None:
+        """Clear in-memory storage before each test."""
+        clear_in_memory_blobs()
+
+    def teardown_method(self) -> None:
+        """Clear in-memory storage after each test."""
+        clear_in_memory_blobs()
+
+    def test_generate_user_path_folder(self) -> None:
+        """Test folder path generation for user-scoped storage."""
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = BlobStorageClient(settings)
+
+        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        folder = client._generate_user_path_folder("user123", "my-audio.wav", ts)
+
+        assert folder.startswith("user123/")
+        assert "my-audio_20240115_103000" in folder
+
+    def test_generate_user_path_folder_sanitizes_filename(self) -> None:
+        """Test folder path sanitizes special characters in filename."""
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = BlobStorageClient(settings)
+
+        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        folder = client._generate_user_path_folder("user123", "file with spaces!@#.wav", ts)
+
+        assert folder.startswith("user123/")
+        assert "file_with_spaces" in folder
+        assert " " not in folder
+        assert "@" not in folder
+
+    @pytest.mark.asyncio
+    async def test_in_memory_upload_audio_with_user_path(self) -> None:
+        """Test in-memory client uploads with user path structure."""
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = InMemoryBlobClient(settings)
+
+        content = b"test audio content"
+        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        url, folder_path = await client.upload_audio_with_user_path(
+            content=content,
+            audio_format="wav",
+            user_id="user123",
+            original_filename="meeting.wav",
+            timestamp=ts,
+        )
+
+        assert "user123" in url
+        assert "meeting_20240115_103000" in folder_path
+        assert "/audio/" in url
+        assert url.endswith(".wav")
+
+    @pytest.mark.asyncio
+    async def test_in_memory_upload_transcription_with_user_path(self) -> None:
+        """Test in-memory client uploads transcription to same folder."""
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = InMemoryBlobClient(settings)
+
+        # First upload audio to get folder path
+        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        _, folder_path = await client.upload_audio_with_user_path(
+            content=b"audio",
+            audio_format="wav",
+            user_id="user123",
+            original_filename="meeting.wav",
+            timestamp=ts,
+        )
+
+        # Upload transcription to same folder
+        transcript_url = await client.upload_transcription_with_user_path(
+            user_id="user123",
+            folder_path=folder_path,
+            content_json='{"text": "Hello world"}',
+        )
+
+        assert folder_path in transcript_url
+        assert transcript_url.endswith("/transcript.json")
+
+    @pytest.mark.asyncio
+    async def test_in_memory_download_from_user_path(self) -> None:
+        """Test downloading files from user-scoped paths."""
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = InMemoryBlobClient(settings)
+
+        # Upload files
+        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        url, folder_path = await client.upload_audio_with_user_path(
+            content=b"audio content here",
+            audio_format="wav",
+            user_id="user456",
+            original_filename="recording.wav",
+            timestamp=ts,
+        )
+
+        transcript_json = '{"text": "Test transcript"}'
+        await client.upload_transcription_with_user_path(
+            user_id="user456",
+            folder_path=folder_path,
+            content_json=transcript_json,
+        )
+
+        # Download audio
+        audio_content = await client.download_audio_from_user_path(
+            folder_path=folder_path,
+            filename="recording.wav",
+        )
+        assert audio_content == b"audio content here"
+
+        # Download transcription
+        downloaded_json = await client.download_transcription_from_user_path(
+            folder_path=folder_path,
+        )
+        assert downloaded_json == transcript_json
+
+    @pytest.mark.asyncio
+    async def test_in_memory_download_not_found(self) -> None:
+        """Test download raises BlobNotFoundError for missing files."""
+        from storage.blob import BlobNotFoundError
+
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = InMemoryBlobClient(settings)
+
+        with pytest.raises(BlobNotFoundError):
+            await client.download_audio_from_user_path(
+                folder_path="nonexistent/path",
+                filename="missing.wav",
+            )
+
+        with pytest.raises(BlobNotFoundError):
+            await client.download_transcription_from_user_path(
+                folder_path="nonexistent/path",
+            )
+
+    def test_get_user_folder_sas_url(self) -> None:
+        """Test user folder SAS URL generation (in-memory)."""
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = InMemoryBlobClient(settings)
+
+        sas_url = client.get_user_folder_sas_url("user789", expiry_hours=2)
+
+        assert "user789" in sas_url
+        assert "sas=mock_token" in sas_url
+
+    @pytest.mark.asyncio
+    async def test_user_isolation_in_folder_structure(self) -> None:
+        """Test that different users have separate folder hierarchies."""
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        client = InMemoryBlobClient(settings)
+
+        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        # User 1 uploads
+        url1, folder1 = await client.upload_audio_with_user_path(
+            content=b"user1 audio",
+            audio_format="wav",
+            user_id="user-guid-1",
+            original_filename="shared_name.wav",
+            timestamp=ts,
+        )
+
+        # User 2 uploads same filename
+        url2, folder2 = await client.upload_audio_with_user_path(
+            content=b"user2 audio",
+            audio_format="wav",
+            user_id="user-guid-2",
+            original_filename="shared_name.wav",
+            timestamp=ts,
+        )
+
+        # Verify different paths
+        assert "user-guid-1" in folder1
+        assert "user-guid-2" in folder2
+        assert folder1 != folder2
+
+        # Verify different URLs
+        assert url1 != url2
+        assert "user-guid-1" in url1
+        assert "user-guid-2" in url2

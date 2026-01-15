@@ -6,6 +6,7 @@ from storage.blob import (
     BlobStorageError,
     BlobUploadError,
     get_storage_client,
+    sanitize_filename,
 )
 from storage.cache import (
     CacheMetrics,
@@ -20,6 +21,7 @@ __all__ = [
     "BlobStorageError",
     "BlobUploadError",
     "get_storage_client",
+    "sanitize_filename",
     "CacheMetrics",
     "compute_audio_hash",
     "compute_audio_hash_from_file",
