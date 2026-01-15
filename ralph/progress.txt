@@ -1960,3 +1960,24 @@ Started: 2024-01-15
   - Conditional rendering for buttons based on data availability (savedAnalysis check)
   - Filename format: `{shortId}_{YYYYMMDD}_{suffix}.{ext}` for unique, sortable filenames
 ---
+
+## 2026-01-15 - BUG-013
+- What was implemented: Added duplicate audio file detection with cache hit response
+- Root cause: Backend cache lookup worked but response didn't indicate cache hit to frontend
+- Files changed:
+  - `app/models/transcription.py` - Added `cached`, `folder_path`, `original_upload_date`, `original_filename` fields to TranscriptionResponse and DiarizedTranscriptionResponse
+  - `app/api/transcribe.py` - Updated cache hit response to include new fields with cached=True
+  - `frontend/src/types/api.ts` - Added new fields to frontend TranscriptionResponse types
+  - `frontend/src/types/transcription.ts` - Added cached fields to TranscriptionResult
+  - `frontend/src/services/api.ts` - Updated raw response types and transform logic
+  - `frontend/src/hooks/useTranscription.ts` - Pass through cache fields to result
+  - `frontend/src/components/AudioUpload.tsx` - Display blue "This file has already been transcribed" message with original upload date
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3001 (frontend upload view), http://localhost:8000/docs (API docs)
+  - Interactions verified: Sign in flow, upload UI renders, API schema shows new fields
+  - Screenshots taken: bug013-app-loaded.png, bug013-signed-in-upload-view.png, bug013-swagger-docs.png
+- **Learnings:**
+  - Cache mechanism was already implemented in backend, just needed to expose status to frontend
+  - Response models need explicit fields to communicate cache hit status
+  - Frontend can conditionally style success messages based on cache status
+---

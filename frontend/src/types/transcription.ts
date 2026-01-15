@@ -36,6 +36,10 @@ export interface TranscriptionResult {
   hasDiarization?: boolean
   // Storage reference for saving analysis
   folderPath?: string
+  // Cache hit fields (duplicate file detection)
+  cached?: boolean
+  originalUploadDate?: string
+  originalFilename?: string
 }
 
 export interface TranscriptionState {
