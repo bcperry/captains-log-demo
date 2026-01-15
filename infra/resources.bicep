@@ -26,11 +26,11 @@ param enableEntraAuth bool = false
 
 var abbrs = loadJsonContent('./abbreviations.json')
 
-// Cloud-specific configurations
+// Cloud-specific configurations using environment() function for cloud compatibility
 var isGovernment = azureCloud == 'government'
 var cognitiveServicesEndpointSuffix = isGovernment ? 'azure.us' : 'azure.com'
-var cosmosDbEndpointSuffix = isGovernment ? 'azure.us' : 'azure.com'
-var blobEndpointSuffix = isGovernment ? 'core.usgovcloudapi.net' : 'core.windows.net'
+// Use environment().suffixes.storage for all clouds to avoid hardcoded URLs
+var blobEndpointSuffix = environment().suffixes.storage
 var azureRegion = isGovernment ? 'usgovvirginia' : location
 
 // Compliance tags for Azure Government
@@ -195,7 +195,7 @@ resource audioUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/c
 }
 
 // Container for transcription JSON files
-resource transcriptionsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource transcriptionsJsonContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: 'transcriptions'
   properties: {

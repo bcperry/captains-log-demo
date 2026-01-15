@@ -2154,3 +2154,19 @@ Started: 2024-01-15
   - Need to apply transformations in both TranscriptionResults (new transcriptions) and MyRecordings (saved transcriptions)
   - Test multiple key formats when looking up speaker names: Speaker_1, Speaker-1, Speaker 1
 ---
+
+## 2026-01-15 - BUG-007
+- What was implemented: Fixed hardcoded Azure Government URLs in Bicep templates
+- Root cause: Bicep files used hardcoded URLs (login.microsoftonline.com, core.usgovcloudapi.net) instead of environment() function
+- Files changed:
+  - `infra/entra-auth.bicep` - Replaced hardcoded login URLs with `environment().authentication.loginEndpoint`
+  - `infra/resources.bicep` - Replaced hardcoded storage suffix with `environment().suffixes.storage`
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000, http://localhost:8000/docs
+  - Interactions verified: Frontend loads, Service Status shows connected, Swagger UI works
+  - Screenshots taken: bug007-frontend-verification.png, bug007-swagger-ui-verification.png
+- **Learnings:**
+  - Use `environment().authentication.loginEndpoint` for cloud-agnostic Azure login URLs
+  - Use `environment().suffixes.storage` for storage endpoint suffixes across all Azure clouds
+  - The environment() function automatically provides correct endpoints for Commercial, Government, and China clouds
+---
