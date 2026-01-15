@@ -1615,8 +1615,31 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "BUG: Screenshot shows continuous text transcript without speaker bubbles/diarization. Should display conversation-style with distinct bubbles per speaker. Need to verify: (1) Diarization enabled in backend, (2) Speaker segments in API response, (3) Frontend rendering correctly."
+    },
+    {
+      "id": "BUG-007",
+      "title": "Blob Storage container not found error when saving transcription JSON",
+      "acceptanceCriteria": [
+        "Transcription JSON successfully saves to Azure Blob Storage",
+        "Container is created if it doesn't exist (auto-create or manual creation)",
+        "AZURE_STORAGE_CONTAINER environment variable is correctly configured",
+        "Container name matches what is set in environment and Bicep templates",
+        "Error handling gracefully catches ContainerNotFound and provides helpful message",
+        "Verify container exists in Azure Storage Account after deployment",
+        "Backend logs should show successful upload instead of 'ContainerNotFound'",
+        "No 'Failed to save transcription JSON to blob storage' warnings in logs",
+        "Transcription endpoints return successful response even if blob save fails (graceful degradation)",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "PLAYWRIGHT: Upload audio file, verify transcription completes successfully",
+        "PLAYWRIGHT: Check Azure Storage Account to verify JSON file was created",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Error logged 2026-01-15 08:01:37 - Azure Blob Storage container specified in AZURE_STORAGE_CONTAINER does not exist. ErrorCode: ContainerNotFound. Need to verify: (1) Container is created in Bicep infrastructure templates, (2) Container name environment variable is correctly set, (3) Add auto-create container logic if needed, (4) Update error handling for better UX"
     }
   ]
 }
