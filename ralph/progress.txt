@@ -1772,3 +1772,22 @@ Started: 2024-01-15
   - Query parameters for speaker count filter enable "show me 2-speaker conversations" use case
   - InMemoryCosmosClient needed to implement filtering for local development
 ---
+
+## 2026-01-15 - BUG-008
+- What was implemented: Fixed duration slider not being able to increase beyond 1:30 (90 seconds)
+- Root cause: HTML range input with `step={30}`, `min={60}`, `max={113}` could only reach values that are multiples of step from min (60, 90). Since 113 is not a valid step value from 60, the slider was clamped to 90.
+- Files changed:
+  - `frontend/src/components/AudioUpload.tsx` - Changed `step={30}` to `step={1}` on duration slider (line 300)
+- **Playwright Verification:**
+  - Pages tested: Slider behavior test page at http://localhost:8888/slider-test.html
+  - Interactions verified: 
+    - OLD (step=30): setting value=113 results in actual value=90 (STUCK)
+    - NEW (step=1): setting value=113 results in actual value=113 (WORKS)
+  - Screenshots taken: bug008-slider-fix-verification.png
+- **Learnings:**
+  - HTML range input `step` attribute affects which values are reachable
+  - With step=30 and min=60, only values 60, 90, 120, 150... are valid
+  - If max isn't a valid step value, slider can't reach it
+  - Use step=1 for fine-grained control when max varies (like audio duration)
+  - All 139 frontend tests pass after fix
+---

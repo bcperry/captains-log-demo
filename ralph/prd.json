@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
+        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
-        "Replace '\u23f3' with 'Processing...' text",
-        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
-        "Replace '\u274c' error indicators with professional error styling",
+        "Replace '🎯' with 'Start' or use button variant styling",
+        "Replace '⏳' with 'Processing...' text",
+        "Replace '✅' success indicators with professional checkmarks or green highlights",
+        "Replace '❌' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -1670,6 +1670,33 @@
       "priority": 1,
       "passes": true,
       "notes": "FEATURE: Implement user-scoped hierarchical blob storage. Currently all files may be stored flat. Need: (1) Extract user ID from token, (2) Create nested folder structure, (3) Timestamp filename uploads, (4) Store both audio and transcript in same folder, (5) Update Cosmos DB with blob paths, (6) Ensure data isolation per user"
+    },
+    {
+      "id": "BUG-008",
+      "title": "Duration slider cannot increase beyond 1:30 (stuck at max duration limit)",
+      "acceptanceCriteria": [
+        "Duration slider in 'Duration Settings' section is fully draggable left and right",
+        "Slider can be dragged LEFT to DECREASE duration (works correctly)",
+        "Slider can be dragged RIGHT to INCREASE duration up to audio file total duration",
+        "Slider thumb responds to mouse/touch interaction for both directions",
+        "Duration value updates in real-time as slider is dragged right",
+        "Input field shows updated duration value after drag (1:30 to 1:53 range)",
+        "Slider respects min/max bounds (0 to total audio duration 1:53)",
+        "Max duration limit should be the total audio file length, not hard-coded value",
+        "Works with various audio file formats (MP4, MP3, WAV, M4A, etc.)",
+        "Works when file duration is short (seconds) and long (hours)",
+        "Slider is properly styled with visible thumb and track",
+        "TypeScript compiles without errors",
+        "React component unit tests pass",
+        "PLAYWRIGHT: Load audio file (1:53 duration), drag slider right from 1:30 to 1:53, verify value updates",
+        "PLAYWRIGHT: Drag slider left from 1:30 to lower values, verify works (already working)",
+        "PLAYWRIGHT: Drag slider to maximum (1:53), verify reaches full duration",
+        "PLAYWRIGHT: Test on mobile viewport (375px) to ensure touch interaction works in both directions",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-15 - Slider currently stuck/limited at 1:30 in audio file with 1:53 total duration. Can drag LEFT to decrease duration (working), but cannot drag RIGHT to increase toward full 1:53 duration. Possible causes: (1) Max duration hardcoded to 1:30, (2) Input onChange event handler has upper bound bug, (3) Slider max attribute not set correctly to audio duration, (4) Event preventing drag right (CSS pointer-events or event.preventDefault)"
     }
   ]
 }

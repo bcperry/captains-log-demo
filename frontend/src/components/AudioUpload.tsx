@@ -297,7 +297,7 @@ export function AudioUpload({
                       type="range"
                       min={60}
                       max={audioDuration}
-                      step={30}
+                      step={1}
                       value={durationLimit ?? audioDuration}
                       onChange={(e) => setDurationLimit(Number(e.target.value))}
                       className="w-full"
