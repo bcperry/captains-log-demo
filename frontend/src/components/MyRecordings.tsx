@@ -111,6 +111,28 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
   }, [])
 
   // Download handlers for detail view
+  // Helper to get display name for speaker ID using saved analysis
+  const getSpeakerDisplayName = useCallback((speakerId: string): string => {
+    if (savedAnalysis?.speakerNames) {
+      // Try exact match first
+      if (savedAnalysis.speakerNames[speakerId]) {
+        return savedAnalysis.speakerNames[speakerId].name
+      }
+      // Try with underscore format (Speaker_1 vs Speaker 1)
+      const underscoreId = speakerId.replace(' ', '_')
+      if (savedAnalysis.speakerNames[underscoreId]) {
+        return savedAnalysis.speakerNames[underscoreId].name
+      }
+      // Try with space format
+      const spaceId = speakerId.replace('_', ' ')
+      if (savedAnalysis.speakerNames[spaceId]) {
+        return savedAnalysis.speakerNames[spaceId].name
+      }
+    }
+    // Fall back to formatted speaker name
+    return speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')
+  }, [savedAnalysis])
+
   const handleDownloadTxt = useCallback(() => {
     if (!selectedRecording) return
     
@@ -119,7 +141,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     if (selectedRecording.hasDiarization && selectedRecording.segments && selectedRecording.segments.length > 0) {
       content = selectedRecording.segments
         .map((seg) => {
-          const speakerName = seg.speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')
+          const speakerName = getSpeakerDisplayName(seg.speakerId)
           return `${speakerName}: ${seg.text}`
         })
         .join('\n\n')
@@ -130,7 +152,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     const filename = generateFilename(selectedRecording.id, selectedRecording.createdAt, 'transcript', 'txt')
     downloadFile(content, filename, 'text/plain')
     showDownloadMessage(filename)
-  }, [selectedRecording, showDownloadMessage])
+  }, [selectedRecording, showDownloadMessage, getSpeakerDisplayName])
 
   const handleDownloadJson = useCallback(() => {
     if (!selectedRecording) return
@@ -456,7 +478,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Transcription</h3>
             {/* Show speaker bubbles if diarization is available */}
             {selectedRecording.hasDiarization && selectedRecording.segments && selectedRecording.segments.length > 0 ? (
-              <TranscriptDisplay segments={selectedRecording.segments} />
+              <TranscriptDisplay segments={selectedRecording.segments} speakerNames={savedAnalysis?.speakerNames} />
             ) : (
               <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
                 <p className="text-gray-700 whitespace-pre-wrap">{selectedRecording.text}</p>
