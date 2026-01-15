@@ -1735,3 +1735,19 @@ Started: 2024-01-15
   - Tailwind CSS already provides professional styling out of the box
   - The UI was already well-designed with consistent color scheme and professional components
 ---
+
+## 2026-01-15 - US-068
+- What was implemented: Added GET /transcriptions/by-hash/{audio_hash} endpoint for cache lookup
+- Root cause: Missing query endpoint to retrieve transcriptions by audio hash (other infrastructure already existed)
+- Files changed:
+  - `app/api/transcriptions.py` - Added `get_transcription_by_hash` endpoint under /transcriptions/by-hash/{audio_hash}
+  - `app/tests/test_transcriptions.py` - Added 4 tests for the new endpoint (success, 404, cross-user isolation, auth required)
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Interactions verified: New endpoint visible in Transcription History section
+  - Screenshots taken: us068-transcription-by-hash-endpoint.png
+- **Learnings:**
+  - Most of the hash/cache infrastructure was already in place (compute_audio_hash, audio_hash field, get_transcription_by_audio_hash in Cosmos)
+  - The acceptance criteria required the query endpoint which was missing
+  - FastAPI route ordering matters - placed /by-hash/{audio_hash} before /{transcription_id} routes that could match
+---

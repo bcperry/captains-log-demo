@@ -312,6 +312,75 @@ class TestTranscriptionRecordModel:
         assert record.segments is not None and len(record.segments) == 2
 
 
+class TestGetTranscriptionByHash:
+    """Tests for GET /transcriptions/by-hash/{audio_hash} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_returns_transcription_by_hash(
+        self,
+        client: TestClient,
+        mock_db: InMemoryCosmosClient,
+        mock_user: AuthenticatedUser,
+    ) -> None:
+        """Test that endpoint returns transcription matching audio hash."""
+        # Create transcription with audio_hash
+        record = TranscriptionRecord(
+            id="t1",
+            user_id=mock_user.oid,
+            text="Test text",
+            language="en-US",
+            audio_format="wav",
+            file_size_bytes=1024,
+            audio_hash="abc123def456789",
+        )
+        await mock_db.create_transcription(mock_user.oid, record)
+
+        response = client.get("/transcriptions/by-hash/abc123def456789")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == "t1"
+        assert data["audio_hash"] == "abc123def456789"
+
+    @pytest.mark.asyncio
+    async def test_returns_404_for_nonexistent_hash(
+        self, client: TestClient, mock_db: InMemoryCosmosClient
+    ) -> None:
+        """Test that endpoint returns 404 for non-existent hash."""
+        response = client.get("/transcriptions/by-hash/nonexistenthash123")
+
+        assert response.status_code == 404
+        assert "no transcription found" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_returns_404_for_other_users_hash(
+        self,
+        client: TestClient,
+        mock_db: InMemoryCosmosClient,
+    ) -> None:
+        """Test that endpoint returns 404 for another user's transcription hash."""
+        # Create transcription with audio_hash for different user
+        record = TranscriptionRecord(
+            id="t1",
+            user_id="other-user",
+            text="Other's text",
+            language="en-US",
+            audio_format="wav",
+            file_size_bytes=1024,
+            audio_hash="otherhash123456",
+        )
+        await mock_db.create_transcription("other-user", record)
+
+        response = client.get("/transcriptions/by-hash/otherhash123456")
+
+        assert response.status_code == 404
+
+    def test_requires_authentication(self, unauthenticated_client: TestClient) -> None:
+        """Test that endpoint requires authentication."""
+        response = unauthenticated_client.get("/transcriptions/by-hash/somehash")
+        assert response.status_code == 401
+
+
 class TestTranscriptionContent:
     """Tests for GET /transcriptions/{id}/content endpoint."""
 
