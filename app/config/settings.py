@@ -84,20 +84,6 @@ class Settings(BaseSettings):
         description="Azure OpenAI API version",
     )
 
-    # Azure Cosmos DB Configuration
-    azure_cosmos_endpoint: Optional[str] = Field(
-        default=None,
-        description="Azure Cosmos DB endpoint URL",
-    )
-    azure_cosmos_key: Optional[str] = Field(
-        default=None,
-        description="Azure Cosmos DB key",
-    )
-    azure_cosmos_database: str = Field(
-        default="captainslog",
-        description="Azure Cosmos DB database name",
-    )
-
     # Azure Entra ID Configuration
     azure_tenant_id: Optional[str] = Field(
         default=None,
@@ -199,15 +185,6 @@ class Settings(BaseSettings):
             return f"https://login.microsoftonline.com/{self.azure_tenant_id}/discovery/v2.0/keys"
 
     @property
-    def cosmos_endpoint_url(self) -> Optional[str]:
-        """Get the Azure Cosmos DB endpoint URL."""
-        if self.azure_cosmos_endpoint:
-            return self.azure_cosmos_endpoint
-
-        # Cannot auto-generate Cosmos endpoint - must be provided
-        return None
-
-    @property
     def storage_endpoint_url(self) -> Optional[str]:
         """Get the Azure Blob Storage endpoint URL based on cloud environment."""
         if self.azure_storage_endpoint:
@@ -248,10 +225,6 @@ class Settings(BaseSettings):
             and self.azure_openai_key
             and self.azure_openai_deployment
         )
-
-    def is_cosmos_configured(self) -> bool:
-        """Check if Azure Cosmos DB is properly configured."""
-        return bool(self.azure_cosmos_endpoint and self.azure_cosmos_key)
 
     def is_storage_configured(self) -> bool:
         """Check if Azure Blob Storage is properly configured."""

@@ -12,7 +12,6 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from config.settings import get_settings
-from db import get_cosmos_client
 from speech import get_speech_client
 
 # Configure structured logging
@@ -52,47 +51,6 @@ class ReadinessResponse(BaseModel):
     dependencies: list[DependencyStatus] = Field(
         default_factory=list, description="Status of service dependencies"
     )
-
-
-def check_cosmos_health() -> DependencyStatus:
-    """Check Cosmos DB connection health.
-
-    Returns:
-        DependencyStatus for Cosmos DB
-    """
-    try:
-        settings = get_settings()
-        if not settings.is_cosmos_configured():
-            return DependencyStatus(
-                name="cosmos_db",
-                healthy=True,
-                configured=False,
-                message="Using in-memory storage (Cosmos DB not configured)",
-            )
-
-        client = get_cosmos_client()
-        if client.is_configured():
-            return DependencyStatus(
-                name="cosmos_db",
-                healthy=True,
-                configured=True,
-                message="Cosmos DB configured",
-            )
-        else:
-            return DependencyStatus(
-                name="cosmos_db",
-                healthy=True,
-                configured=False,
-                message="Using in-memory fallback",
-            )
-    except Exception as e:
-        logger.error(f"Cosmos DB health check failed: {e}")
-        return DependencyStatus(
-            name="cosmos_db",
-            healthy=False,
-            configured=True,
-            message=str(e),
-        )
 
 
 def check_speech_health() -> DependencyStatus:
@@ -299,7 +257,6 @@ async def readiness_check() -> ReadinessResponse:
     """Readiness check that verifies all dependencies.
 
     Checks:
-    - Cosmos DB connectivity
     - Azure Speech Services availability
     - Azure OpenAI connectivity
 
@@ -310,7 +267,6 @@ async def readiness_check() -> ReadinessResponse:
 
     # Sync health checks
     dependencies = [
-        check_cosmos_health(),
         check_speech_health(),
     ]
 

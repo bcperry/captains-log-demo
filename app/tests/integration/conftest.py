@@ -1,7 +1,7 @@
 """Shared fixtures for integration tests.
 
 This module provides common fixtures for integration testing,
-including database isolation and configurable service mocking.
+including storage isolation and configurable service mocking.
 """
 
 import os
@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from api import auth_router, health_router, transcribe_router, transcriptions_router
 from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
-from db.cosmos import InMemoryCosmosClient, clear_in_memory_storage
+from storage.blob import clear_in_memory_blobs
 
 
 def is_using_real_services() -> bool:
@@ -27,14 +27,14 @@ def is_using_real_services() -> bool:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def isolate_database() -> Generator[None, None, None]:
-    """Ensure database is isolated for each test.
+def isolate_storage() -> Generator[None, None, None]:
+    """Ensure storage is isolated for each test.
 
-    Clears in-memory storage before and after each test.
+    Clears in-memory blob storage before and after each test.
     """
-    clear_in_memory_storage()
+    clear_in_memory_blobs()
     yield
-    clear_in_memory_storage()
+    clear_in_memory_blobs()
 
 
 @pytest.fixture
@@ -75,25 +75,12 @@ def another_test_user() -> AuthenticatedUser:
 
 
 @pytest.fixture
-def mock_db() -> InMemoryCosmosClient:
-    """Get the in-memory database client."""
-    return InMemoryCosmosClient()
-
-
-@pytest.fixture
 def authenticated_client(
     integration_app: FastAPI,
     test_user: AuthenticatedUser,
-    mock_db: InMemoryCosmosClient,
 ) -> TestClient:
     """Create an authenticated test client for integration testing."""
-    from api.auth import get_db as auth_get_db
-    from api.transcriptions import get_db as transcriptions_get_db
-
     integration_app.dependency_overrides[get_current_user_azure] = lambda: test_user
-    integration_app.dependency_overrides[auth_get_db] = lambda: mock_db
-    integration_app.dependency_overrides[transcriptions_get_db] = lambda: mock_db
-
     return TestClient(integration_app)
 
 
@@ -136,19 +123,12 @@ def mock_converter() -> Generator[MagicMock, None, None]:
 def authenticated_client_with_speech(
     integration_app: FastAPI,
     test_user: AuthenticatedUser,
-    mock_db: InMemoryCosmosClient,
     mock_speech_client: MagicMock,
 ) -> TestClient:
     """Create an authenticated test client with mocked speech services."""
-    from api.auth import get_db as auth_get_db
-    from api.transcribe import get_db as transcribe_get_db
     from api.transcribe import get_speech_service
-    from api.transcriptions import get_db as transcriptions_get_db
 
     integration_app.dependency_overrides[get_current_user_azure] = lambda: test_user
-    integration_app.dependency_overrides[auth_get_db] = lambda: mock_db
-    integration_app.dependency_overrides[transcribe_get_db] = lambda: mock_db
-    integration_app.dependency_overrides[transcriptions_get_db] = lambda: mock_db
     integration_app.dependency_overrides[get_speech_service] = lambda: mock_speech_client
 
     return TestClient(integration_app)

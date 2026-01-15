@@ -198,25 +198,6 @@ class TestSettings:
             assert settings.azure_openai_deployment == "gpt-4o"
             assert settings.is_openai_configured() is True
 
-    def test_is_cosmos_configured_true(self) -> None:
-        """Test is_cosmos_configured returns True when configured."""
-        with patch.dict(
-            os.environ,
-            {
-                "AZURE_COSMOS_ENDPOINT": "https://test.documents.azure.com",
-                "AZURE_COSMOS_KEY": "test-key",
-            },
-            clear=True,
-        ):
-            settings = create_settings()
-            assert settings.is_cosmos_configured() is True
-
-    def test_is_cosmos_configured_false(self) -> None:
-        """Test is_cosmos_configured returns False when not configured."""
-        with patch.dict(os.environ, {}, clear=True):
-            settings = create_settings()
-            assert settings.is_cosmos_configured() is False
-
     def test_is_entra_configured_true(self) -> None:
         """Test is_entra_configured returns True when configured."""
         with patch.dict(

@@ -3,6 +3,7 @@
 This module provides endpoints for audio transcription using Azure Speech Services.
 """
 
+import json
 import logging
 import os
 import tempfile
@@ -15,8 +16,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Upload
 
 from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
-from db import get_cosmos_client
-from db.cosmos import CosmosClient
 from models.transcription import (
     ALLOWED_CONTENT_TYPES,
     ALLOWED_EXTENSIONS,
@@ -32,6 +31,7 @@ from models.transcription import (
     SpeakerSegment,
     TranscriptionContent,
     TranscriptionContentSegment,
+    TranscriptionMetadata,
     TranscriptionRecord,
     TranscriptionResponse,
 )
@@ -65,11 +65,6 @@ from storage.blob import BlobNotFoundError, BlobStorageClient, BlobUploadError
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transcribe", tags=["Transcription"])
-
-
-def get_db() -> CosmosClient:
-    """FastAPI dependency for getting database client."""
-    return get_cosmos_client()
 
 
 def get_blob_storage() -> BlobStorageClient:
@@ -188,7 +183,6 @@ async def transcribe_audio(
     use_cache: Annotated[bool, Query(description="Use cached transcription if available for same audio")] = True,
     user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
-    db: CosmosClient = Depends(get_db),
     storage: BlobStorageClient = Depends(get_blob_storage),
 ) -> TranscriptionResponse:
     """Transcribe an uploaded audio file.
@@ -231,32 +225,38 @@ async def transcribe_audio(
     # Get cache metrics for logging
     cache_metrics = get_cache_metrics()
 
-    # Check cache if enabled
+    # Check cache if enabled - scan blob storage for matching audio hash
     if use_cache:
-        cached_record = await db.get_transcription_by_audio_hash(user.oid, audio_hash)
-        if cached_record:
+        cached_meta = await storage.get_transcription_by_audio_hash(user.oid, audio_hash)
+        if cached_meta:
             cache_metrics.record_hit()
-            logger.info(f"Cache HIT for audio hash {audio_hash[:16]}... - returning cached transcription {cached_record.id}")
+            logger.info(f"Cache HIT for audio hash {audio_hash[:16]}... - returning cached transcription {cached_meta.get('id')}")
             
             # Try to load full transcription from blob storage if available
-            if cached_record.blob_storage_url and storage.is_configured():
+            cached_folder_path = cached_meta.get("folder_path")
+            if cached_folder_path and storage.is_configured():
                 try:
-                    content_json = await storage.download_transcription_json(
-                        user_id=user.oid,
-                        transcription_id=cached_record.id,
+                    content_json = await storage.download_transcription_from_user_path(cached_folder_path)
+                    content_data = json.loads(content_json)
+                    return TranscriptionResponse(
+                        text=content_data.get("full_text", cached_meta.get("text", "")),
+                        language=cached_meta.get("language", "en-US"),
+                        audio_format=cached_meta.get("audio_format", "wav"),
+                        file_size_bytes=cached_meta.get("file_size_bytes", 0),
+                        duration_ms=cached_meta.get("duration_ms"),
+                        processing_time_ms=0,  # No processing needed for cache hit
                     )
-                    logger.debug(f"Loaded cached transcription JSON from blob storage")
                 except BlobNotFoundError:
-                    logger.warning(f"Cached transcription blob not found, using record text")
+                    logger.warning(f"Cached transcription blob not found, using metadata text")
                 except Exception as e:
                     logger.warning(f"Failed to load cached transcription from blob: {e}")
             
             return TranscriptionResponse(
-                text=cached_record.text,
-                language=cached_record.language,
-                audio_format=cached_record.audio_format,
-                file_size_bytes=cached_record.file_size_bytes,
-                duration_ms=cached_record.duration_ms,
+                text=cached_meta.get("text", ""),
+                language=cached_meta.get("language", "en-US"),
+                audio_format=cached_meta.get("audio_format", "wav"),
+                file_size_bytes=cached_meta.get("file_size_bytes", 0),
+                duration_ms=cached_meta.get("duration_ms"),
                 processing_time_ms=0,  # No processing needed for cache hit
             )
         else:
@@ -359,24 +359,32 @@ async def transcribe_audio(
                     # Log but don't fail the transcription
                     logger.warning(f"Failed to save transcription JSON to blob storage: {e}")
 
-            record = TranscriptionRecord(
-                id=transcription_id,
-                user_id=user.oid,
-                text=transcribed_text,
-                language=language,
-                audio_format=audio_format,
-                file_size_bytes=len(content),
-                duration_ms=duration_ms,
-                processing_time_ms=processing_time_ms,
-                blob_url=blob_url,
-                blob_storage_url=blob_storage_url,
-                folder_path=folder_path,
-                has_diarization=False,
-                language_detected=language,  # For non-diarized, use requested language
-                audio_hash=audio_hash,
-                cached=False,
-            )
-            await db.create_transcription(user.oid, record)
+            # Save metadata JSON for listing transcriptions (replaces Cosmos DB)
+            if storage.is_configured() and folder_path:
+                try:
+                    metadata = TranscriptionMetadata(
+                        id=folder_path,
+                        user_id=user.oid,
+                        filename=file.filename or "audio",
+                        upload_time=datetime.now(UTC),
+                        duration_ms=duration_ms,
+                        speaker_count=None,
+                        language=language,
+                        audio_format=audio_format,
+                        file_size_bytes=len(content),
+                        folder_path=folder_path,
+                        audio_hash=audio_hash,
+                        text=transcribed_text[:200] if transcribed_text else "",  # Preview text
+                        has_diarization=False,
+                    )
+                    await storage.save_metadata(
+                        user_id=user.oid,
+                        folder_path=folder_path,
+                        metadata_json=metadata.model_dump_json(),
+                    )
+                    logger.info(f"Saved transcription metadata to blob storage: {folder_path}/metadata.json")
+                except BlobUploadError as e:
+                    logger.warning(f"Failed to save metadata JSON: {e}")
 
         return response
 
@@ -447,7 +455,6 @@ async def transcribe_audio_with_diarization(
     use_cache: Annotated[bool, Query(description="Use cached transcription if available for same audio")] = True,
     user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
-    db: CosmosClient = Depends(get_db),
     storage: BlobStorageClient = Depends(get_blob_storage),
 ) -> DiarizedTranscriptionResponse:
     """Transcribe an uploaded audio file with speaker diarization.
@@ -493,22 +500,33 @@ async def transcribe_audio_with_diarization(
 
     # Check cache if enabled - only use cache if it has diarization data
     if use_cache:
-        cached_record = await db.get_transcription_by_audio_hash(user.oid, audio_hash)
-        if cached_record and cached_record.has_diarization and cached_record.segments:
+        cached_meta = await storage.get_transcription_by_audio_hash(user.oid, audio_hash)
+        if cached_meta and cached_meta.get("has_diarization"):
             cache_metrics.record_hit()
-            logger.info(f"Cache HIT for diarized audio hash {audio_hash[:16]}... - returning cached transcription {cached_record.id}")
+            logger.info(f"Cache HIT for diarized audio hash {audio_hash[:16]}... - returning cached transcription")
             
-            return DiarizedTranscriptionResponse(
-                segments=cached_record.segments,
-                full_text=cached_record.text,
-                language=cached_record.language,
-                audio_format=cached_record.audio_format,
-                file_size_bytes=cached_record.file_size_bytes,
-                speaker_count=cached_record.speaker_count or 0,
-                max_speakers=max_speakers,
-                duration_ms=cached_record.duration_ms,
-                processing_time_ms=0,  # No processing needed for cache hit
-            )
+            # Try to load full transcription from blob storage
+            cached_folder_path = cached_meta.get("folder_path")
+            if cached_folder_path and storage.is_configured():
+                try:
+                    content_json = await storage.download_transcription_from_user_path(cached_folder_path)
+                    content_data = json.loads(content_json)
+                    segments = [SpeakerSegment(**seg) for seg in content_data.get("speaker_segments", [])]
+                    return DiarizedTranscriptionResponse(
+                        segments=segments,
+                        full_text=content_data.get("full_text", ""),
+                        language=cached_meta.get("language", "en-US"),
+                        audio_format=cached_meta.get("audio_format", "wav"),
+                        file_size_bytes=cached_meta.get("file_size_bytes", 0),
+                        speaker_count=cached_meta.get("speaker_count") or 0,
+                        max_speakers=max_speakers,
+                        duration_ms=cached_meta.get("duration_ms"),
+                        processing_time_ms=0,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to load cached diarized transcription: {e}")
+            
+            cache_metrics.record_miss()
         else:
             cache_metrics.record_miss()
             logger.info(f"Cache MISS for diarized audio hash {audio_hash[:16]}... - proceeding with transcription")
@@ -638,27 +656,32 @@ async def transcribe_audio_with_diarization(
                     # Log but don't fail the transcription
                     logger.warning(f"Failed to save transcription JSON to blob storage: {e}")
 
-            record = TranscriptionRecord(
-                id=transcription_id,
-                user_id=user.oid,
-                text=full_text,
-                language=language,
-                audio_format=audio_format,
-                file_size_bytes=len(content),
-                duration_ms=duration_ms,
-                processing_time_ms=processing_time_ms,
-                blob_url=blob_url,
-                blob_storage_url=blob_storage_url,
-                folder_path=folder_path,
-                has_diarization=True,
-                speaker_count=len(unique_speakers),
-                speaker_ids=sorted(list(unique_speakers)),
-                segments=segments,
-                language_detected=language,  # Store detected/requested language
-                audio_hash=audio_hash,
-                cached=False,
-            )
-            await db.create_transcription(user.oid, record)
+            # Save metadata JSON for listing transcriptions (replaces Cosmos DB)
+            if storage.is_configured() and folder_path:
+                try:
+                    metadata = TranscriptionMetadata(
+                        id=folder_path,
+                        user_id=user.oid,
+                        filename=file.filename or "audio",
+                        upload_time=datetime.now(UTC),
+                        duration_ms=duration_ms,
+                        speaker_count=len(unique_speakers),
+                        language=language,
+                        audio_format=audio_format,
+                        file_size_bytes=len(content),
+                        folder_path=folder_path,
+                        audio_hash=audio_hash,
+                        text=full_text[:200] if full_text else "",  # Preview text
+                        has_diarization=True,
+                    )
+                    await storage.save_metadata(
+                        user_id=user.oid,
+                        folder_path=folder_path,
+                        metadata_json=metadata.model_dump_json(),
+                    )
+                    logger.info(f"Saved transcription metadata to blob storage: {folder_path}/metadata.json")
+                except BlobUploadError as e:
+                    logger.warning(f"Failed to save metadata JSON: {e}")
 
         return response
 

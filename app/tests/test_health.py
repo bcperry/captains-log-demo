@@ -11,7 +11,6 @@ from api.health import (
     DependencyStatus,
     HealthResponse,
     ReadinessResponse,
-    check_cosmos_health,
     check_openai_health,
     check_speech_health,
     router,
@@ -64,7 +63,6 @@ class TestReadinessEndpoint:
             "api.health.check_openai_health", new_callable=AsyncMock
         ) as mock_openai:
             mock_settings.return_value = MagicMock()
-            mock_settings.return_value.is_cosmos_configured.return_value = False
             mock_settings.return_value.is_speech_configured.return_value = False
 
             # Mock the async openai health check
@@ -79,20 +77,17 @@ class TestReadinessEndpoint:
             # Speech not configured returns healthy=False, so overall status is not_ready
             assert data["status"] == "not_ready"
             assert "dependencies" in data
-            assert len(data["dependencies"]) == 3
+            assert len(data["dependencies"]) == 2  # speech and openai
 
     def test_returns_not_ready_when_dependency_unhealthy(
         self, client: TestClient
     ) -> None:
         """Test that readiness returns not_ready when a dependency fails."""
-        with patch("api.health.check_cosmos_health") as mock_cosmos, patch(
+        with patch(
             "api.health.check_speech_health"
         ) as mock_speech, patch(
             "api.health.check_openai_health", new_callable=AsyncMock
         ) as mock_openai:
-            mock_cosmos.return_value = DependencyStatus(
-                name="cosmos_db", healthy=True, message="OK"
-            )
             mock_speech.return_value = DependencyStatus(
                 name="speech_services", healthy=False, message="Connection failed"
             )
@@ -106,51 +101,6 @@ class TestReadinessEndpoint:
             assert response.status_code == 200
             data = response.json()
             assert data["status"] == "not_ready"
-
-
-class TestCheckCosmosHealth:
-    """Tests for check_cosmos_health function."""
-
-    def test_returns_healthy_when_not_configured(self) -> None:
-        """Test returns healthy with configured=False when Cosmos not configured."""
-        with patch("api.health.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock()
-            mock_settings.return_value.is_cosmos_configured.return_value = False
-
-            result = check_cosmos_health()
-
-            assert result.healthy is True
-            assert result.configured is False
-            assert result.name == "cosmos_db"
-            assert result.message is not None
-            assert "not configured" in result.message.lower()
-
-    def test_returns_healthy_when_configured(self) -> None:
-        """Test returns healthy when Cosmos is configured."""
-        with patch("api.health.get_settings") as mock_settings, patch(
-            "api.health.get_cosmos_client"
-        ) as mock_client:
-            mock_settings.return_value = MagicMock()
-            mock_settings.return_value.is_cosmos_configured.return_value = True
-            mock_client.return_value = MagicMock()
-            mock_client.return_value.is_configured.return_value = True
-
-            result = check_cosmos_health()
-
-            assert result.healthy is True
-            assert result.configured is True
-            assert result.name == "cosmos_db"
-
-    def test_returns_unhealthy_on_exception(self) -> None:
-        """Test returns unhealthy when an exception occurs."""
-        with patch("api.health.get_settings") as mock_settings:
-            mock_settings.side_effect = Exception("Connection error")
-
-            result = check_cosmos_health()
-
-            assert result.healthy is False
-            assert result.message is not None
-            assert "Connection error" in result.message
 
 
 class TestCheckSpeechHealth:

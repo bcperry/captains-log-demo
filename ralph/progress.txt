@@ -37,7 +37,7 @@ Started: 2024-01-15
 - `app/api/health.py` - Health check endpoints (/health, /ready) with dependency status
 - `app/models/user.py` - User profile Pydantic models
 - `app/models/transcription.py` - Transcription request/response models
-- `app/db/cosmos.py` - Cosmos DB client with in-memory fallback
+- Blob Storage Metadata: Transcription metadata stored as metadata.json in blob folders (Cosmos DB removed)
 - `app/speech/client.py` - Azure Speech Services client with Government cloud support
 - `Dockerfile` - Container build using uv for package management
 - `infra/entra-auth.bicep` - App Service Entra ID authentication settings
@@ -1833,4 +1833,38 @@ Started: 2024-01-15
   - Integration tests must use unique content when testing pagination/list counts
   - InMemoryCosmosClient persists data within a single session (not across restarts)
   - CORS_ORIGINS env var must include all frontend dev ports (3000, 3001, 5173)
+---
+
+## 2026-01-15 - US-071 (BUG-010 fix included)
+- What was implemented: Removed Cosmos DB entirely, replaced with blob storage JSON metadata
+- Files changed:
+  - `app/storage/blob.py` - Added save_metadata(), get_metadata(), list_user_transcriptions(), get_transcription_by_audio_hash() methods
+  - `app/api/transcriptions.py` - Rewrote to use blob storage instead of Cosmos DB
+  - `app/api/transcribe.py` - Updated to save metadata.json alongside transcript.json
+  - `app/api/auth.py` - Simplified to return user info from token claims only
+  - `app/api/health.py` - Removed check_cosmos_health(), updated readiness check
+  - `app/config/settings.py` - Removed azure_cosmos_* fields and is_cosmos_configured()
+  - `app/models/transcription.py` - Added TranscriptionMetadata model
+  - `app/tests/test_transcriptions.py` - Rewrote for blob storage
+  - `app/tests/test_auth_api.py` - Removed Cosmos dependencies
+  - `app/tests/test_settings.py` - Removed is_cosmos_configured tests
+  - `app/tests/test_health.py` - Removed Cosmos health check tests
+  - `app/tests/integration/conftest.py` - Updated to use clear_in_memory_blobs()
+  - `app/tests/integration/test_auth_flow.py` - Removed Cosmos dependencies
+- Files deleted:
+  - `app/db/cosmos.py`
+  - `app/db/__init__.py`
+  - `app/tests/test_cosmos.py`
+- **Playwright Verification:**
+  - Navigated to /docs - Swagger UI loads correctly
+  - Clicked Authorize button - OAuth2 modal shows Azure Entra ID config
+  - Tested /health endpoint via Swagger UI - returns healthy status
+  - Navigated to /ready - Confirmed only speech_services and azure_openai in dependencies (NO Cosmos DB)
+  - Screenshots taken: swagger-oauth2-modal.png, readiness-no-cosmos.png
+- **Learnings:**
+  - Blob storage can fully replace Cosmos DB for transcription metadata
+  - metadata.json stored alongside transcript.json in folder structure: {user_id}/{filename}_{timestamp}/
+  - Audio hash caching works with blob storage scan for duplicate detection
+  - is_cosmos_configured() method was deeply integrated - removed from settings.py
+  - Test isolation requires clear_in_memory_blobs() fixture to clear module-level dicts
 ---
