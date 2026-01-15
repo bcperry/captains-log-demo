@@ -59,8 +59,8 @@ from speech.converter import (
     get_audio_duration_ms,
     needs_conversion,
 )
-from storage import get_storage_client
-from storage.blob import BlobStorageClient, BlobUploadError
+from storage import compute_audio_hash, get_cache_metrics, get_storage_client
+from storage.blob import BlobNotFoundError, BlobStorageClient, BlobUploadError
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +185,7 @@ async def transcribe_audio(
     file: Annotated[UploadFile, File(description="Audio file to transcribe (WAV, MP3, MP4, M4A, OGG, FLAC)")],
     language: Annotated[str, Query(description="Language code for transcription")] = "en-US",
     store: Annotated[bool, Query(description="Store transcription in history")] = True,
+    use_cache: Annotated[bool, Query(description="Use cached transcription if available for same audio")] = True,
     user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
     db: CosmosClient = Depends(get_db),
@@ -197,11 +198,15 @@ async def transcribe_audio(
     Protected by JWT authentication.
     Optionally stores transcription in history.
     Saves audio file to Blob Storage when storage is configured.
+    
+    Caching: Uses SHA256 hash of audio content to detect duplicate uploads.
+    If use_cache=True and a transcription exists for the same audio, returns cached result.
 
     Args:
         file: Uploaded audio file
         language: Language code for transcription (default: en-US)
         store: Whether to store transcription in history (default: True)
+        use_cache: Whether to use cached transcription if available (default: True)
         user: Authenticated user from Entra ID token
         speech_client: Azure Speech Services client
         db: Database client
@@ -219,6 +224,45 @@ async def transcribe_audio(
     # Read and validate file size
     content = await _read_and_validate_file_size(file)
 
+    # Compute audio hash for cache lookup
+    audio_hash = compute_audio_hash(content)
+    logger.debug(f"Computed audio hash: {audio_hash[:16]}...")
+
+    # Get cache metrics for logging
+    cache_metrics = get_cache_metrics()
+
+    # Check cache if enabled
+    if use_cache:
+        cached_record = await db.get_transcription_by_audio_hash(user.oid, audio_hash)
+        if cached_record:
+            cache_metrics.record_hit()
+            logger.info(f"Cache HIT for audio hash {audio_hash[:16]}... - returning cached transcription {cached_record.id}")
+            
+            # Try to load full transcription from blob storage if available
+            if cached_record.blob_storage_url and storage.is_configured():
+                try:
+                    content_json = await storage.download_transcription_json(
+                        user_id=user.oid,
+                        transcription_id=cached_record.id,
+                    )
+                    logger.debug(f"Loaded cached transcription JSON from blob storage")
+                except BlobNotFoundError:
+                    logger.warning(f"Cached transcription blob not found, using record text")
+                except Exception as e:
+                    logger.warning(f"Failed to load cached transcription from blob: {e}")
+            
+            return TranscriptionResponse(
+                text=cached_record.text,
+                language=cached_record.language,
+                audio_format=cached_record.audio_format,
+                file_size_bytes=cached_record.file_size_bytes,
+                duration_ms=cached_record.duration_ms,
+                processing_time_ms=0,  # No processing needed for cache hit
+            )
+        else:
+            cache_metrics.record_miss()
+            logger.info(f"Cache MISS for audio hash {audio_hash[:16]}... - proceeding with transcription")
+
     # Save to temporary file for Speech SDK processing
     temp_file_path: Optional[str] = None
     converted_file_path: Optional[str] = None
@@ -232,6 +276,7 @@ async def transcribe_audio(
                     audio_format=audio_format,
                     user_id=user.oid,
                     original_filename=file.filename,
+                    metadata={"audio_hash": audio_hash},
                 )
                 logger.info(f"Saved audio file to blob storage: {blob_url}")
             except BlobUploadError as e:
@@ -295,6 +340,7 @@ async def transcribe_audio(
                 full_text=transcribed_text,
                 language=language,
                 processing_time_ms=processing_time_ms,
+                audio_hash=audio_hash,
             )
 
             # Save transcription JSON to blob storage
@@ -305,6 +351,7 @@ async def transcribe_audio(
                         user_id=user.oid,
                         transcription_id=transcription_id,
                         content_json=transcription_content.model_dump_json(),
+                        metadata={"audio_hash": audio_hash},
                     )
                     logger.info(f"Saved transcription JSON to blob storage: {blob_storage_url}")
                 except BlobUploadError as e:
@@ -323,6 +370,8 @@ async def transcribe_audio(
                 blob_url=blob_url,
                 blob_storage_url=blob_storage_url,
                 has_diarization=False,
+                audio_hash=audio_hash,
+                cached=False,
             )
             await db.create_transcription(user.oid, record)
 
@@ -392,6 +441,7 @@ async def transcribe_audio_with_diarization(
         int, Query(description=f"Maximum number of speakers ({MIN_SPEAKERS}-{MAX_SPEAKERS})", ge=MIN_SPEAKERS, le=MAX_SPEAKERS)
     ] = DEFAULT_MAX_SPEAKERS,
     store: Annotated[bool, Query(description="Store transcription in history")] = True,
+    use_cache: Annotated[bool, Query(description="Use cached transcription if available for same audio")] = True,
     user: AuthenticatedUser = Depends(get_current_user_azure),
     speech_client: SpeechClient = Depends(get_speech_service),
     db: CosmosClient = Depends(get_db),
@@ -404,12 +454,16 @@ async def transcribe_audio_with_diarization(
     Returns segments with speaker labels and timestamps.
     Optionally stores transcription with diarization data in history.
     Saves audio file to Blob Storage when storage is configured.
+    
+    Caching: Uses SHA256 hash of audio content to detect duplicate uploads.
+    If use_cache=True and a diarized transcription exists for the same audio, returns cached result.
 
     Args:
         file: Uploaded audio file
         language: Language code for transcription (default: en-US)
         max_speakers: Maximum number of speakers to identify (1-10)
         store: Whether to store transcription in history (default: True)
+        use_cache: Whether to use cached transcription if available (default: True)
         user: Authenticated user from Entra ID token
         speech_client: Azure Speech Services client
         db: Database client
@@ -427,6 +481,35 @@ async def transcribe_audio_with_diarization(
     # Read and validate file size
     content = await _read_and_validate_file_size(file)
 
+    # Compute audio hash for cache lookup
+    audio_hash = compute_audio_hash(content)
+    logger.debug(f"Computed audio hash: {audio_hash[:16]}...")
+
+    # Get cache metrics for logging
+    cache_metrics = get_cache_metrics()
+
+    # Check cache if enabled - only use cache if it has diarization data
+    if use_cache:
+        cached_record = await db.get_transcription_by_audio_hash(user.oid, audio_hash)
+        if cached_record and cached_record.has_diarization and cached_record.segments:
+            cache_metrics.record_hit()
+            logger.info(f"Cache HIT for diarized audio hash {audio_hash[:16]}... - returning cached transcription {cached_record.id}")
+            
+            return DiarizedTranscriptionResponse(
+                segments=cached_record.segments,
+                full_text=cached_record.text,
+                language=cached_record.language,
+                audio_format=cached_record.audio_format,
+                file_size_bytes=cached_record.file_size_bytes,
+                speaker_count=cached_record.speaker_count or 0,
+                max_speakers=max_speakers,
+                duration_ms=cached_record.duration_ms,
+                processing_time_ms=0,  # No processing needed for cache hit
+            )
+        else:
+            cache_metrics.record_miss()
+            logger.info(f"Cache MISS for diarized audio hash {audio_hash[:16]}... - proceeding with transcription")
+
     # Save to temporary file for Speech SDK processing
     temp_file_path: Optional[str] = None
     converted_file_path: Optional[str] = None
@@ -440,6 +523,7 @@ async def transcribe_audio_with_diarization(
                     audio_format=audio_format,
                     user_id=user.oid,
                     original_filename=file.filename,
+                    metadata={"audio_hash": audio_hash},
                 )
                 logger.info(f"Saved audio file to blob storage: {blob_url}")
             except BlobUploadError as e:
@@ -532,6 +616,7 @@ async def transcribe_audio_with_diarization(
                 full_text=full_text,
                 language=language,
                 processing_time_ms=processing_time_ms,
+                audio_hash=audio_hash,
             )
 
             # Save transcription JSON to blob storage
@@ -542,6 +627,7 @@ async def transcribe_audio_with_diarization(
                         user_id=user.oid,
                         transcription_id=transcription_id,
                         content_json=transcription_content.model_dump_json(),
+                        metadata={"audio_hash": audio_hash},
                     )
                     logger.info(f"Saved transcription JSON to blob storage: {blob_storage_url}")
                 except BlobUploadError as e:
@@ -562,6 +648,8 @@ async def transcribe_audio_with_diarization(
                 has_diarization=True,
                 speaker_count=len(unique_speakers),
                 segments=segments,
+                audio_hash=audio_hash,
+                cached=False,
             )
             await db.create_transcription(user.oid, record)
 
