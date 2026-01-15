@@ -1638,8 +1638,38 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Error logged 2026-01-15 08:01:37 - Azure Blob Storage container specified in AZURE_STORAGE_CONTAINER does not exist. ErrorCode: ContainerNotFound. Need to verify: (1) Container is created in Bicep infrastructure templates, (2) Container name environment variable is correctly set, (3) Add auto-create container logic if needed, (4) Update error handling for better UX"
+    },
+    {
+      "id": "US-070",
+      "title": "Hierarchical Blob Storage organization by user and filename",
+      "acceptanceCriteria": [
+        "Create user-specific folder structure in Blob Storage: {container}/{USER_GUID}/{filename_TIMESTAMP}/",
+        "Extract authenticated user ID (oid/sub claim) from Azure Entra ID token",
+        "Generate timestamp appended to filename: YYYYMMDD_HHMMSS format",
+        "Store uploaded audio/video file in: {container}/{USER_GUID}/{filename_TIMESTAMP}/audio/",
+        "Store transcription JSON in: {container}/{USER_GUID}/{filename_TIMESTAMP}/transcript.json",
+        "Preserve original filename with timestamp: {original_filename}_YYYYMMDD_HHMMSS.{ext}",
+        "Update Cosmos DB transcription record with blob storage paths",
+        "Support multiple users with isolated folder hierarchies (no cross-user access)",
+        "Generate SAS URLs for individual user folders (scoped to user's GUID)",
+        "Implement BlobStorageClient.upload_audio_with_user_path() method",
+        "Implement BlobStorageClient.upload_transcription_with_user_path() method",
+        "Handle special characters in original filename (sanitize for blob path)",
+        "Support downloading files from user-scoped blob paths",
+        "Add cleanup function to archive/delete old recordings (configurable retention)",
+        "mypy type checking passes",
+        "pytest tests pass with mocked blob operations",
+        "pytest tests verify folder hierarchy and path construction",
+        "PLAYWRIGHT: Login with authenticated user, upload audio file, verify blob path structure in Azure Portal",
+        "PLAYWRIGHT: Verify transcription JSON is in correct user-scoped subfolder",
+        "PLAYWRIGHT: Verify second user's upload creates separate folder with their GUID",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "FEATURE: Implement user-scoped hierarchical blob storage. Currently all files may be stored flat. Need: (1) Extract user ID from token, (2) Create nested folder structure, (3) Timestamp filename uploads, (4) Store both audio and transcript in same folder, (5) Update Cosmos DB with blob paths, (6) Ensure data isolation per user"
     }
   ]
 }
