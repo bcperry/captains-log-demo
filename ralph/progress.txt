@@ -2288,3 +2288,21 @@ Started: 2024-01-15
   - azd supports docker.buildArgs in azure.yaml to pass environment variables to docker build
   - PowerShell deploy scripts need explicit --build-arg flags for each variable
 ---
+
+## 2026-01-15 - BUG-026
+- What was implemented: Fixed azure.yaml buildArgs syntax error
+- Root cause: azd expects buildArgs as array of strings (KEY=VALUE format), not a YAML map
+- Files changed:
+  - `azure.yaml` - Changed buildArgs from map format to array format
+- **Verification:**
+  - YAML parses correctly with Python yaml.safe_load()
+  - buildArgs is correctly a list of strings
+  - uvicorn starts successfully and loads OpenID config
+  - Swagger UI at /docs loads correctly with Authorize button
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend), http://127.0.0.1:8001/docs (Swagger UI)
+  - Screenshots taken: bug026-frontend-working.png, bug026-swagger-ui.png
+- **Learnings:**
+  - azd buildArgs must be array format: `- KEY=${VAR}`, not map format: `KEY: ${VAR}`
+  - YAML marshal error "cannot unmarshal !!map into []osutil.ExpandableString" indicates azd expects array
+---
