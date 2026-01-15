@@ -2217,3 +2217,18 @@ Started: 2024-01-15
   - Ready endpoint confirms no Cosmos DB dependency - only shows speech_services and azure_openai
   - Bicep resources removal is straightforward but must remove all related: resources, secrets, env vars, and outputs
 ---
+
+## 2026-01-15 - BUG-022
+- What was implemented: Fixed Container App startup probe failures due to port mismatch
+- Root cause: Bicep `resources.bicep` configured Container App ingress with `targetPort: 8000` but Dockerfile runs uvicorn on port 8001
+- Files changed:
+  - `infra/resources.bicep` - Changed targetPort from 8000 to 8001 (line 252)
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8001/docs (Swagger UI), http://localhost:8001/health, http://localhost:8001/ready
+  - Interactions verified: Swagger UI loads with Authorize button, health endpoints return JSON
+  - Screenshots taken: bug022-swagger-ui-working.png, bug022-ready-endpoint.png
+- **Learnings:**
+  - Container App ingress targetPort must match the port exposed in Dockerfile CMD
+  - Dockerfile EXPOSE and CMD port must be consistent (both use 8001)
+  - Health/ready endpoints work correctly when app starts on correct port
+---

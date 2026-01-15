@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
+        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '🎯' with 'Start' or use button variant styling",
-        "Replace '⏳' with 'Processing...' text",
-        "Replace '✅' success indicators with professional checkmarks or green highlights",
-        "Replace '❌' error indicators with professional error styling",
+        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
+        "Replace '\u23f3' with 'Processing...' text",
+        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
+        "Replace '\u274c' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2142,7 +2142,7 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' \u2192 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' \u2192 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] \u2192 ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     },
     {
       "id": "BUG-020",
@@ -2265,8 +2265,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "CRITICAL BUG logged 2026-01-15 - Azure Container App system logs show 274+ consecutive startup probe failures (status code: 1). Container revision 'ca-6nobqi2gz72ee--azd-1768510828' is being deactivated by KEDA scaling (from 1 to 0 replicas) after repeated probe failures. Error messages: 'Probe of StartUp failed with status code: 1', 'Container api was terminated with exit code and reason ManuallyStopped'. This prevents the deployed application from running. Need to check: (1) Dockerfile entrypoint command, (2) Python startup errors/import failures, (3) Missing required environment variables, (4) Health check endpoint configuration in Bicep, (5) Port binding configuration."
+      "passes": true,
+      "notes": "FIXED 2026-01-15 - Root cause: Container App Bicep configuration had targetPort: 8000 but Dockerfile runs uvicorn on port 8001. Fixed by changing targetPort to 8001 in resources.bicep line 252."
     },
     {
       "id": "BUG-023",
