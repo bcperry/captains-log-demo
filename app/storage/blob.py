@@ -940,6 +940,129 @@ class BlobStorageClient:
                 raise BlobNotFoundError(f"Metadata not found at: {folder_path}") from e
             raise BlobStorageError(f"Failed to download metadata: {e}") from e
 
+    async def save_analysis_json(
+        self,
+        user_id: str,
+        folder_path: str,
+        analysis_json: str,
+    ) -> str:
+        """Save AI analysis JSON to blob storage.
+
+        Stores as: {container}/{folder_path}/analysis.json
+
+        Args:
+            user_id: User ID for ownership
+            folder_path: Folder path from upload_audio_with_user_path
+            analysis_json: JSON string with analysis results
+
+        Returns:
+            Full blob URL
+
+        Raises:
+            BlobUploadError: If upload fails
+        """
+        if not self.is_configured():
+            raise BlobUploadError("Azure Blob Storage is not configured")
+
+        try:
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            # Ensure container exists
+            try:
+                container_client.create_container()
+            except ResourceExistsError:
+                pass
+            except AzureError:
+                pass
+
+            blob_name = f"{folder_path}/analysis.json"
+
+            blob_metadata = {
+                "user_id": user_id,
+                "content_type": "analysis",
+                "upload_timestamp": datetime.now(UTC).isoformat(),
+                "folder_path": folder_path,
+            }
+
+            blob_client = container_client.get_blob_client(blob_name)
+            blob_client.upload_blob(
+                analysis_json.encode("utf-8"),
+                overwrite=True,
+                content_settings=ContentSettings(content_type="application/json"),
+                metadata=blob_metadata,
+            )
+
+            logger.info(f"Saved analysis JSON to: {blob_name}")
+            return blob_client.url
+
+        except AzureError as e:
+            raise BlobUploadError(f"Failed to save analysis JSON: {e}") from e
+        except Exception as e:
+            raise BlobUploadError(f"Unexpected error saving analysis JSON: {e}") from e
+
+    async def get_analysis_json(
+        self,
+        folder_path: str,
+    ) -> str:
+        """Download analysis JSON from blob storage.
+
+        Args:
+            folder_path: Folder path (e.g., "{user_id}/{filename}_{timestamp}")
+
+        Returns:
+            JSON string content
+
+        Raises:
+            BlobNotFoundError: If analysis doesn't exist
+            BlobStorageError: If download fails
+        """
+        if not self.is_configured():
+            raise BlobStorageError("Azure Blob Storage is not configured")
+
+        try:
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            blob_name = f"{folder_path}/analysis.json"
+            blob_client = container_client.get_blob_client(blob_name)
+
+            download_stream = blob_client.download_blob()
+            return download_stream.readall().decode("utf-8")
+
+        except AzureError as e:
+            error_msg = str(e)
+            if "BlobNotFound" in error_msg or "NotFound" in error_msg:
+                raise BlobNotFoundError(f"Analysis not found at: {folder_path}") from e
+            raise BlobStorageError(f"Failed to download analysis: {e}") from e
+
+    async def analysis_exists(
+        self,
+        folder_path: str,
+    ) -> bool:
+        """Check if analysis.json exists for a transcription.
+
+        Args:
+            folder_path: Folder path (e.g., "{user_id}/{filename}_{timestamp}")
+
+        Returns:
+            True if analysis exists, False otherwise
+        """
+        if not self.is_configured():
+            return False
+
+        try:
+            service_client = self._get_service_client()
+            container_client = service_client.get_container_client(self.container_name)
+
+            blob_name = f"{folder_path}/analysis.json"
+            blob_client = container_client.get_blob_client(blob_name)
+
+            return blob_client.exists()
+
+        except AzureError:
+            return False
+
     async def list_user_transcriptions(
         self,
         user_id: str,
@@ -1400,6 +1523,35 @@ class InMemoryBlobClient(BlobStorageClient):
         if blob_name not in _in_memory_transcription_blobs:
             raise BlobNotFoundError(f"Metadata not found at: {folder_path}")
         return _in_memory_transcription_blobs[blob_name]
+
+    async def save_analysis_json(
+        self,
+        user_id: str,
+        folder_path: str,
+        analysis_json: str,
+    ) -> str:
+        """Save analysis JSON to in-memory storage."""
+        blob_name = f"{folder_path}/analysis.json"
+        _in_memory_transcription_blobs[blob_name] = analysis_json
+        return f"https://inmemory.blob.local/{self.container_name}/{blob_name}"
+
+    async def get_analysis_json(
+        self,
+        folder_path: str,
+    ) -> str:
+        """Download analysis JSON from in-memory storage."""
+        blob_name = f"{folder_path}/analysis.json"
+        if blob_name not in _in_memory_transcription_blobs:
+            raise BlobNotFoundError(f"Analysis not found at: {folder_path}")
+        return _in_memory_transcription_blobs[blob_name]
+
+    async def analysis_exists(
+        self,
+        folder_path: str,
+    ) -> bool:
+        """Check if analysis.json exists in in-memory storage."""
+        blob_name = f"{folder_path}/analysis.json"
+        return blob_name in _in_memory_transcription_blobs
 
     async def list_user_transcriptions(
         self,

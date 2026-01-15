@@ -1909,3 +1909,28 @@ Started: 2024-01-15
   - `TranscriptionRecord.blob_storage_url` field signals to frontend that full content is available
   - Backend now constructs blob_storage_url from folder_path when storage is configured
 ---
+
+## 2026-01-15 - US-072
+- What was implemented: Persist AI analysis results with transcription
+- Files changed:
+  - `app/models/transcription.py` - Added `has_analysis` field to TranscriptionMetadata and TranscriptionRecord, added `folder_path` to DiarizedTranscriptionResponse
+  - `app/storage/blob.py` - Added `save_analysis_json()`, `get_analysis_json()`, `analysis_exists()` methods to BlobStorageClient and InMemoryBlobClient
+  - `app/api/transcriptions.py` - Added GET and POST endpoints for `/transcriptions/{id}/analysis`, updated list/get endpoints to include `has_analysis`
+  - `app/api/transcribe.py` - Added `folder_path` to DiarizedTranscriptionResponse
+  - `frontend/src/services/api.ts` - Added `saveAnalysis()` and `getAnalysis()` API calls
+  - `frontend/src/types/api.ts` - Added `hasAnalysis` to TranscriptionRecord, `folderPath` to DiarizedTranscriptionResponse
+  - `frontend/src/types/transcription.ts` - Added `folderPath` to TranscriptionResult
+  - `frontend/src/hooks/useAnalysis.ts` - Updated to save analysis when folderPath is provided, added `loadSavedAnalysis` method
+  - `frontend/src/hooks/useTranscription.ts` - Pass folderPath from API response to TranscriptionResult
+  - `frontend/src/components/TranscriptionResults.tsx` - Pass folderPath to useAnalysis hook
+  - `frontend/src/components/MyRecordings.tsx` - Show "Analysis available" indicator, load and display saved analysis in detail view
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (app loads correctly)
+  - API endpoints verified: GET/POST /transcriptions/{id}/analysis work (return 401 when not authenticated)
+  - Screenshot taken: us072-captain-log-app.png
+- **Learnings:**
+  - FastAPI route order matters - more specific routes (`/analysis`) must be registered BEFORE generic path routes (`/{transcription_id:path}`)
+  - OpenAPI schema doesn't show routes correctly when path parameter greedily captures the path
+  - Use `{path:path}` converter for folder paths that contain slashes
+  - Analysis is stored as analysis.json alongside transcript.json and metadata.json in blob storage
+---

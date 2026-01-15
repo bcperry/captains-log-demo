@@ -522,6 +522,7 @@ async def transcribe_audio_with_diarization(
                         max_speakers=max_speakers,
                         duration_ms=cached_meta.get("duration_ms"),
                         processing_time_ms=0,
+                        folder_path=cached_folder_path,
                     )
                 except Exception as e:
                     logger.warning(f"Failed to load cached diarized transcription: {e}")
@@ -610,6 +611,7 @@ async def transcribe_audio_with_diarization(
             max_speakers=max_speakers,
             duration_ms=duration_ms,
             processing_time_ms=processing_time_ms,
+            folder_path=folder_path,
         )
 
         # Store transcription with diarization data in history if requested

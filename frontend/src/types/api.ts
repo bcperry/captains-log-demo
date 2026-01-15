@@ -31,6 +31,7 @@ export interface DiarizedTranscriptionResponse {
   duration: number
   processingTime: number
   speakerCount: number
+  folderPath?: string
 }
 
 export interface TranscriptionRecord {
@@ -46,6 +47,7 @@ export interface TranscriptionRecord {
   speakerCount?: number
   speakerIds?: string[]
   languageDetected?: string
+  hasAnalysis?: boolean
 }
 
 export interface TranscriptionListResponse {

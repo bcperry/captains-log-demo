@@ -69,7 +69,9 @@ export function TranscriptionResults({
   const [editableText, setEditableText] = useState<string>('')
   const [expandedActionItem, setExpandedActionItem] = useState<number | null>(null)
 
-  const { state: analysisState, analyze, isAnalyzing, hasResult, reset: resetAnalysis } = useAnalysis()
+  const { state: analysisState, analyze, isAnalyzing, hasResult, reset: resetAnalysis } = useAnalysis({
+    folderPath: transcription?.folderPath,
+  })
 
   // Sync editable text with transcription
   const handleTextChange = useCallback((text: string) => {

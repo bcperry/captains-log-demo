@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef } from 'react'
-import { analyzeTranscription as analyzeApi } from '../services/api'
+import { analyzeTranscription as analyzeApi, saveAnalysis as saveAnalysisApi } from '../services/api'
 import { useAuthenticatedApi } from './useAuthenticatedApi'
 import type { AnalysisResult } from '../types'
 
 export interface AnalysisProgress {
-  status: 'idle' | 'analyzing' | 'complete' | 'error'
+  status: 'idle' | 'analyzing' | 'saving' | 'complete' | 'error'
   message?: string
 }
 
@@ -17,11 +17,13 @@ export interface AnalysisState {
 export interface UseAnalysisOptions {
   onComplete?: (result: AnalysisResult) => void
   onError?: (error: string) => void
+  folderPath?: string  // If provided, analysis will be saved to storage
 }
 
 export interface UseAnalysisReturn {
   state: AnalysisState
   analyze: (text: string, diarizedTranscript?: string) => Promise<void>
+  loadSavedAnalysis: (result: AnalysisResult) => void
   cancel: () => void
   reset: () => void
   isAnalyzing: boolean
@@ -42,7 +44,7 @@ const initialState: AnalysisState = {
  * Hook for managing AI analysis of transcription text.
  */
 export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn {
-  const { onComplete, onError } = options
+  const { onComplete, onError, folderPath } = options
   const [state, setState] = useState<AnalysisState>(initialState)
   const abortControllerRef = useRef<AbortController | null>(null)
   const { withAuth } = useAuthenticatedApi()
@@ -78,6 +80,25 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
           return
         }
 
+        // Save analysis to storage if folderPath is provided
+        if (folderPath) {
+          setState((prev) => ({
+            ...prev,
+            result,
+            progress: {
+              status: 'saving',
+              message: 'Saving analysis...',
+            },
+          }))
+
+          try {
+            await withAuth(() => saveAnalysisApi(folderPath, result))
+          } catch (saveError) {
+            console.warn('Failed to save analysis, but continuing:', saveError)
+            // Don't fail the analysis if save fails
+          }
+        }
+
         // Update state with result
         setState((prev) => ({
           ...prev,
@@ -109,8 +130,19 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
         abortControllerRef.current = null
       }
     },
-    [onComplete, onError, withAuth]
+    [onComplete, onError, withAuth, folderPath]
   )
+
+  const loadSavedAnalysis = useCallback((result: AnalysisResult) => {
+    setState({
+      progress: {
+        status: 'complete',
+        message: 'Loaded saved analysis',
+      },
+      result,
+      error: null,
+    })
+  }, [])
 
   const cancel = useCallback(() => {
     if (abortControllerRef.current) {
@@ -137,9 +169,10 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
   return {
     state,
     analyze,
+    loadSavedAnalysis,
     cancel,
     reset,
-    isAnalyzing: state.progress.status === 'analyzing',
+    isAnalyzing: state.progress.status === 'analyzing' || state.progress.status === 'saving',
     hasResult: state.result !== null,
   }
 }
