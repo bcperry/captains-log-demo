@@ -1977,6 +1977,61 @@
       "priority": 1,
       "passes": true,
       "notes": "FEATURE: Currently Delete button returns error 'Transcription deletion not yet implemented for blob storage'. Need to implement DELETE endpoint that removes entire transcription folder (audio, transcript.json, metadata.json, analysis.json) from blob storage with proper authorization checks."
+    },
+    {
+      "id": "BUG-015",
+      "title": "JSON parsing error when clicking Delete: 'Unexpected end of JSON input'",
+      "acceptanceCriteria": [
+        "DELETE endpoint returns valid JSON response (not empty body)",
+        "DELETE endpoint returns proper Content-Type: application/json header",
+        "Frontend properly handles 204 No Content response (no JSON parsing attempt)",
+        "No 'Unexpected end of JSON input' error in browser console after deletion",
+        "Successful deletion shows confirmation message instead of error",
+        "DELETE endpoint returns consistent response format: {\"message\": \"Transcription deleted successfully\"}",
+        "Or DELETE endpoint returns 204 No Content with no body (frontend handles this case)",
+        "Error handling in frontend catches JSON parsing errors gracefully",
+        "TypeScript compiles without errors",
+        "React component unit tests pass",
+        "pytest tests verify DELETE response format",
+        "PLAYWRIGHT: Click Delete, confirm deletion, verify no console errors",
+        "PLAYWRIGHT: Verify deletion success message displays (not error message)",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-15 - After clicking Delete button and confirming, error appears: 'Failed to execute json() on Response: Unexpected end of JSON input'. This occurs when DELETE endpoint returns 204 No Content with empty body but frontend tries to parse it as JSON. Fix: Either (1) return 200 OK with JSON body {\"message\": \"deleted\"}, or (2) frontend checks response.status === 204 before calling response.json()"
+    },
+    {
+      "id": "US-075",
+      "title": "AI-powered speaker identification with user-editable speaker names",
+      "acceptanceCriteria": [
+        "Azure OpenAI analyzes transcript text to identify speaker names mentioned in conversation",
+        "Prompt engineering: 'Identify speakers by name if mentioned in the conversation. Map Speaker-1, Speaker-2, etc. to actual names.'",
+        "AI returns speaker mapping: {\"Speaker-1\": \"Bob\", \"Speaker-2\": \"Christine\", \"Speaker-3\": \"Steve\"}",
+        "If speaker name cannot be determined, leave as Speaker-N (don't guess)",
+        "Save speaker_names mapping in analysis.json alongside other AI analysis results",
+        "Apply speaker names to transcript display (replace Speaker-1 with Bob in chat bubbles)",
+        "Frontend displays editable speaker name fields in analysis section",
+        "User can manually edit/override AI-identified speaker names",
+        "Save user-edited speaker names back to analysis.json (update metadata)",
+        "PUT /transcriptions/{folder_path}/speakers endpoint to update speaker names",
+        "Persist speaker name changes across page reloads and app restarts",
+        "Speaker names apply to both transcript view and analysis display",
+        "Handle edge cases: multiple people with same name, nicknames, last names only",
+        "Display confidence indicator for AI-identified names (high/medium/low confidence)",
+        "Option to 'Reset to original' if user wants to undo manual edits",
+        "Works with existing transcriptions (retroactively analyze and identify speakers)",
+        "mypy type checking passes",
+        "pytest tests for speaker identification API",
+        "React component unit tests pass",
+        "PLAYWRIGHT: Upload recording with speaker names mentioned, analyze, verify AI identifies speakers correctly",
+        "PLAYWRIGHT: Edit speaker name manually, save, reload page, verify name persists",
+        "PLAYWRIGHT: Verify chat bubbles show identified names instead of Speaker-1, Speaker-2",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "FEATURE: Enhance AI analysis to automatically identify speaker names from conversation context. For example, if transcript says 'I wanted to ask, are they going to be on site the RDE IT team. So I guess for Christine, I wanted to ask...', AI should map Speaker-2 to Christine. User can override if AI gets it wrong. This greatly improves transcript readability by showing real names instead of generic Speaker-1, Speaker-2 labels."
     }
   ]
 }

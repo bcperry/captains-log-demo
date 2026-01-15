@@ -70,6 +70,11 @@ const request = async <T>(endpoint: string, options: RequestOptions = {}): Promi
     throw new ApiError(response.status, errorText || response.statusText)
   }
 
+  // Handle 204 No Content - return undefined without attempting to parse body
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   const contentType = response.headers.get('content-type')
   if (contentType?.includes('application/json')) {
     return response.json()
