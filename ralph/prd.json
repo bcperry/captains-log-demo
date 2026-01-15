@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
+        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '🎯' with 'Start' or use button variant styling",
-        "Replace '⏳' with 'Processing...' text",
-        "Replace '✅' success indicators with professional checkmarks or green highlights",
-        "Replace '❌' error indicators with professional error styling",
+        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
+        "Replace '\u23f3' with 'Processing...' text",
+        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
+        "Replace '\u274c' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2142,7 +2142,7 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' \u2192 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' \u2192 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] \u2192 ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     },
     {
       "id": "BUG-020",
@@ -2284,6 +2284,27 @@
       "priority": 1,
       "passes": true,
       "notes": "CRITICAL BUG logged 2026-01-15 - Azure Container App system logs show repeated 'Container pull image failed with unauthorized error' (ImagePullUnauthorized) when trying to pull 'cr6nobqi2gz72ee.azurecr.us/web:latest'. This affects revision 'ca-6nobqi2gz72ee--dkrv30j'. The Container App Environment cannot authenticate to Azure Container Registry. Possible causes: (1) ACR admin user not enabled, (2) Container App not configured with ACR credentials in Bicep, (3) Managed identity not granted AcrPull role on registry, (4) Registry secrets not passed to Container App configuration. Need to verify resources.bicep has proper registry configuration with credentials or managed identity."
+    },
+    {
+      "id": "BUG-024",
+      "title": "Container App missing Entra ID environment variables - authentication broken in deployment",
+      "acceptanceCriteria": [
+        "Add AZURE_TENANT_ID environment variable to Container App in resources.bicep",
+        "Add AZURE_ENTRA_CLIENT_ID environment variable for app registration client ID",
+        "Keep AZURE_CLIENT_ID for managed identity (used for Azure resource access)",
+        "Rename AZURE_CLIENT_ID to AZURE_MANAGED_IDENTITY_CLIENT_ID for clarity OR add separate AZURE_ENTRA_CLIENT_ID",
+        "Update settings.py if needed to distinguish between managed identity and Entra ID app registration",
+        "Container App env should include: entraIdTenantId parameter value for AZURE_TENANT_ID",
+        "Container App env should include: entraIdClientId parameter value for AZURE_ENTRA_CLIENT_ID",
+        "Deployed application can authenticate users via Entra ID",
+        "Backend validates tokens using correct app registration client ID",
+        "azd up deploys with correct environment variables",
+        "Verify with curl: /auth/me returns user profile when authenticated",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "CRITICAL BUG logged 2026-01-15 - Container App deployment is missing Entra ID authentication environment variables. Current state: (1) AZURE_CLIENT_ID is set to managed identity client ID (0e644592...) instead of Entra ID app registration (ec3c8d20...), (2) AZURE_TENANT_ID is completely missing, (3) AZURE_ENTRA_CLIENT_ID is missing. The .env file has AZURE_ENTRA_TENANT_ID=03f141f3... and AZURE_ENTRA_CLIENT_ID=ec3c8d20... but these are NOT passed to Container App env vars in resources.bicep lines 294-338. The Bicep passes entraIdTenantId and entraIdClientId to entraAuth module but NOT to the container's environment. Fix: Add env entries for AZURE_TENANT_ID (from entraIdTenantId param) and AZURE_ENTRA_CLIENT_ID (from entraIdClientId param) to the Container App template."
     }
   ]
 }
