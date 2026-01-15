@@ -2248,3 +2248,22 @@ Started: 2024-01-15
   - App Service with `acrUseManagedIdentityCreds: true` also needs the same dependency
   - Bicep forward references in `dependsOn` work - resources can be defined after being referenced
 ---
+
+## 2026-01-15 - BUG-024
+- What was implemented: Added missing Entra ID environment variables to Container App and App Service in resources.bicep
+- Root cause: Container App and App Service were missing AZURE_TENANT_ID and AZURE_ENTRA_CLIENT_ID environment variables, causing authentication to fail in deployment
+- Files changed:
+  - `infra/resources.bicep` - Added AZURE_TENANT_ID (from entraIdTenantId param) and AZURE_ENTRA_CLIENT_ID (from entraIdClientId param) to both Container App env vars (lines 340-346) and App Service appSettings (lines 435-436)
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs
+  - Interactions verified: 
+    - Swagger UI loads with OAuth2 authorization modal
+    - Azure Government endpoints shown correctly (login.microsoftonline.us)
+    - Client ID correctly populated (ec3c8d20-6160-4594-9d50-4e30c60bd0f4)
+  - API tested: /health (healthy), /ready (ready), /auth/me (401 Not authenticated)
+  - Screenshots taken: bug024-swagger-auth-modal.png
+- **Learnings:**
+  - Bicep params passed to modules are NOT automatically included in Container App env vars - must explicitly add env entries
+  - settings.py uses AliasChoices to accept both azure_tenant_id and azure_entra_tenant_id (same for client_id)
+  - AZURE_CLIENT_ID is for managed identity, AZURE_ENTRA_CLIENT_ID is for Entra ID app registration
+---

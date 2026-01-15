@@ -336,6 +336,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_STORAGE_ENDPOINT'
               value: 'https://${storageAccount.name}.blob.${blobEndpointSuffix}'
             }
+            {
+              name: 'AZURE_TENANT_ID'
+              value: entraIdTenantId
+            }
+            {
+              name: 'AZURE_ENTRA_CLIENT_ID'
+              value: entraIdClientId
+            }
           ]
         }
       ]
@@ -424,6 +432,8 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       AZURE_STORAGE_ACCOUNT: storageAccount.name
       AZURE_STORAGE_CONTAINER: audioUploadsContainer.name
       AZURE_STORAGE_ENDPOINT: 'https://${storageAccount.name}.blob.${blobEndpointSuffix}'
+      AZURE_TENANT_ID: entraIdTenantId
+      AZURE_ENTRA_CLIENT_ID: entraIdClientId
     }
   }
 }
