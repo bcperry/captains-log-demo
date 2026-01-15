@@ -285,6 +285,11 @@ async def get_transcription(
         metadata_json = await storage.get_metadata(folder_path)
         meta = json.loads(metadata_json)
 
+        # Construct blob_storage_url from folder_path so frontend knows content exists
+        blob_storage_url = None
+        if folder_path and storage.is_configured():
+            blob_storage_url = f"{folder_path}/transcript.json"
+
         return TranscriptionRecord(
             id=meta.get("id", folder_path),
             user_id=meta.get("user_id", user.oid),
@@ -294,6 +299,7 @@ async def get_transcription(
             file_size_bytes=meta.get("file_size_bytes", 0),
             duration_ms=meta.get("duration_ms"),
             folder_path=folder_path,
+            blob_storage_url=blob_storage_url,
             created_at=meta.get("upload_time"),
             has_diarization=meta.get("has_diarization", False),
             speaker_count=meta.get("speaker_count"),
