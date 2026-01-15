@@ -4,6 +4,27 @@ import { TranscriptDisplay } from './TranscriptDisplay'
 import type { SpeakerSegment } from '../types/transcription'
 import type { AnalysisResult } from '../types/api'
 
+// Utility to download content as a file
+const downloadFile = (content: string, filename: string, mimeType: string) => {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// Generate filename with recording ID and timestamp
+const generateFilename = (id: string, createdAt: string, suffix: string, extension: string): string => {
+  const date = new Date(createdAt)
+  const timestamp = date.toISOString().slice(0, 10).replace(/-/g, '')
+  const shortId = id.slice(0, 8)
+  return `${shortId}_${timestamp}_${suffix}.${extension}`
+}
+
 // Backend response segment type (snake_case)
 interface SpeakerSegmentRaw {
   speaker_id: string
@@ -81,6 +102,66 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
   const [selectedRecording, setSelectedRecording] = useState<TranscriptionItem | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [savedAnalysis, setSavedAnalysis] = useState<AnalysisResult | null>(null)
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null)
+
+  // Show download success message briefly
+  const showDownloadMessage = useCallback((filename: string) => {
+    setDownloadMessage(`Downloaded: ${filename}`)
+    setTimeout(() => setDownloadMessage(null), 3000)
+  }, [])
+
+  // Download handlers for detail view
+  const handleDownloadTxt = useCallback(() => {
+    if (!selectedRecording) return
+    
+    // Build transcript text with speaker names if diarization available
+    let content: string
+    if (selectedRecording.hasDiarization && selectedRecording.segments && selectedRecording.segments.length > 0) {
+      content = selectedRecording.segments
+        .map((seg) => {
+          const speakerName = seg.speakerId.replace('_', ' ').replace(/^Guest/, 'Speaker ')
+          return `${speakerName}: ${seg.text}`
+        })
+        .join('\n\n')
+    } else {
+      content = selectedRecording.text
+    }
+    
+    const filename = generateFilename(selectedRecording.id, selectedRecording.createdAt, 'transcript', 'txt')
+    downloadFile(content, filename, 'text/plain')
+    showDownloadMessage(filename)
+  }, [selectedRecording, showDownloadMessage])
+
+  const handleDownloadJson = useCallback(() => {
+    if (!selectedRecording) return
+    
+    const data = {
+      id: selectedRecording.id,
+      text: selectedRecording.text,
+      language: selectedRecording.language,
+      languageDetected: selectedRecording.languageDetected,
+      audioFormat: selectedRecording.audioFormat,
+      durationMs: selectedRecording.durationMs,
+      fileSizeBytes: selectedRecording.fileSizeBytes,
+      createdAt: selectedRecording.createdAt,
+      hasDiarization: selectedRecording.hasDiarization,
+      speakerCount: selectedRecording.speakerCount,
+      speakerIds: selectedRecording.speakerIds,
+      segments: selectedRecording.segments,
+    }
+    
+    const filename = generateFilename(selectedRecording.id, selectedRecording.createdAt, 'transcript', 'json')
+    downloadFile(JSON.stringify(data, null, 2), filename, 'application/json')
+    showDownloadMessage(filename)
+  }, [selectedRecording, showDownloadMessage])
+
+  const handleDownloadAnalysis = useCallback(() => {
+    if (!selectedRecording || !savedAnalysis) return
+    
+    const filename = generateFilename(selectedRecording.id, selectedRecording.createdAt, 'analysis', 'json')
+    downloadFile(JSON.stringify(savedAnalysis, null, 2), filename, 'application/json')
+    showDownloadMessage(filename)
+  }, [selectedRecording, savedAnalysis, showDownloadMessage])
 
   const transformRecord = (raw: TranscriptionRecordRaw): TranscriptionItem => ({
     id: raw.id,
@@ -276,6 +357,13 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
   if (selectedRecording) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
+        {/* Download success toast */}
+        {downloadMessage && (
+          <div className="fixed top-4 right-4 bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse" data-testid="download-toast">
+            {downloadMessage}
+          </div>
+        )}
+        
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => setSelectedRecording(null)}
@@ -286,13 +374,42 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
             </svg>
             Back to recordings
           </button>
-          <button
-            onClick={() => handleDelete(selectedRecording.id)}
-            disabled={deletingId === selectedRecording.id}
-            className="px-4 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {deletingId === selectedRecording.id ? 'Deleting...' : 'Delete'}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Download buttons */}
+            <button
+              onClick={handleDownloadTxt}
+              className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+              data-testid="download-txt-btn"
+              title="Download transcript as plain text"
+            >
+              Download TXT
+            </button>
+            <button
+              onClick={handleDownloadJson}
+              className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+              data-testid="download-json-btn"
+              title="Download transcript with metadata as JSON"
+            >
+              Download JSON
+            </button>
+            {savedAnalysis && (
+              <button
+                onClick={handleDownloadAnalysis}
+                className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                data-testid="download-analysis-btn"
+                title="Download AI analysis as JSON"
+              >
+                Download Analysis
+              </button>
+            )}
+            <button
+              onClick={() => handleDelete(selectedRecording.id)}
+              disabled={deletingId === selectedRecording.id}
+              className="px-4 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {deletingId === selectedRecording.id ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-4">

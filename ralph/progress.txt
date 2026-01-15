@@ -1934,3 +1934,29 @@ Started: 2024-01-15
   - Use `{path:path}` converter for folder paths that contain slashes
   - Analysis is stored as analysis.json alongside transcript.json and metadata.json in blob storage
 ---
+
+## 2026-01-15 - US-073
+- What was implemented: Download transcript buttons on saved recording detail view
+- Files changed:
+  - `frontend/src/components/MyRecordings.tsx` - Added download utility function, download handlers, and download buttons to detail view
+- Implementation details:
+  - Added `downloadFile()` utility to create blob URLs and trigger browser downloads
+  - Added `generateFilename()` to create filenames with recording ID and timestamp
+  - Added `handleDownloadTxt()` - builds transcript text with speaker names for diarized recordings
+  - Added `handleDownloadJson()` - exports full transcript JSON with segments structure
+  - Added `handleDownloadAnalysis()` - exports analysis.json (only shown when analysis exists)
+  - Added `downloadMessage` state and toast notification for download feedback
+  - Download buttons styled consistently with Upload Audio page (blue for transcripts, purple for analysis)
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 → My Recordings → Recording Detail View
+  - Interactions verified: Download TXT, Download JSON buttons clicked
+  - Downloads verified: TXT file contains speaker names and text, JSON contains full structure with segments
+  - Toast notifications confirmed appearing after downloads
+  - Analysis button correctly hidden when no analysis exists
+  - Screenshots taken: us073-detail-view-with-downloads.png, us073-download-success-toast.png
+- **Learnings:**
+  - Browser download API uses Blob + createObjectURL + programmatic anchor click
+  - Toast messages should auto-hide (used 3 second timeout)
+  - Conditional rendering for buttons based on data availability (savedAnalysis check)
+  - Filename format: `{shortId}_{YYYYMMDD}_{suffix}.{ext}` for unique, sortable filenames
+---
