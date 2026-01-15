@@ -158,6 +158,10 @@ class TranscriptionRecord(BaseModel):
     blob_storage_url: Optional[str] = Field(
         default=None, description="URL of the transcription JSON in Blob Storage"
     )
+    folder_path: Optional[str] = Field(
+        default=None,
+        description="Hierarchical folder path: {user_id}/{filename}_{timestamp}",
+    )
     processing_time_ms: Optional[int] = Field(
         default=None, description="Time taken to process transcription in milliseconds"
     )
@@ -250,6 +254,10 @@ class BatchTranscriptionJobResponse(BaseModel):
     display_name: str = Field(..., description="Display name for the job")
     created_at: datetime = Field(..., description="When the job was created")
     blob_url: Optional[str] = Field(default=None, description="URL of the audio file")
+    folder_path: Optional[str] = Field(
+        default=None,
+        description="Hierarchical folder path: {user_id}/{filename}_{timestamp}",
+    )
     error_message: Optional[str] = Field(default=None, description="Error message if failed")
 
 

@@ -1791,3 +1791,27 @@ Started: 2024-01-15
   - Use step=1 for fine-grained control when max varies (like audio duration)
   - All 139 frontend tests pass after fix
 ---
+
+## 2026-01-15 - BUG-009
+- What was implemented: Fixed transcripts saving with incorrect blob container/path format
+- Root cause: transcribe.py was using old `upload_audio_file` and `upload_transcription_json` methods instead of the hierarchical user-path versions
+- Files changed:
+  - `app/models/transcription.py` - Added `folder_path` field to TranscriptionRecord and BatchTranscriptionJobResponse models
+  - `app/api/transcribe.py` - Updated all 3 upload locations to use `upload_audio_with_user_path` and `upload_transcription_with_user_path`
+    - Basic transcription endpoint (line ~265-380)
+    - Diarized transcription endpoint (line ~514-660)
+    - Batch transcription endpoint (line ~780-835)
+- **Path Format Now Correct:**
+  - Audio files: `{container}/{user_guid}/{filename}_{YYYYMMDD_HHMMSS}/audio/{filename}.{ext}`
+  - Transcripts: `{container}/{user_guid}/{filename}_{YYYYMMDD_HHMMSS}/transcript.json`
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI), http://localhost:3001 (Frontend)
+  - Verified TranscriptionRecord schema shows folder_path field
+  - Verified BatchTranscriptionJobResponse schema shows folder_path field
+  - Screenshots taken: bug009-folder-path-schema.png, bug009-batch-response-folder-path.png, bug009-frontend-loads.png
+- **Learnings:**
+  - BlobStorageClient has both legacy methods (upload_audio_file) and new hierarchical methods (upload_audio_with_user_path)
+  - New methods return tuple (url, folder_path) instead of just url
+  - folder_path must be stored in TranscriptionRecord for later retrieval of transcript from blob storage
+  - upload_transcription_with_user_path takes folder_path parameter, not transcription_id
+---
