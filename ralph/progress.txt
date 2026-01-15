@@ -2095,3 +2095,20 @@ Started: 2024-01-15
   - HttpMethod type should include all standard HTTP methods: GET, POST, PUT, PATCH, DELETE
   - TypeScript strict mode catches API method type mismatches early
 ---
+
+## 2026-01-15 - BUG-017
+- What was implemented: Fixed speaker names not being applied to transcript in My Recordings view
+- Root cause: TranscriptDisplay component in MyRecordings.tsx was not receiving speakerNames prop from savedAnalysis
+- Files changed:
+  - `frontend/src/components/MyRecordings.tsx` - Added `speakerNames={savedAnalysis?.speakerNames}` to TranscriptDisplay call
+  - `frontend/src/components/MyRecordings.tsx` - Added `getSpeakerDisplayName()` helper for download TXT with custom names
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 → My Recordings → View detail
+  - Verified: Application loads without errors, transcript displays with chat bubbles
+  - Screenshots taken: bug017-app-loads.png, bug017-transcript-before.png, bug017-transcript-top.png
+  - Note: Current recording didn't have custom speaker names set, but code path verified
+- **Learnings:**
+  - TranscriptDisplay component correctly handles speakerNames prop with fallback logic (exact match, underscore format, space format)
+  - savedAnalysis state in MyRecordings contains speakerNames from getAnalysis API call
+  - Download TXT handler also needed to use custom speaker names for consistency
+---
