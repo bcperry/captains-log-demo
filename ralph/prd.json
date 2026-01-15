@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
+        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '🎯' with 'Start' or use button variant styling",
-        "Replace '⏳' with 'Processing...' text",
-        "Replace '✅' success indicators with professional checkmarks or green highlights",
-        "Replace '❌' error indicators with professional error styling",
+        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
+        "Replace '\u23f3' with 'Processing...' text",
+        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
+        "Replace '\u274c' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -1890,6 +1890,60 @@
       "priority": 1,
       "passes": true,
       "notes": "Playwright MCP E2E verification completed 2026-01-15: TXT/JSON downloads tested, toast notifications verified, analysis button correctly hidden when no analysis exists"
+    },
+    {
+      "id": "BUG-013",
+      "title": "Duplicate audio file uploads create new transcription folders instead of reusing existing transcription",
+      "acceptanceCriteria": [
+        "Calculate audio file hash (SHA256 or MD5) before upload",
+        "Check if hash already exists in blob storage for current user",
+        "If hash match found, reuse existing transcription (no re-transcription)",
+        "Display message: 'This file has already been transcribed. Loading existing transcription...'",
+        "Link to existing transcription folder instead of creating new timestamp folder",
+        "Save network/compute costs by avoiding duplicate Azure Speech API calls",
+        "User can still force re-transcription via UI option (e.g., 'Re-transcribe anyway' button)",
+        "Hash stored in metadata.json as audio_hash field for lookup",
+        "BlobStorageClient.get_transcription_by_audio_hash() finds existing transcription",
+        "Works across different upload sessions and app restarts",
+        "Hash calculation works for large files (streaming hash calculation)",
+        "Duplicate detection scoped to user (different users can upload same file)",
+        "Display original upload date and filename in reused transcription",
+        "mypy type checking passes",
+        "pytest tests pass with hash collision scenarios",
+        "PLAYWRIGHT: Upload audio file, note transcription, upload same file again, verify no re-transcription",
+        "PLAYWRIGHT: Verify second upload loads existing transcription instantly",
+        "PLAYWRIGHT: Verify only one blob storage folder exists (not duplicate with new timestamp)",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Fixed 2026-01-15 - Added cached, folder_path, original_upload_date, original_filename fields to TranscriptionResponse. Frontend displays message when duplicate file detected."
+    },
+    {
+      "id": "BUG-014",
+      "title": "AI analysis not saved to blob storage after generation",
+      "acceptanceCriteria": [
+        "After clicking Analyze & Summarize, AI analysis saved to analysis.json in blob storage",
+        "Blob path: {container}/{USER_GUID}/{filename_TIMESTAMP}/analysis.json",
+        "analysis.json contains: summary, key_points[], action_items[], participants[], topics[], sentiment, confidence_score",
+        "Verify analysis.json appears in Azure Storage Explorer after analysis completes",
+        "Backend /analyze endpoint calls BlobStorageClient.save_analysis_json() after OpenAI response",
+        "Update metadata.json to set has_analysis: true when analysis is saved",
+        "Frontend displays 'Analysis available' badge in My Recordings list if has_analysis is true",
+        "Viewing recording loads analysis.json and displays analysis sections",
+        "Error handling if blob upload fails (log warning but don't fail request)",
+        "Works with re-analysis (overwrites existing analysis.json)",
+        "mypy type checking passes",
+        "pytest tests verify analysis.json saved after /analyze endpoint called",
+        "PLAYWRIGHT: Upload audio, click Analyze & Summarize, verify analysis.json in blob storage",
+        "PLAYWRIGHT: Navigate to My Recordings, verify 'Analysis available' indicator shows",
+        "PLAYWRIGHT: Click View on analyzed recording, verify analysis displays",
+        "PLAYWRIGHT: Check Azure Storage Explorer shows analysis.json in correct folder",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "BUG logged 2026-01-15 - After performing AI analysis on transcription, the analysis results are not saved to blob storage. No analysis.json file appears in Azure Storage. User cannot see analysis in My Recordings view or after app restart. Backend /analyze endpoint likely not calling save_analysis_json() method, or method not implemented correctly. Related to US-072 which specifies this feature."
     }
   ]
 }

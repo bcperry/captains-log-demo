@@ -234,6 +234,14 @@ async def transcribe_audio(
             
             # Try to load full transcription from blob storage if available
             cached_folder_path = cached_meta.get("folder_path")
+            # Parse original upload date from metadata
+            original_upload_date = None
+            if cached_meta.get("upload_time"):
+                try:
+                    original_upload_date = datetime.fromisoformat(cached_meta["upload_time"].replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    pass
+            
             if cached_folder_path and storage.is_configured():
                 try:
                     content_json = await storage.download_transcription_from_user_path(cached_folder_path)
@@ -245,6 +253,10 @@ async def transcribe_audio(
                         file_size_bytes=cached_meta.get("file_size_bytes", 0),
                         duration_ms=cached_meta.get("duration_ms"),
                         processing_time_ms=0,  # No processing needed for cache hit
+                        cached=True,
+                        folder_path=cached_folder_path,
+                        original_upload_date=original_upload_date,
+                        original_filename=cached_meta.get("filename"),
                     )
                 except BlobNotFoundError:
                     logger.warning(f"Cached transcription blob not found, using metadata text")
@@ -258,6 +270,10 @@ async def transcribe_audio(
                 file_size_bytes=cached_meta.get("file_size_bytes", 0),
                 duration_ms=cached_meta.get("duration_ms"),
                 processing_time_ms=0,  # No processing needed for cache hit
+                cached=True,
+                folder_path=cached_folder_path,
+                original_upload_date=original_upload_date,
+                original_filename=cached_meta.get("filename"),
             )
         else:
             cache_metrics.record_miss()
@@ -324,6 +340,8 @@ async def transcribe_audio(
             file_size_bytes=len(content),
             duration_ms=duration_ms,
             processing_time_ms=processing_time_ms,
+            cached=False,
+            folder_path=folder_path,
         )
 
         # Store transcription in history if requested
@@ -505,6 +523,14 @@ async def transcribe_audio_with_diarization(
             cache_metrics.record_hit()
             logger.info(f"Cache HIT for diarized audio hash {audio_hash[:16]}... - returning cached transcription")
             
+            # Parse original upload date from metadata
+            original_upload_date = None
+            if cached_meta.get("upload_time"):
+                try:
+                    original_upload_date = datetime.fromisoformat(cached_meta["upload_time"].replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    pass
+            
             # Try to load full transcription from blob storage
             cached_folder_path = cached_meta.get("folder_path")
             if cached_folder_path and storage.is_configured():
@@ -523,6 +549,9 @@ async def transcribe_audio_with_diarization(
                         duration_ms=cached_meta.get("duration_ms"),
                         processing_time_ms=0,
                         folder_path=cached_folder_path,
+                        cached=True,
+                        original_upload_date=original_upload_date,
+                        original_filename=cached_meta.get("filename"),
                     )
                 except Exception as e:
                     logger.warning(f"Failed to load cached diarized transcription: {e}")

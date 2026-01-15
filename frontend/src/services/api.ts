@@ -110,6 +110,10 @@ interface TranscriptionResponseRaw {
   language: string
   audio_format: string
   file_size_bytes: number
+  cached?: boolean
+  folder_path?: string
+  original_upload_date?: string
+  original_filename?: string
 }
 
 interface DiarizedTranscriptionResponseRaw {
@@ -126,6 +130,10 @@ interface DiarizedTranscriptionResponseRaw {
   language: string
   audio_format: string
   file_size_bytes: number
+  folder_path?: string
+  cached?: boolean
+  original_upload_date?: string
+  original_filename?: string
 }
 
 export const transcribeAudio = async (
@@ -148,6 +156,10 @@ export const transcribeAudio = async (
     language: raw.language,
     duration: raw.duration_ms ? raw.duration_ms / 1000 : 0,
     processingTime: raw.processing_time_ms ? raw.processing_time_ms / 1000 : 0,
+    cached: raw.cached,
+    folderPath: raw.folder_path,
+    originalUploadDate: raw.original_upload_date,
+    originalFilename: raw.original_filename,
   }
 }
 
@@ -187,6 +199,10 @@ export const transcribeWithDiarization = async (
       startTimeMs: seg.start_time_ms,
       endTimeMs: seg.end_time_ms,
     })),
+    folderPath: raw.folder_path,
+    cached: raw.cached,
+    originalUploadDate: raw.original_upload_date,
+    originalFilename: raw.original_filename,
   }
 }
 

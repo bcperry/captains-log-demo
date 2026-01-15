@@ -23,6 +23,10 @@ export interface TranscriptionResponse {
   duration: number
   processingTime: number
   language: string
+  cached?: boolean
+  folderPath?: string
+  originalUploadDate?: string
+  originalFilename?: string
 }
 
 export interface DiarizedTranscriptionResponse {
@@ -32,6 +36,9 @@ export interface DiarizedTranscriptionResponse {
   processingTime: number
   speakerCount: number
   folderPath?: string
+  cached?: boolean
+  originalUploadDate?: string
+  originalFilename?: string
 }
 
 export interface TranscriptionRecord {

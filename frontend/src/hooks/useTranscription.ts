@@ -133,6 +133,9 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
             endTimeMs: seg.endTimeMs,
           })),
           folderPath: response.folderPath,
+          cached: response.cached,
+          originalUploadDate: response.originalUploadDate,
+          originalFilename: response.originalFilename,
         }
       } else {
         const response = await withAuth(() => transcribeAudioApi(state.file!.file, language))
@@ -143,6 +146,10 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
           processingTime: response.processingTime,
           language: response.language,
           hasDiarization: false,
+          folderPath: response.folderPath,
+          cached: response.cached,
+          originalUploadDate: response.originalUploadDate,
+          originalFilename: response.originalFilename,
         }
       }
 

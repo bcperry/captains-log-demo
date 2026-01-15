@@ -26,6 +26,10 @@ class TranscriptionResponse(BaseModel):
                 "transcribed_at": "2024-01-15T10:30:00Z",
                 "duration_ms": 5000,
                 "processing_time_ms": 1234,
+                "cached": False,
+                "folder_path": "user-guid/audio_20240115_103000",
+                "original_upload_date": "2024-01-15T10:30:00Z",
+                "original_filename": "meeting_recording.wav",
             }
         }
     )
@@ -43,6 +47,18 @@ class TranscriptionResponse(BaseModel):
     )
     processing_time_ms: Optional[int] = Field(
         default=None, description="Time taken to process transcription in milliseconds"
+    )
+    cached: bool = Field(
+        default=False, description="Whether this was returned from cache (duplicate file)"
+    )
+    folder_path: Optional[str] = Field(
+        default=None, description="Blob storage folder path for this transcription"
+    )
+    original_upload_date: Optional[datetime] = Field(
+        default=None, description="Original upload date if cached, else None"
+    )
+    original_filename: Optional[str] = Field(
+        default=None, description="Original filename if cached, else None"
     )
 
 
@@ -111,6 +127,15 @@ class DiarizedTranscriptionResponse(BaseModel):
     folder_path: Optional[str] = Field(
         default=None,
         description="Blob storage folder path for saving analysis"
+    )
+    cached: bool = Field(
+        default=False, description="Whether this was returned from cache (duplicate file)"
+    )
+    original_upload_date: Optional[datetime] = Field(
+        default=None, description="Original upload date if cached, else None"
+    )
+    original_filename: Optional[str] = Field(
+        default=None, description="Original filename if cached, else None"
     )
 
 

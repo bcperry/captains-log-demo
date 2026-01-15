@@ -422,14 +422,26 @@ export function AudioUpload({
         {/* Success result indicator */}
         {hasResult && state.result && (
           <div
-            className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3"
+            className={`mt-4 ${state.result.cached ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'} border rounded-lg p-3`}
             data-testid="success-message"
           >
-            <div className="flex items-center text-green-700 gap-2">
+            <div className={`flex items-center ${state.result.cached ? 'text-blue-700' : 'text-green-700'} gap-2`}>
               <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <span className="font-medium">Transcription completed successfully!</span>
+              <div className="flex flex-col">
+                <span className="font-medium">
+                  {state.result.cached
+                    ? 'This file has already been transcribed. Loading existing transcription...'
+                    : 'Transcription completed successfully!'}
+                </span>
+                {state.result.cached && state.result.originalUploadDate && (
+                  <span className="text-sm opacity-75">
+                    Originally uploaded: {new Date(state.result.originalUploadDate).toLocaleString()}
+                    {state.result.originalFilename && ` as "${state.result.originalFilename}"`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
