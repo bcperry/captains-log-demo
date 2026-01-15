@@ -201,15 +201,18 @@ export const getTranscriptions = (
 }
 
 export const getTranscription = (id: string): Promise<TranscriptionRecord> => {
-  return request<TranscriptionRecord>(`/transcriptions/${id}`)
+  // URL-encode the ID since it may contain slashes (e.g., "user_id/filename_timestamp")
+  return request<TranscriptionRecord>(`/transcriptions/${encodeURIComponent(id)}`)
 }
 
 export const deleteTranscription = (id: string): Promise<void> => {
-  return request<void>(`/transcriptions/${id}`, { method: 'DELETE' })
+  // URL-encode the ID since it may contain slashes
+  return request<void>(`/transcriptions/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
 export const getTranscriptionContent = (id: string): Promise<TranscriptionContentResponse> => {
-  return request<TranscriptionContentResponse>(`/transcriptions/${id}/content`)
+  // URL-encode the ID since it may contain slashes
+  return request<TranscriptionContentResponse>(`/transcriptions/${encodeURIComponent(id)}/content`)
 }
 
 // Analysis endpoints

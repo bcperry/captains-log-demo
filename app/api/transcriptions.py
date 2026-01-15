@@ -111,107 +111,6 @@ async def list_transcriptions(
             detail=f"Failed to list transcriptions: {e}",
         )
 
-
-@router.get(
-    "/{transcription_id}",
-    response_model=TranscriptionRecord,
-    summary="Get a specific transcription",
-    description="Get details of a specific transcription by ID (folder path).",
-    responses={
-        404: {"description": "Transcription not found"},
-    },
-)
-async def get_transcription(
-    transcription_id: Annotated[str, Path(description="Transcription ID (folder path)")],
-    user: AuthenticatedUser = Depends(get_current_user_azure),
-    storage: BlobStorageClient = Depends(get_blob_storage),
-) -> TranscriptionRecord:
-    """Get a specific transcription by ID from blob storage.
-
-    The transcription_id is the folder path (e.g., "user_id/filename_timestamp").
-
-    Args:
-        transcription_id: Transcription ID (folder path)
-        user: Authenticated user from Entra ID token
-        storage: Blob storage client
-
-    Returns:
-        TranscriptionRecord if found
-
-    Raises:
-        HTTPException: 404 if transcription not found
-    """
-    # Construct folder path - the ID should already include user_id prefix
-    folder_path = transcription_id
-    if not folder_path.startswith(f"{user.oid}/"):
-        folder_path = f"{user.oid}/{transcription_id}"
-
-    try:
-        metadata_json = await storage.get_metadata(folder_path)
-        meta = json.loads(metadata_json)
-
-        return TranscriptionRecord(
-            id=meta.get("id", folder_path),
-            user_id=meta.get("user_id", user.oid),
-            text=meta.get("text", ""),
-            language=meta.get("language", "en-US"),
-            audio_format=meta.get("audio_format", "wav"),
-            file_size_bytes=meta.get("file_size_bytes", 0),
-            duration_ms=meta.get("duration_ms"),
-            folder_path=folder_path,
-            created_at=meta.get("upload_time"),
-            has_diarization=meta.get("has_diarization", False),
-            speaker_count=meta.get("speaker_count"),
-            audio_hash=meta.get("audio_hash"),
-        )
-    except BlobNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Transcription with ID '{transcription_id}' not found",
-        )
-    except Exception as e:
-        logger.error(f"Failed to get transcription {transcription_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get transcription: {e}",
-        )
-
-
-@router.delete(
-    "/{transcription_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a transcription",
-    description="Delete a specific transcription by ID (folder path).",
-    responses={
-        404: {"description": "Transcription not found"},
-        501: {"description": "Delete not implemented for blob storage"},
-    },
-)
-async def delete_transcription(
-    transcription_id: Annotated[str, Path(description="Transcription ID (folder path)")],
-    user: AuthenticatedUser = Depends(get_current_user_azure),
-    storage: BlobStorageClient = Depends(get_blob_storage),
-) -> None:
-    """Delete a specific transcription by ID.
-
-    Note: This would delete the folder and all contents from blob storage.
-
-    Args:
-        transcription_id: Transcription ID (folder path)
-        user: Authenticated user from Entra ID token
-        storage: Blob storage client
-
-    Raises:
-        HTTPException: 404 if transcription not found, 501 if not implemented
-    """
-    # For now, return 501 Not Implemented - blob deletion requires more work
-    # to safely delete entire folders
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Transcription deletion not yet implemented for blob storage",
-    )
-
-
 @router.get(
     "/by-hash/{audio_hash}",
     response_model=TranscriptionRecord,
@@ -283,9 +182,8 @@ async def get_transcription_by_hash(
     logger.info(f"Found transcription {record.id} for audio hash {audio_hash[:16]}...")
     return record
 
-
 @router.get(
-    "/{transcription_id}/content",
+    "/{transcription_id:path}/content",
     response_model=TranscriptionContentResponse,
     summary="Get transcription content from blob storage",
     description="Retrieve the full transcription content JSON from blob storage.",
@@ -348,3 +246,101 @@ async def get_transcription_content(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Failed to retrieve transcription content: {e}",
         )
+
+@router.get(
+    "/{transcription_id:path}",
+    response_model=TranscriptionRecord,
+    summary="Get a specific transcription",
+    description="Get details of a specific transcription by ID (folder path).",
+    responses={
+        404: {"description": "Transcription not found"},
+    },
+)
+async def get_transcription(
+    transcription_id: Annotated[str, Path(description="Transcription ID (folder path)")],
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    storage: BlobStorageClient = Depends(get_blob_storage),
+) -> TranscriptionRecord:
+    """Get a specific transcription by ID from blob storage.
+
+    The transcription_id is the folder path (e.g., "user_id/filename_timestamp").
+
+    Args:
+        transcription_id: Transcription ID (folder path)
+        user: Authenticated user from Entra ID token
+        storage: Blob storage client
+
+    Returns:
+        TranscriptionRecord if found
+
+    Raises:
+        HTTPException: 404 if transcription not found
+    """
+    # Construct folder path - the ID should already include user_id prefix
+    folder_path = transcription_id
+    if not folder_path.startswith(f"{user.oid}/"):
+        folder_path = f"{user.oid}/{transcription_id}"
+
+    try:
+        metadata_json = await storage.get_metadata(folder_path)
+        meta = json.loads(metadata_json)
+
+        return TranscriptionRecord(
+            id=meta.get("id", folder_path),
+            user_id=meta.get("user_id", user.oid),
+            text=meta.get("text", ""),
+            language=meta.get("language", "en-US"),
+            audio_format=meta.get("audio_format", "wav"),
+            file_size_bytes=meta.get("file_size_bytes", 0),
+            duration_ms=meta.get("duration_ms"),
+            folder_path=folder_path,
+            created_at=meta.get("upload_time"),
+            has_diarization=meta.get("has_diarization", False),
+            speaker_count=meta.get("speaker_count"),
+            audio_hash=meta.get("audio_hash"),
+        )
+    except BlobNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription with ID '{transcription_id}' not found",
+        )
+    except Exception as e:
+        logger.error(f"Failed to get transcription {transcription_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get transcription: {e}",
+        )
+
+@router.delete(
+    "/{transcription_id:path}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a transcription",
+    description="Delete a specific transcription by ID (folder path).",
+    responses={
+        404: {"description": "Transcription not found"},
+        501: {"description": "Delete not implemented for blob storage"},
+    },
+)
+async def delete_transcription(
+    transcription_id: Annotated[str, Path(description="Transcription ID (folder path)")],
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    storage: BlobStorageClient = Depends(get_blob_storage),
+) -> None:
+    """Delete a specific transcription by ID.
+
+    Note: This would delete the folder and all contents from blob storage.
+
+    Args:
+        transcription_id: Transcription ID (folder path)
+        user: Authenticated user from Entra ID token
+        storage: Blob storage client
+
+    Raises:
+        HTTPException: 404 if transcription not found, 501 if not implemented
+    """
+    # For now, return 501 Not Implemented - blob deletion requires more work
+    # to safely delete entire folders
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Transcription deletion not yet implemented for blob storage",
+    )

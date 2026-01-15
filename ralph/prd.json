@@ -1787,6 +1787,33 @@
       "priority": 1,
       "passes": true,
       "notes": "COMPLETED 2026-01-15 - Removed Cosmos DB entirely. Added TranscriptionMetadata model, BlobStorageClient methods (save_metadata, get_metadata, list_user_transcriptions, get_transcription_by_audio_hash), updated all API endpoints to use blob storage JSON. Removed db/ directory, test_cosmos.py, Cosmos config from settings.py. Playwright verified: /ready shows no Cosmos dependency, Swagger UI OAuth2 works, health endpoints pass."
+    },
+    {
+      "id": "BUG-011",
+      "title": "Blank page when clicking View on saved recording in My Recordings",
+      "acceptanceCriteria": [
+        "Click View button on recording in My Recordings loads transcription detail page",
+        "Page displays transcript text from saved JSON",
+        "Page displays speaker segments as chat bubbles with speaker names and timestamps",
+        "Page shows metadata: filename, upload date, duration, speaker count, language",
+        "Back to Upload button returns to main upload view",
+        "Page properly handles loading state while fetching transcript from blob storage",
+        "Error message displays if transcript file not found in blob storage",
+        "Error message displays if metadata.json is malformed",
+        "Speaker bubbles render correctly with proper formatting",
+        "Audio player shows (if applicable) for original recording playback",
+        "Download transcript option available on view page",
+        "Works after application restart",
+        "TypeScript compiles without errors",
+        "React component unit tests pass",
+        "PLAYWRIGHT: Login, upload recording, go to My Recordings, click View, verify transcript displays with content (not blank)",
+        "PLAYWRIGHT: Verify speaker segments render as chat bubbles",
+        "PLAYWRIGHT: Click Back to Upload, verify returns to main page",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-15 - My Recordings page shows recording with preview text, but clicking View button shows blank page (no content). Possible causes: (1) Route parameter not passed correctly (recording ID), (2) Blob storage fetch request failing (404 or 403), (3) Error handling not displaying error message, (4) JSON parsing failing due to malformed metadata, (5) Frontend component not rendering fetched data, (6) Network request in DevTools shows failure - check request/response"
     }
   ]
 }

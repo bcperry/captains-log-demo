@@ -1868,3 +1868,26 @@ Started: 2024-01-15
   - is_cosmos_configured() method was deeply integrated - removed from settings.py
   - Test isolation requires clear_in_memory_blobs() fixture to clear module-level dicts
 ---
+
+## 2026-01-15 - BUG-011
+- What was implemented: Fixed blank page when clicking View on saved recording in My Recordings
+- Root cause: Transcription ID contains a slash (e.g., "user_id/filename_timestamp") which was not URL-encoded in frontend API calls, causing FastAPI to interpret it as path segments instead of a single ID
+- Files changed:
+  - `frontend/src/services/api.ts` - Added `encodeURIComponent()` to getTranscription(), deleteTranscription(), and getTranscriptionContent() calls
+  - `app/api/transcriptions.py` - Reordered routes and added `:path` converter to transcription_id routes (`/{transcription_id:path}`) to accept slashes in IDs
+  - `app/tests/integration/test_transcription_workflow.py` - Added URL encoding with `quote()` for test requests with transcription IDs
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 → My Recordings → View recording
+  - Interactions verified:
+    - Click View button on recording - page loads with content (not blank) ✓
+    - Transcript text displays correctly ✓
+    - Metadata displays: duration, file size, upload date, speaker count ✓
+    - Back to recordings button navigates correctly ✓
+    - Back to Upload button navigates correctly ✓
+  - Screenshots taken: bug011-view-works.png
+- **Learnings:**
+  - FastAPI route order matters - more specific routes must come before catch-all routes with `:path`
+  - Use `{param:path}` in FastAPI routes when the parameter may contain slashes
+  - URL encoding with encodeURIComponent() in frontend is essential for IDs containing special characters
+  - Starlette/FastAPI decodes %2F back to / before route matching, so both `:path` and encoding are needed together
+---

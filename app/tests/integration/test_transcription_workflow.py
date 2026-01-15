@@ -8,6 +8,7 @@ Tests the complete transcription workflow including:
 """
 
 import io
+from urllib.parse import quote
 
 from fastapi.testclient import TestClient
 
@@ -134,9 +135,9 @@ class TestTranscriptionHistory:
         list_response = authenticated_client_with_speech.get("/transcriptions")
         transcription_id = list_response.json()["transcriptions"][0]["id"]
 
-        # Retrieve specific transcription
+        # Retrieve specific transcription (URL-encode ID since it may contain slashes)
         response = authenticated_client_with_speech.get(
-            f"/transcriptions/{transcription_id}"
+            f"/transcriptions/{quote(transcription_id, safe='')}"
         )
 
         assert response.status_code == 200
@@ -158,15 +159,15 @@ class TestTranscriptionHistory:
         list_response = authenticated_client_with_speech.get("/transcriptions")
         transcription_id = list_response.json()["transcriptions"][0]["id"]
 
-        # Delete it
+        # Delete it (URL-encode ID since it may contain slashes)
         delete_response = authenticated_client_with_speech.delete(
-            f"/transcriptions/{transcription_id}"
+            f"/transcriptions/{quote(transcription_id, safe='')}"
         )
         assert delete_response.status_code == 204
 
         # Verify it's gone
         get_response = authenticated_client_with_speech.get(
-            f"/transcriptions/{transcription_id}"
+            f"/transcriptions/{quote(transcription_id, safe='')}"
         )
         assert get_response.status_code == 404
 
@@ -247,14 +248,14 @@ class TestEndToEndWorkflow:
         # 5. Get specific transcription
         transcription_id = history_response.json()["transcriptions"][0]["id"]
         detail_response = authenticated_client_with_speech.get(
-            f"/transcriptions/{transcription_id}"
+            f"/transcriptions/{quote(transcription_id, safe='')}"
         )
         assert detail_response.status_code == 200
         assert detail_response.json()["user_id"] == user_id
 
         # 6. Delete transcription
         delete_response = authenticated_client_with_speech.delete(
-            f"/transcriptions/{transcription_id}"
+            f"/transcriptions/{quote(transcription_id, safe='')}"
         )
         assert delete_response.status_code == 204
 
