@@ -1457,3 +1457,32 @@ Started: 2024-01-15
   - Key change was removing the toggle UI to make it mandatory
   - Speaker name formatting already handled 'Guest' -> 'Speaker' conversion
 ---
+
+---
+
+## 2026-01-15 - US-060
+- What was implemented: Per-user upload history and transcription management
+- Root cause: Users needed a way to view, search, filter, and manage their past transcriptions
+- Files changed:
+  - `frontend/src/components/MyRecordings.tsx` - New component for viewing transcription history with search, filter, sort, pagination, delete, and empty state
+  - `frontend/src/components/Sidebar.tsx` - Added navigation menu with "Upload Audio" and "My Recordings" buttons
+  - `frontend/src/components/Layout.tsx` - Extended to pass navigation props (currentView, onNavigate)
+  - `frontend/src/components/index.ts` - Export MyRecordings component
+  - `frontend/src/App.tsx` - Added view switching logic between upload and recordings views
+- Backend already had endpoints:
+  - `GET /transcriptions` - List user's transcriptions with pagination
+  - `GET /transcriptions/{id}` - Get specific transcription
+  - `DELETE /transcriptions/{id}` - Delete transcription
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend), http://localhost:8000/docs (Swagger)
+  - Interactions verified: Navigation menu clicking, "My Recordings" active state
+  - Screenshots taken: us060-navigation-sidebar.png, us060-my-recordings-nav-active.png, us060-transcription-history-endpoints.png
+- **Tests:**
+  - TypeScript build: passes
+  - Frontend tests: 117 passed
+  - Backend pytest: 331 passed
+- **Learnings:**
+  - Backend transcription endpoints already existed; only frontend needed implementation
+  - View switching without router achieved via state management in App.tsx
+  - Extended SidebarProps with navigation props using TypeScript interface extension
+

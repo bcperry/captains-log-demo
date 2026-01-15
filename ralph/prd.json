@@ -1342,7 +1342,7 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "FEATURE: Users need to manage their uploaded recordings and view past transcriptions. Currently no recording history view exists. Need: (1) UI section for viewing upload history, (2) Backend endpoint for retrieving user's transcriptions, (3) Display of transcription status and metadata."
     },
     {

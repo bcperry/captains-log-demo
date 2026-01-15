@@ -3,7 +3,7 @@ set -e
 
 # Usage: ralph.sh [target_dir] [max_iterations] [model]
 TARGET_DIR=${1:-.}
-MAX_ITERATIONS=${2:-10}
+MAX_ITERATIONS=${2:-30}
 MODEL=${3:-"claude-opus-4.5"}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

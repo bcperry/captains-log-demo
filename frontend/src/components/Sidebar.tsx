@@ -1,6 +1,13 @@
 import { SUPPORTED_LANGUAGES } from '../types/layout'
 import type { SidebarProps } from '../types/layout'
 
+export type ViewType = 'upload' | 'recordings'
+
+interface ExtendedSidebarProps extends SidebarProps {
+  currentView?: ViewType
+  onNavigate?: (view: ViewType) => void
+}
+
 export function Sidebar({
   isOpen,
   onClose,
@@ -13,7 +20,9 @@ export function Sidebar({
   version,
   onTestSpeech,
   onTestOpenAI,
-}: SidebarProps) {
+  currentView = 'upload',
+  onNavigate,
+}: ExtendedSidebarProps) {
   // Mask endpoint for display
   const maskedEndpoint =
     endpoint && endpoint.length > 30
@@ -69,6 +78,53 @@ export function Sidebar({
 
           {/* Sidebar content */}
           <div className="flex-1 p-4 space-y-6">
+            {/* Navigation */}
+            {onNavigate && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">📍 Navigation</h3>
+                <nav className="space-y-1">
+                  <button
+                    onClick={() => onNavigate('upload')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                      currentView === 'upload'
+                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
+                    </svg>
+                    Upload Audio
+                  </button>
+                  <button
+                    onClick={() => onNavigate('recordings')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                      currentView === 'recordings'
+                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                      />
+                    </svg>
+                    My Recordings
+                  </button>
+                </nav>
+              </div>
+            )}
+
+            {onNavigate && <hr className="border-gray-200" />}
+
             {/* Language selection */}
             <div>
               <label

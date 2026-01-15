@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Header } from './Header'
-import { Sidebar } from './Sidebar'
+import { Sidebar, type ViewType } from './Sidebar'
 import type { ServiceStatus } from '../types/layout'
 import { getReady } from '../services/api'
 
 interface LayoutProps {
   children: React.ReactNode
+  currentView?: ViewType
+  onNavigate?: (view: ViewType) => void
 }
 
 const VERSION = '1.0.0'
@@ -31,7 +33,7 @@ const getInitialEndpointInfo = (): { endpoint?: string; region?: string } => {
   return {}
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState(getInitialLanguage)
   const [speechStatus, setSpeechStatus] = useState<ServiceStatus>({
@@ -176,6 +178,8 @@ export function Layout({ children }: LayoutProps) {
           version={VERSION}
           onTestSpeech={handleTestSpeech}
           onTestOpenAI={handleTestOpenAI}
+          currentView={currentView}
+          onNavigate={onNavigate}
         />
 
         {/* Main content */}
