@@ -215,3 +215,119 @@ class TestDeleteTranscription:
         assert client.get(f"/transcriptions/{folder_path}/analysis").status_code == 404
 
 
+class TestUpdateSpeakerNames:
+    """Tests for PUT /transcriptions/{transcription_id}/speakers endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_update_speaker_names_success(
+        self,
+        client: TestClient,
+        mock_blob_storage: InMemoryBlobClient,
+        mock_user: AuthenticatedUser,
+    ) -> None:
+        """Test successful update of speaker names."""
+        folder_path = f"{mock_user.oid}/test_20240115_120000"
+        await create_test_transcription(mock_blob_storage, mock_user.oid, folder_path)
+
+        # Create initial analysis with AI-identified speaker names
+        initial_analysis = {
+            "summary": "Test summary",
+            "keyPoints": ["Point 1"],
+            "actionItems": [],
+            "participants": ["Speaker 1", "Speaker 2"],
+            "topics": ["Testing"],
+            "sentiment": "neutral",
+            "confidence": 0.8,
+            "speakerNames": {
+                "Speaker_1": {"name": "Speaker 1", "confidence": "low", "ai_identified": True},
+                "Speaker_2": {"name": "Speaker 2", "confidence": "low", "ai_identified": True},
+            },
+        }
+        await mock_blob_storage.save_analysis_json(
+            mock_user.oid, folder_path, json.dumps(initial_analysis)
+        )
+
+        # Update speaker names
+        response = client.put(
+            f"/transcriptions/{folder_path}/speakers",
+            json={
+                "speaker_names": {
+                    "Speaker_1": {"name": "Bob", "confidence": "high", "ai_identified": False},
+                    "Speaker_2": {"name": "Alice", "confidence": "high", "ai_identified": False},
+                }
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == "Speaker names updated successfully"
+        assert data["speaker_names"]["Speaker_1"]["name"] == "Bob"
+        assert data["speaker_names"]["Speaker_2"]["name"] == "Alice"
+        assert data["speaker_names"]["Speaker_1"]["ai_identified"] is False
+
+    @pytest.mark.asyncio
+    async def test_update_speaker_names_no_analysis_returns_404(
+        self,
+        client: TestClient,
+        mock_blob_storage: InMemoryBlobClient,
+        mock_user: AuthenticatedUser,
+    ) -> None:
+        """Test that updating speaker names without existing analysis returns 404."""
+        folder_path = f"{mock_user.oid}/test_20240115_120000"
+        await create_test_transcription(mock_blob_storage, mock_user.oid, folder_path)
+
+        response = client.put(
+            f"/transcriptions/{folder_path}/speakers",
+            json={
+                "speaker_names": {
+                    "Speaker_1": {"name": "Bob", "confidence": "high", "ai_identified": False},
+                }
+            },
+        )
+
+        assert response.status_code == 404
+        assert "Run analysis first" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_update_speaker_names_persists(
+        self,
+        client: TestClient,
+        mock_blob_storage: InMemoryBlobClient,
+        mock_user: AuthenticatedUser,
+    ) -> None:
+        """Test that speaker name updates are persisted to analysis.json."""
+        folder_path = f"{mock_user.oid}/test_20240115_120000"
+        await create_test_transcription(mock_blob_storage, mock_user.oid, folder_path)
+
+        # Create initial analysis
+        initial_analysis = {
+            "summary": "Test summary",
+            "keyPoints": [],
+            "actionItems": [],
+            "participants": [],
+            "topics": [],
+            "sentiment": "neutral",
+            "confidence": 0.8,
+            "speakerNames": {},
+        }
+        await mock_blob_storage.save_analysis_json(
+            mock_user.oid, folder_path, json.dumps(initial_analysis)
+        )
+
+        # Update speaker names
+        client.put(
+            f"/transcriptions/{folder_path}/speakers",
+            json={
+                "speaker_names": {
+                    "Speaker_1": {"name": "Charlie", "confidence": "medium", "ai_identified": False},
+                }
+            },
+        )
+
+        # Get analysis to verify persistence
+        response = client.get(f"/transcriptions/{folder_path}/analysis")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["speakerNames"]["Speaker_1"]["name"] == "Charlie"
+        assert data["speakerNames"]["Speaker_1"]["ai_identified"] is False
+

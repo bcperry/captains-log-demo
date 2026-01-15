@@ -6,13 +6,20 @@ and extract summaries, key points, action items, and sentiment.
 
 import json
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from openai import AzureOpenAI
 from pydantic import ValidationError
 
 from config.settings import get_settings
-from models.analysis import ActionItem, AnalysisResult, Priority, Sentiment
+from models.analysis import (
+    ActionItem,
+    AnalysisResult,
+    Priority,
+    Sentiment,
+    SpeakerConfidence,
+    SpeakerIdentification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +58,13 @@ Given a diarized transcription, extract and return a JSON object with these fiel
 - topics: Array of main topics discussed
 - sentiment: Overall sentiment - "positive", "neutral", or "negative"
 - confidence: Your confidence in this analysis from 0.0 to 1.0
+- speaker_names: Object mapping speaker labels to identified names. Identify speakers by name if mentioned in the conversation.
+  For each speaker, provide:
+  - name: The actual name if mentioned (e.g., "Bob", "Dr. Smith"), or leave as the speaker label if not mentioned
+  - confidence: "high" if explicitly introduced/named, "medium" if inferred from context, "low" if guessing
+  - ai_identified: true (since this is AI identification)
+  Example: {"Speaker_1": {"name": "Bob", "confidence": "high", "ai_identified": true}, "Speaker_2": {"name": "Speaker 2", "confidence": "low", "ai_identified": true}}
+  IMPORTANT: Only identify names if explicitly mentioned in the conversation. If unsure, leave as the speaker label.
 
 Focus on speaker perspectives and contributions in your analysis.
 Return ONLY valid JSON, no markdown formatting or explanation."""
@@ -173,6 +187,30 @@ class OpenAIClient:
             except ValueError:
                 sentiment = Sentiment.NEUTRAL
 
+            # Parse speaker names
+            speaker_names: Dict[str, SpeakerIdentification] = {}
+            raw_speaker_names = data.get("speaker_names", {})
+            for speaker_id, speaker_data in raw_speaker_names.items():
+                if isinstance(speaker_data, dict):
+                    confidence_str = speaker_data.get("confidence", "medium").lower()
+                    try:
+                        confidence = SpeakerConfidence(confidence_str)
+                    except ValueError:
+                        confidence = SpeakerConfidence.MEDIUM
+
+                    speaker_names[speaker_id] = SpeakerIdentification(
+                        name=speaker_data.get("name", speaker_id),
+                        confidence=confidence,
+                        ai_identified=speaker_data.get("ai_identified", True),
+                    )
+                elif isinstance(speaker_data, str):
+                    # Handle simple string mapping (backward compatibility)
+                    speaker_names[speaker_id] = SpeakerIdentification(
+                        name=speaker_data,
+                        confidence=SpeakerConfidence.MEDIUM,
+                        ai_identified=True,
+                    )
+
             return AnalysisResult(
                 summary=data.get("summary", "No summary available"),
                 keyPoints=data.get("key_points", []),
@@ -181,6 +219,7 @@ class OpenAIClient:
                 topics=data.get("topics", []),
                 sentiment=sentiment,
                 confidence=float(data.get("confidence", 0.8)),
+                speakerNames=speaker_names,
             )
 
         except json.JSONDecodeError as e:

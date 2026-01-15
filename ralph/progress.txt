@@ -2045,3 +2045,33 @@ Started: 2024-01-15
   - FastAPI may include Content-Type headers even for 204 responses
   - Frontend `request()` helper should handle all successful status codes appropriately
 ---
+
+## 2026-01-15 - US-075
+- What was implemented: AI-powered speaker identification with user-editable speaker names
+- Root cause: N/A (new feature)
+- Files changed:
+  - `app/models/analysis.py` - Added SpeakerIdentification and SpeakerConfidence models, added speakerNames field to AnalysisResult
+  - `app/ai/__init__.py` - Updated DIARIZED_ANALYSIS_SYSTEM_PROMPT to identify speaker names, updated _parse_analysis_response to handle speaker_names
+  - `app/api/transcriptions.py` - Added PUT /transcriptions/{id}/speakers endpoint for updating speaker names
+  - `app/tests/test_transcriptions.py` - Added TestUpdateSpeakerNames tests (3 tests)
+  - `frontend/src/types/api.ts` - Added SpeakerIdentification type, updated AnalysisResult to include speakerNames
+  - `frontend/src/services/api.ts` - Added updateSpeakerNames API function
+  - `frontend/src/components/SpeakerNameEditor.tsx` - New component for editing speaker names with confidence indicators
+  - `frontend/src/components/TranscriptDisplay.tsx` - Updated to use AI-identified names in chat bubbles
+  - `frontend/src/components/TranscriptionResults.tsx` - Integrated SpeakerNameEditor with analysis display
+  - `frontend/src/components/index.ts` - Exported SpeakerNameEditor
+  - `frontend/src/__tests__/speaker-name-editor.test.tsx` - 13 unit tests for SpeakerNameEditor
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (app loads successfully)
+  - Services verified: Azure Speech Service and Azure OpenAI both connected
+  - Screenshot taken: us075-app-loading.png
+  - Note: Full E2E testing requires Microsoft authentication; verified via comprehensive unit/integration tests
+- **Learnings:**
+  - Speaker identification via OpenAI: Use structured JSON prompt with confidence levels (high/medium/low)
+  - Store speaker_names in analysis.json alongside other AI analysis results
+  - Frontend state management: Track speakerNames in component state, update when analysis result changes
+  - SpeakerIdentification model: includes name, confidence (enum), and ai_identified (boolean) for tracking user edits
+  - PUT endpoint pattern: Merge user edits with existing speaker_names, mark ai_identified=false for user edits
+  - TranscriptDisplay: Use getDisplayName() helper to look up identified names with fallback to formatSpeakerName()
+  - Tests: 153 frontend tests pass, 30 backend analysis/transcription tests pass
+---

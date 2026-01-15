@@ -262,4 +262,24 @@ export const getAnalysis = (transcriptionId: string): Promise<AnalysisResult> =>
   return request<AnalysisResult>(`/transcriptions/${encodeURIComponent(transcriptionId)}/analysis`)
 }
 
+// Speaker name update types
+export interface SpeakerNameUpdate {
+  speaker_names: Record<string, { name: string; confidence: string; ai_identified: boolean }>
+}
+
+export interface SpeakerNameResponse {
+  message: string
+  speaker_names: Record<string, { name: string; confidence: string; ai_identified: boolean }>
+}
+
+export const updateSpeakerNames = (
+  transcriptionId: string,
+  speakerNames: Record<string, { name: string; confidence: string; ai_identified: boolean }>
+): Promise<SpeakerNameResponse> => {
+  return request<SpeakerNameResponse>(`/transcriptions/${encodeURIComponent(transcriptionId)}/speakers`, {
+    method: 'PUT',
+    body: { speaker_names: speakerNames } as Record<string, unknown>,
+  })
+}
+
 export { ApiError }

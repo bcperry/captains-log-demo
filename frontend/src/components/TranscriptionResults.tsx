@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
 import type { TranscriptionResult } from '../types/transcription'
-import type { AnalysisResult } from '../types/api'
+import type { AnalysisResult, SpeakerIdentification } from '../types/api'
 import { TranscriptDisplay } from './TranscriptDisplay'
+import { SpeakerNameEditor } from './SpeakerNameEditor'
 
 export interface TranscriptionResultsProps {
   transcription: TranscriptionResult | null
@@ -68,10 +69,21 @@ export function TranscriptionResults({
 }: TranscriptionResultsProps) {
   const [editableText, setEditableText] = useState<string>('')
   const [expandedActionItem, setExpandedActionItem] = useState<number | null>(null)
+  const [speakerNames, setSpeakerNames] = useState<Record<string, SpeakerIdentification>>({})
 
   const { state: analysisState, analyze, isAnalyzing, hasResult, reset: resetAnalysis } = useAnalysis({
     folderPath: transcription?.folderPath,
   })
+
+  // Update speaker names when analysis result changes
+  if (hasResult && analysisState.result?.speakerNames && Object.keys(speakerNames).length === 0) {
+    setSpeakerNames(analysisState.result.speakerNames)
+  }
+
+  // Handle speaker names change from editor
+  const handleSpeakerNamesChange = useCallback((names: Record<string, SpeakerIdentification>) => {
+    setSpeakerNames(names)
+  }, [])
 
   // Sync editable text with transcription
   const handleTextChange = useCallback((text: string) => {
@@ -196,7 +208,10 @@ export function TranscriptionResults({
 
       {/* Speaker segments - show when diarization is enabled */}
       {stats.hasDiarization && transcription.segments && transcription.segments.length > 0 && (
-        <TranscriptDisplay segments={transcription.segments} />
+        <TranscriptDisplay 
+          segments={transcription.segments} 
+          speakerNames={speakerNames}
+        />
       )}
 
       {/* Transcription text area */}
@@ -251,7 +266,20 @@ export function TranscriptionResults({
 
           {/* Analysis results */}
           {hasResult && analysisState.result && (
-            <AnalysisDisplay result={analysisState.result} expandedActionItem={expandedActionItem} onToggleActionItem={toggleActionItem} />
+            <>
+              {/* Speaker Name Editor - show when there are speaker names */}
+              {analysisState.result.speakerNames && Object.keys(analysisState.result.speakerNames).length > 0 && (
+                <div className="mb-4">
+                  <SpeakerNameEditor
+                    speakerNames={speakerNames}
+                    folderPath={transcription?.folderPath}
+                    onSpeakerNamesChange={handleSpeakerNamesChange}
+                    disabled={disabled}
+                  />
+                </div>
+              )}
+              <AnalysisDisplay result={analysisState.result} expandedActionItem={expandedActionItem} onToggleActionItem={toggleActionItem} />
+            </>
           )}
         </div>
 

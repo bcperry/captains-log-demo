@@ -4,9 +4,31 @@ This module defines Pydantic models for the analyze endpoint request/response.
 """
 
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+
+class SpeakerConfidence(str, Enum):
+    """Confidence level for AI-identified speaker names."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class SpeakerIdentification(BaseModel):
+    """Speaker identification mapping from AI analysis."""
+
+    name: str = Field(..., description="Identified or user-edited speaker name")
+    confidence: SpeakerConfidence = Field(
+        SpeakerConfidence.MEDIUM,
+        description="AI confidence in the identification (high/medium/low)",
+    )
+    ai_identified: bool = Field(
+        True,
+        description="True if AI identified this name, False if user manually set it",
+    )
 
 
 class Priority(str, Enum):
@@ -85,6 +107,11 @@ class AnalysisResult(BaseModel):
         ge=0.0,
         le=1.0,
         description="Confidence score for the analysis (0-1)",
+    )
+    speakerNames: Dict[str, SpeakerIdentification] = Field(
+        default_factory=dict,
+        description="Mapping of speaker IDs (e.g., 'Speaker_1') to identified names with confidence",
+        validation_alias="speaker_names",
     )
 
     model_config = {"populate_by_name": True}
