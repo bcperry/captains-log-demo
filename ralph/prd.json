@@ -1863,7 +1863,7 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "FEATURE: Currently AI analysis is not persisted - if user generates analysis and then reloads page or restarts app, analysis is lost. Need to save analysis.json alongside transcript.json so analysis persists and can be re-displayed without regenerating."
     },
     {

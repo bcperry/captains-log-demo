@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getTranscriptions, deleteTranscription, getTranscription, getTranscriptionContent } from '../services/api'
+import { getTranscriptions, deleteTranscription, getTranscription, getTranscriptionContent, getAnalysis } from '../services/api'
 import { TranscriptDisplay } from './TranscriptDisplay'
 import type { SpeakerSegment } from '../types/transcription'
+import type { AnalysisResult } from '../types/api'
 
 // Backend response segment type (snake_case)
 interface SpeakerSegmentRaw {
@@ -28,6 +29,7 @@ interface TranscriptionRecordRaw {
   speaker_ids: string[] | null
   segments: SpeakerSegmentRaw[] | null
   language_detected: string | null
+  has_analysis: boolean
 }
 
 interface TranscriptionListResponseRaw {
@@ -53,6 +55,7 @@ interface TranscriptionItem {
   blobStorageUrl: string | null
   languageDetected: string | null
   status: 'complete' | 'analyzed'
+  hasAnalysis: boolean
 }
 
 interface MyRecordingsProps {
@@ -77,6 +80,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [selectedRecording, setSelectedRecording] = useState<TranscriptionItem | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [savedAnalysis, setSavedAnalysis] = useState<AnalysisResult | null>(null)
 
   const transformRecord = (raw: TranscriptionRecordRaw): TranscriptionItem => ({
     id: raw.id,
@@ -98,6 +102,7 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
     blobStorageUrl: raw.blob_storage_url,
     languageDetected: raw.language_detected,
     status: raw.has_diarization ? 'analyzed' : 'complete',
+    hasAnalysis: raw.has_analysis,
   })
 
   const loadRecordings = useCallback(async () => {
@@ -143,6 +148,8 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
   const handleViewDetail = async (recording: TranscriptionItem) => {
     try {
       setLoadingContent(true)
+      setSavedAnalysis(null) // Reset analysis when switching recordings
+      
       // Fetch full transcription details
       const fullRecord = await getTranscription(recording.id) as unknown as TranscriptionRecordRaw
       let transformed = transformRecord(fullRecord)
@@ -169,6 +176,16 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
         } catch (blobErr) {
           // Fall back to basic record if blob fetch fails
           console.warn('Failed to fetch content from blob storage, using basic record:', blobErr)
+        }
+      }
+
+      // Load saved analysis if exists
+      if (recording.hasAnalysis) {
+        try {
+          const analysis = await getAnalysis(recording.id)
+          setSavedAnalysis(analysis)
+        } catch (analysisErr) {
+          console.warn('Failed to load saved analysis:', analysisErr)
         }
       }
 
@@ -329,6 +346,82 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
               </div>
             )}
           </div>
+
+          {/* Show saved analysis if available */}
+          {savedAnalysis && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">AI Analysis</h3>
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h5 className="text-sm font-semibold text-blue-800 mb-2">Summary</h5>
+                  <p className="text-blue-700">{savedAnalysis.summary}</p>
+                </div>
+
+                {/* Key Points */}
+                {savedAnalysis.keyPoints && savedAnalysis.keyPoints.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h5 className="text-sm font-semibold text-green-800 mb-2">Key Points</h5>
+                    <ul className="space-y-1">
+                      {savedAnalysis.keyPoints.map((point, index) => (
+                        <li key={index} className="text-green-700 flex items-start">
+                          <span className="mr-2">•</span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Action Items */}
+                {savedAnalysis.actionItems && savedAnalysis.actionItems.length > 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h5 className="text-sm font-semibold text-yellow-800 mb-2">Action Items</h5>
+                    <div className="space-y-2">
+                      {savedAnalysis.actionItems.map((item, index) => (
+                        <div key={index} className="bg-white rounded p-2 text-sm">
+                          <p className="text-yellow-800">{item.task}</p>
+                          {item.assignee && <p className="text-gray-600 text-xs">Assignee: {item.assignee}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Participants and Topics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {savedAnalysis.participants && savedAnalysis.participants.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">Participants</h5>
+                      <ul className="space-y-1">
+                        {savedAnalysis.participants.map((p, i) => (
+                          <li key={i} className="text-gray-600 text-sm">• {p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {savedAnalysis.topics && savedAnalysis.topics.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">Topics</h5>
+                      <ul className="space-y-1">
+                        {savedAnalysis.topics.map((t, i) => (
+                          <li key={i} className="text-gray-600 text-sm">• {t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Prompt to generate analysis if not available */}
+          {!savedAnalysis && selectedRecording.hasAnalysis === false && (
+            <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+              <p className="text-gray-600">No AI analysis available for this recording.</p>
+              <p className="text-sm text-gray-500 mt-1">Upload and analyze the audio again to generate insights.</p>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -479,6 +572,11 @@ export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps)
                     <span>{formatFileSize(recording.fileSizeBytes)}</span>
                     {recording.languageDetected && <span>{recording.languageDetected}</span>}
                     {recording.speakerCount && <span>{recording.speakerCount} speakers</span>}
+                    {recording.hasAnalysis && (
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                        Analysis available
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4">

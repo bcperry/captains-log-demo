@@ -227,4 +227,15 @@ export const analyzeTranscription = (text: string, diarizedTranscript?: string):
   })
 }
 
+export const saveAnalysis = (transcriptionId: string, analysis: AnalysisResult): Promise<{ message: string; blob_url: string }> => {
+  return request<{ message: string; blob_url: string }>(`/transcriptions/${encodeURIComponent(transcriptionId)}/analysis`, {
+    method: 'POST',
+    body: analysis as unknown as Record<string, unknown>,
+  })
+}
+
+export const getAnalysis = (transcriptionId: string): Promise<AnalysisResult> => {
+  return request<AnalysisResult>(`/transcriptions/${encodeURIComponent(transcriptionId)}/analysis`)
+}
+
 export { ApiError }

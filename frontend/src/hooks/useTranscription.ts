@@ -132,6 +132,7 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
             startTimeMs: seg.startTimeMs,
             endTimeMs: seg.endTimeMs,
           })),
+          folderPath: response.folderPath,
         }
       } else {
         const response = await withAuth(() => transcribeAudioApi(state.file!.file, language))

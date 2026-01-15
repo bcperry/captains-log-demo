@@ -92,6 +92,7 @@ async def list_transcriptions(
                     has_diarization=meta.get("has_diarization", False),
                     speaker_count=meta.get("speaker_count"),
                     audio_hash=meta.get("audio_hash"),
+                    has_analysis=meta.get("has_analysis", False),
                 )
                 transcriptions.append(record)
             except Exception as e:
@@ -177,6 +178,7 @@ async def get_transcription_by_hash(
         has_diarization=meta.get("has_diarization", False),
         speaker_count=meta.get("speaker_count"),
         audio_hash=meta.get("audio_hash"),
+        has_analysis=meta.get("has_analysis", False),
     )
 
     logger.info(f"Found transcription {record.id} for audio hash {audio_hash[:16]}...")
@@ -247,6 +249,129 @@ async def get_transcription_content(
             detail=f"Failed to retrieve transcription content: {e}",
         )
 
+
+@router.get(
+    "/{transcription_id:path}/analysis",
+    summary="Get analysis for a transcription",
+    description="Retrieve the AI analysis results for a specific transcription.",
+    responses={
+        404: {"description": "Analysis not found"},
+        503: {"description": "Blob storage unavailable"},
+    },
+)
+async def get_transcription_analysis(
+    transcription_id: Annotated[str, Path(description="Transcription ID (folder path)")],
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    storage: BlobStorageClient = Depends(get_blob_storage),
+) -> dict:
+    """Get the AI analysis results for a transcription.
+
+    Args:
+        transcription_id: Transcription ID (folder path)
+        user: Authenticated user from Entra ID token
+        storage: Blob storage client
+
+    Returns:
+        AnalysisResult as dict
+
+    Raises:
+        HTTPException: 404 if analysis not found
+    """
+    folder_path = transcription_id
+    if not folder_path.startswith(f"{user.oid}/"):
+        folder_path = f"{user.oid}/{transcription_id}"
+
+    try:
+        analysis_json = await storage.get_analysis_json(folder_path)
+        result: dict = json.loads(analysis_json)
+        return result
+
+    except BlobNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Analysis not found for transcription '{transcription_id}'",
+        )
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse analysis JSON: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to parse analysis content",
+        )
+    except Exception as e:
+        logger.error(f"Failed to retrieve analysis: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to retrieve analysis: {e}",
+        )
+
+
+@router.post(
+    "/{transcription_id:path}/analysis",
+    status_code=status.HTTP_201_CREATED,
+    summary="Save analysis for a transcription",
+    description="Save AI analysis results for a specific transcription.",
+    responses={
+        404: {"description": "Transcription not found"},
+        503: {"description": "Blob storage unavailable"},
+    },
+)
+async def save_transcription_analysis(
+    transcription_id: Annotated[str, Path(description="Transcription ID (folder path)")],
+    analysis: dict,
+    user: AuthenticatedUser = Depends(get_current_user_azure),
+    storage: BlobStorageClient = Depends(get_blob_storage),
+) -> dict:
+    """Save AI analysis results for a transcription.
+
+    Args:
+        transcription_id: Transcription ID (folder path)
+        analysis: AnalysisResult data
+        user: Authenticated user from Entra ID token
+        storage: Blob storage client
+
+    Returns:
+        Success message with blob URL
+
+    Raises:
+        HTTPException: 404 if transcription not found, 503 on storage error
+    """
+    folder_path = transcription_id
+    if not folder_path.startswith(f"{user.oid}/"):
+        folder_path = f"{user.oid}/{transcription_id}"
+
+    try:
+        # First verify the transcription exists
+        await storage.get_metadata(folder_path)
+
+        # Save the analysis
+        analysis_json = json.dumps(analysis)
+        blob_url = await storage.save_analysis_json(user.oid, folder_path, analysis_json)
+
+        # Update metadata to indicate analysis exists
+        try:
+            metadata_json = await storage.get_metadata(folder_path)
+            metadata = json.loads(metadata_json)
+            metadata["has_analysis"] = True
+            await storage.save_metadata(user.oid, folder_path, json.dumps(metadata))
+        except Exception as e:
+            logger.warning(f"Failed to update metadata has_analysis flag: {e}")
+
+        logger.info(f"Saved analysis for transcription {transcription_id}")
+        return {"message": "Analysis saved successfully", "blob_url": blob_url}
+
+    except BlobNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transcription with ID '{transcription_id}' not found",
+        )
+    except Exception as e:
+        logger.error(f"Failed to save analysis: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to save analysis: {e}",
+        )
+
+
 @router.get(
     "/{transcription_id:path}",
     response_model=TranscriptionRecord,
@@ -304,6 +429,7 @@ async def get_transcription(
             has_diarization=meta.get("has_diarization", False),
             speaker_count=meta.get("speaker_count"),
             audio_hash=meta.get("audio_hash"),
+            has_analysis=meta.get("has_analysis", False),
         )
     except BlobNotFoundError:
         raise HTTPException(

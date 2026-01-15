@@ -34,6 +34,8 @@ export interface TranscriptionResult {
   segments?: SpeakerSegment[]
   speakerCount?: number
   hasDiarization?: boolean
+  // Storage reference for saving analysis
+  folderPath?: string
 }
 
 export interface TranscriptionState {

@@ -108,6 +108,10 @@ class DiarizedTranscriptionResponse(BaseModel):
     processing_time_ms: Optional[int] = Field(
         default=None, description="Time taken to process transcription in milliseconds"
     )
+    folder_path: Optional[str] = Field(
+        default=None,
+        description="Blob storage folder path for saving analysis"
+    )
 
 
 class TranscriptionError(BaseModel):
@@ -188,6 +192,8 @@ class TranscriptionRecord(BaseModel):
     )
     # Cache metadata
     cached: bool = Field(default=False, description="Whether this result was served from cache")
+    # Analysis metadata
+    has_analysis: bool = Field(default=False, description="Whether AI analysis exists for this transcription")
 
 
 class TranscriptionListResponse(BaseModel):
@@ -440,3 +446,4 @@ class TranscriptionMetadata(BaseModel):
     )
     text: Optional[str] = Field(default=None, description="Brief preview of transcribed text")
     has_diarization: bool = Field(default=False, description="Whether transcription has speaker diarization")
+    has_analysis: bool = Field(default=False, description="Whether AI analysis exists for this transcription")
