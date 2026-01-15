@@ -31,14 +31,6 @@ const formatTimeMsChat = (ms: number): string => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-// Format milliseconds to MM:SS format
-const formatTimeMs = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-}
-
 // Generate consistent color for speaker ID
 const getSpeakerColor = (speakerId: string): string => {
   const colors = [
