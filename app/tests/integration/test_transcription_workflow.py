@@ -100,11 +100,11 @@ class TestTranscriptionHistory:
         authenticated_client_with_speech: TestClient,
     ) -> None:
         """Test listing transcriptions with pagination."""
-        # Create multiple transcriptions
-        for _ in range(5):
+        # Create multiple transcriptions with unique content to avoid cache deduplication
+        for i in range(5):
             authenticated_client_with_speech.post(
                 "/transcribe",
-                files=[create_test_audio()],
+                files=[create_test_audio(content=f"fake audio content {i}".encode())],
             )
 
         # Get first page

@@ -1749,7 +1749,7 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "BUG logged 2026-01-15 - My Recordings view does not persist across page reloads. Upon reload, no recordings appear (empty list) even though transcripts may exist in blob storage. Likely causes: (1) GET /transcriptions endpoint not implemented or not querying Cosmos DB, (2) Frontend not calling transcriptions API on mount, (3) Cosmos DB not storing transcription metadata with correct user partition, (4) Blob storage paths incorrect so transcripts not retrievable (related to BUG-009)"
     }
   ]

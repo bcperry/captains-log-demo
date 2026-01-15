@@ -1815,3 +1815,22 @@ Started: 2024-01-15
   - folder_path must be stored in TranscriptionRecord for later retrieval of transcript from blob storage
   - upload_transcription_with_user_path takes folder_path parameter, not transcription_id
 ---
+
+## 2026-01-15 - BUG-010
+- What was implemented: Fixed integration test that expected 5 transcriptions but got 1 due to audio hash cache deduplication
+- Root cause: Test was uploading the same audio content 5 times, triggering cache deduplication (working as expected)
+- Files changed:
+  - `app/tests/integration/test_transcription_workflow.py` - Modified `test_list_transcriptions_with_pagination` to use unique audio content for each upload
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3001 (frontend)
+  - Verified user authentication persists after page reload
+  - My Recordings view loads correctly showing empty state
+  - My Recordings persists after page reload (F5)
+  - Service Status shows Azure Government Cloud and Connected
+  - Screenshots taken: bug010-my-recordings-empty.png, bug010-my-recordings-after-reload.png
+- **Learnings:**
+  - Audio hash caching deduplicates identical audio uploads by design
+  - Integration tests must use unique content when testing pagination/list counts
+  - InMemoryCosmosClient persists data within a single session (not across restarts)
+  - CORS_ORIGINS env var must include all frontend dev ports (3000, 3001, 5173)
+---
