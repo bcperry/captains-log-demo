@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import './App.css'
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from './auth'
-import { LoginButton, Layout, AudioUpload, TranscriptionResults } from './components'
+import { LoginButton, Layout, AudioUpload, TranscriptionResults, MyRecordings } from './components'
 import type { TranscriptionResult } from './types/transcription'
+import type { ViewType } from './components/Sidebar'
 
 function App() {
   const [transcriptionResult, setTranscriptionResult] = useState<TranscriptionResult | null>(null)
+  const [currentView, setCurrentView] = useState<ViewType>('upload')
 
   const handleTranscriptionComplete = (result: TranscriptionResult) => {
     setTranscriptionResult(result)
@@ -15,24 +17,40 @@ function App() {
     setTranscriptionResult(null)
   }
 
+  const handleNavigate = (view: ViewType) => {
+    setCurrentView(view)
+    // Clear transcription result when navigating away
+    if (view !== 'upload') {
+      setTranscriptionResult(null)
+    }
+  }
+
   return (
-    <Layout>
+    <Layout currentView={currentView} onNavigate={handleNavigate}>
       <AuthenticatedTemplate>
-        <div className="space-y-6">
-          <AudioUpload
-            language="en-US"
-            onTranscriptionComplete={handleTranscriptionComplete}
-            onError={(error) => {
-              console.error('Transcription error:', error)
-            }}
-          />
-          {transcriptionResult && (
-            <TranscriptionResults
-              transcription={transcriptionResult}
-              onClear={handleClear}
+        {currentView === 'upload' && (
+          <div className="space-y-6">
+            <AudioUpload
+              language="en-US"
+              onTranscriptionComplete={handleTranscriptionComplete}
+              onError={(error) => {
+                console.error('Transcription error:', error)
+              }}
             />
-          )}
-        </div>
+            {transcriptionResult && (
+              <TranscriptionResults
+                transcription={transcriptionResult}
+                onClear={handleClear}
+              />
+            )}
+          </div>
+        )}
+
+        {currentView === 'recordings' && (
+          <MyRecordings
+            onBack={() => handleNavigate('upload')}
+          />
+        )}
       </AuthenticatedTemplate>
 
       <UnauthenticatedTemplate>
