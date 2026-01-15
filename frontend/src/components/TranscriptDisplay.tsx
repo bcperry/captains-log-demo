@@ -18,7 +18,19 @@ export interface TranscriptDisplayProps {
 }
 
 /**
+ * Normalize speaker ID to a consistent format for lookup.
+ * Handles: Guest-1 -> Speaker_1, Speaker-1 -> Speaker_1, Speaker 1 -> Speaker_1
+ */
+function normalizeSpeakerId(speakerId: string): string {
+  return speakerId
+    .replace(/^Guest/i, 'Speaker')  // Guest -> Speaker prefix
+    .replace(/-/g, '_')              // hyphen -> underscore
+    .replace(/ /g, '_')              // space -> underscore
+}
+
+/**
  * Get display name for a speaker, using AI-identified/user-edited name if available.
+ * Handles key format mismatches: Guest-1 vs Speaker_1 vs Speaker-1 vs Speaker 1
  */
 function getDisplayName(speakerId: string, speakerNames?: Record<string, SpeakerIdentification>): string {
   if (speakerNames) {
@@ -26,13 +38,25 @@ function getDisplayName(speakerId: string, speakerNames?: Record<string, Speaker
     if (speakerNames[speakerId]) {
       return speakerNames[speakerId].name
     }
-    // Try with underscore format (Speaker_1 vs Speaker 1)
-    const underscoreId = speakerId.replace(' ', '_')
+    
+    // Normalize the speaker ID and try lookup
+    const normalizedId = normalizeSpeakerId(speakerId)
+    if (speakerNames[normalizedId]) {
+      return speakerNames[normalizedId].name
+    }
+    
+    // Try with underscore format (Speaker-1 -> Speaker_1, Speaker 1 -> Speaker_1)
+    const underscoreId = speakerId.replace(/-/g, '_').replace(/ /g, '_')
     if (speakerNames[underscoreId]) {
       return speakerNames[underscoreId].name
     }
-    // Try with space format
-    const spaceId = speakerId.replace('_', ' ')
+    // Try with hyphen format (Speaker_1 -> Speaker-1, Speaker 1 -> Speaker-1)
+    const hyphenId = speakerId.replace(/_/g, '-').replace(/ /g, '-')
+    if (speakerNames[hyphenId]) {
+      return speakerNames[hyphenId].name
+    }
+    // Try with space format (Speaker_1 -> Speaker 1, Speaker-1 -> Speaker 1)
+    const spaceId = speakerId.replace(/_/g, ' ').replace(/-/g, ' ')
     if (speakerNames[spaceId]) {
       return speakerNames[spaceId].name
     }
