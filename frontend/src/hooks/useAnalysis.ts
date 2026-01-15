@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef } from 'react'
-import { analyzeTranscription as analyzeApi, saveAnalysis as saveAnalysisApi } from '../services/api'
+import { analyzeTranscription as analyzeApi } from '../services/api'
 import { useAuthenticatedApi } from './useAuthenticatedApi'
 import type { AnalysisResult } from '../types'
 
 export interface AnalysisProgress {
-  status: 'idle' | 'analyzing' | 'saving' | 'complete' | 'error'
+  status: 'idle' | 'analyzing' | 'complete' | 'error'
   message?: string
 }
 
@@ -72,31 +72,12 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
           },
         }))
 
-        // Call API with authentication - pass diarized transcript if available
-        const result = await withAuth(() => analyzeApi(text, diarizedTranscript))
+        // Call API with authentication - pass diarized transcript and folder_path for storage
+        const result = await withAuth(() => analyzeApi(text, diarizedTranscript, folderPath))
 
         // Check if cancelled
         if (abortControllerRef.current?.signal.aborted) {
           return
-        }
-
-        // Save analysis to storage if folderPath is provided
-        if (folderPath) {
-          setState((prev) => ({
-            ...prev,
-            result,
-            progress: {
-              status: 'saving',
-              message: 'Saving analysis...',
-            },
-          }))
-
-          try {
-            await withAuth(() => saveAnalysisApi(folderPath, result))
-          } catch (saveError) {
-            console.warn('Failed to save analysis, but continuing:', saveError)
-            // Don't fail the analysis if save fails
-          }
         }
 
         // Update state with result
@@ -172,7 +153,7 @@ export function useAnalysis(options: UseAnalysisOptions = {}): UseAnalysisReturn
     loadSavedAnalysis,
     cancel,
     reset,
-    isAnalyzing: state.progress.status === 'analyzing' || state.progress.status === 'saving',
+    isAnalyzing: state.progress.status === 'analyzing',
     hasResult: state.result !== null,
   }
 }

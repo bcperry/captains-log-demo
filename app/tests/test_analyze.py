@@ -1,16 +1,18 @@
 """Tests for the analyze API endpoint."""
 
-from unittest.mock import MagicMock, patch
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from ai import OpenAIClient, OpenAIClientError, OpenAINotConfiguredError
-from api.analyze import get_openai_service, router
+from api.analyze import get_blob_storage, get_openai_service, router
 from auth import AuthenticatedUser
 from auth.dependencies import get_current_user_azure
 from models.analysis import ActionItem, AnalysisResult, Priority, Sentiment
+from storage.blob import BlobStorageClient
 
 
 @pytest.fixture
@@ -71,12 +73,27 @@ def mock_openai_client(mock_analysis_result: AnalysisResult) -> MagicMock:
 
 
 @pytest.fixture
+def mock_blob_storage() -> MagicMock:
+    """Create a mock blob storage client."""
+    storage = MagicMock(spec=BlobStorageClient)
+    storage.save_analysis_json = AsyncMock(
+        return_value="https://storage.blob.local/container/test-oid-12345/test_folder/analysis.json"
+    )
+    storage.get_metadata = AsyncMock(
+        return_value=json.dumps({"id": "test-folder", "has_analysis": False})
+    )
+    storage.save_metadata = AsyncMock(return_value="https://storage.blob.local/container/test-oid-12345/test_folder/metadata.json")
+    return storage
+
+
+@pytest.fixture
 def client(
-    app: FastAPI, mock_user: AuthenticatedUser, mock_openai_client: MagicMock
+    app: FastAPI, mock_user: AuthenticatedUser, mock_openai_client: MagicMock, mock_blob_storage: MagicMock
 ) -> TestClient:
     """Create a test client with mocked dependencies."""
     app.dependency_overrides[get_current_user_azure] = lambda: mock_user
     app.dependency_overrides[get_openai_service] = lambda: mock_openai_client
+    app.dependency_overrides[get_blob_storage] = lambda: mock_blob_storage
     return TestClient(app)
 
 
@@ -302,3 +319,146 @@ class TestOpenAIClientUnit:
             client._parse_analysis_response("not valid json")
 
         assert "Failed to parse" in str(exc_info.value)
+
+
+class TestAnalyzeSaveToStorage:
+    """Tests for saving analysis to blob storage."""
+
+    def test_saves_analysis_when_folder_path_provided(
+        self,
+        app: FastAPI,
+        mock_user: AuthenticatedUser,
+        mock_openai_client: MagicMock,
+        mock_blob_storage: MagicMock,
+    ) -> None:
+        """Test that analysis is saved when folder_path is provided."""
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
+        app.dependency_overrides[get_openai_service] = lambda: mock_openai_client
+        app.dependency_overrides[get_blob_storage] = lambda: mock_blob_storage
+
+        client = TestClient(app)
+        response = client.post(
+            "/analyze",
+            json={
+                "text": "Test text",
+                "folder_path": "test_recording_20240115_103000",
+            },
+        )
+
+        assert response.status_code == 200
+        # Verify save_analysis_json was called with correct folder path (including user prefix)
+        mock_blob_storage.save_analysis_json.assert_called_once()
+        call_args = mock_blob_storage.save_analysis_json.call_args
+        assert call_args[0][0] == "test-oid-12345"  # user_id
+        assert call_args[0][1] == "test-oid-12345/test_recording_20240115_103000"  # folder_path with prefix
+
+    def test_updates_metadata_has_analysis_flag(
+        self,
+        app: FastAPI,
+        mock_user: AuthenticatedUser,
+        mock_openai_client: MagicMock,
+        mock_blob_storage: MagicMock,
+    ) -> None:
+        """Test that metadata is updated with has_analysis: true."""
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
+        app.dependency_overrides[get_openai_service] = lambda: mock_openai_client
+        app.dependency_overrides[get_blob_storage] = lambda: mock_blob_storage
+
+        client = TestClient(app)
+        response = client.post(
+            "/analyze",
+            json={
+                "text": "Test text",
+                "folder_path": "test-oid-12345/test_folder",  # Already has user prefix
+            },
+        )
+
+        assert response.status_code == 200
+        # Verify metadata was updated
+        mock_blob_storage.get_metadata.assert_called_once()
+        mock_blob_storage.save_metadata.assert_called_once()
+        # Check that saved metadata includes has_analysis: true
+        saved_metadata = json.loads(mock_blob_storage.save_metadata.call_args[0][2])
+        assert saved_metadata["has_analysis"] is True
+
+    def test_does_not_save_when_no_folder_path(
+        self,
+        app: FastAPI,
+        mock_user: AuthenticatedUser,
+        mock_openai_client: MagicMock,
+        mock_blob_storage: MagicMock,
+    ) -> None:
+        """Test that no save happens when folder_path is not provided."""
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
+        app.dependency_overrides[get_openai_service] = lambda: mock_openai_client
+        app.dependency_overrides[get_blob_storage] = lambda: mock_blob_storage
+
+        client = TestClient(app)
+        response = client.post("/analyze", json={"text": "Test text"})
+
+        assert response.status_code == 200
+        mock_blob_storage.save_analysis_json.assert_not_called()
+        mock_blob_storage.get_metadata.assert_not_called()
+        mock_blob_storage.save_metadata.assert_not_called()
+
+    def test_returns_result_even_if_save_fails(
+        self,
+        app: FastAPI,
+        mock_user: AuthenticatedUser,
+        mock_openai_client: MagicMock,
+        mock_blob_storage: MagicMock,
+    ) -> None:
+        """Test that analysis result is returned even if blob save fails."""
+        # Make save fail
+        mock_blob_storage.save_analysis_json = AsyncMock(
+            side_effect=Exception("Storage unavailable")
+        )
+
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
+        app.dependency_overrides[get_openai_service] = lambda: mock_openai_client
+        app.dependency_overrides[get_blob_storage] = lambda: mock_blob_storage
+
+        client = TestClient(app)
+        response = client.post(
+            "/analyze",
+            json={
+                "text": "Test text",
+                "folder_path": "test_folder",
+            },
+        )
+
+        # Should still return 200 with analysis result
+        assert response.status_code == 200
+        data = response.json()
+        assert "summary" in data
+
+    def test_continues_if_metadata_update_fails(
+        self,
+        app: FastAPI,
+        mock_user: AuthenticatedUser,
+        mock_openai_client: MagicMock,
+        mock_blob_storage: MagicMock,
+    ) -> None:
+        """Test that analysis saves even if metadata update fails."""
+        # Make metadata update fail
+        mock_blob_storage.get_metadata = AsyncMock(
+            side_effect=Exception("Metadata not found")
+        )
+
+        app.dependency_overrides[get_current_user_azure] = lambda: mock_user
+        app.dependency_overrides[get_openai_service] = lambda: mock_openai_client
+        app.dependency_overrides[get_blob_storage] = lambda: mock_blob_storage
+
+        client = TestClient(app)
+        response = client.post(
+            "/analyze",
+            json={
+                "text": "Test text",
+                "folder_path": "test_folder",
+            },
+        )
+
+        # Should still return 200 with analysis result
+        assert response.status_code == 200
+        # Analysis save was still attempted
+        mock_blob_storage.save_analysis_json.assert_called_once()

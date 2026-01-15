@@ -139,7 +139,7 @@ describe('TranscriptionResults', () => {
       fireEvent.click(screen.getByTestId('analyze-button'))
       
       await waitFor(() => {
-        expect(mockAnalyze).toHaveBeenCalledWith(mockTranscription.text, undefined)
+        expect(mockAnalyze).toHaveBeenCalledWith(mockTranscription.text, undefined, undefined)
       })
     })
 
@@ -308,7 +308,8 @@ describe('TranscriptionResults', () => {
       await waitFor(() => {
         expect(mockAnalyze).toHaveBeenCalledWith(
           diarizedTranscription.text,
-          'Speaker 1 [00:00:00]: Hello there\nSpeaker 2 [00:00:01]: Hi!'
+          'Speaker 1 [00:00:00]: Hello there\nSpeaker 2 [00:00:01]: Hi!',
+          undefined  // folderPath
         )
       })
     })

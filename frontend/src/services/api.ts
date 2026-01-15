@@ -232,10 +232,13 @@ export const getTranscriptionContent = (id: string): Promise<TranscriptionConten
 }
 
 // Analysis endpoints
-export const analyzeTranscription = (text: string, diarizedTranscript?: string): Promise<AnalysisResult> => {
+export const analyzeTranscription = (text: string, diarizedTranscript?: string, folderPath?: string): Promise<AnalysisResult> => {
   const body: Record<string, unknown> = { text }
   if (diarizedTranscript) {
     body.diarized_transcript = diarizedTranscript
+  }
+  if (folderPath) {
+    body.folder_path = folderPath
   }
   return request<AnalysisResult>('/analyze', {
     method: 'POST',
