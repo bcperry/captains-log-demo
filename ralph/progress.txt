@@ -2075,3 +2075,23 @@ Started: 2024-01-15
   - TranscriptDisplay: Use getDisplayName() helper to look up identified names with fallback to formatSpeakerName()
   - Tests: 153 frontend tests pass, 30 backend analysis/transcription tests pass
 ---
+
+## 2026-01-15 - BUG-016
+- What was implemented: Fixed TypeScript compile error where 'PUT' was not assignable to HttpMethod type
+- Root cause: HttpMethod type union in frontend/src/services/api.ts was missing 'PUT' method
+- Files changed:
+  - `frontend/src/services/api.ts` - Added 'PUT' to HttpMethod type union (line 25)
+- **Verification:**
+  - TypeScript compilation succeeded (tsc -b)
+  - ESLint passed (0 errors, 1 unrelated warning)
+  - npm run build:deploy completed successfully
+  - All 153 frontend tests pass
+  - Application deployed to app/static
+- **Playwright Verification:**
+  - Pages tested: http://127.0.0.1:8000 (main application)
+  - Application loads without errors
+  - Screenshot: bug016-app-loads-verification.png
+- **Learnings:**
+  - HttpMethod type should include all standard HTTP methods: GET, POST, PUT, PATCH, DELETE
+  - TypeScript strict mode catches API method type mismatches early
+---

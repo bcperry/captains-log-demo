@@ -22,7 +22,7 @@ class ApiError extends Error {
   }
 }
 
-type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 interface RequestOptions {
   method?: HttpMethod

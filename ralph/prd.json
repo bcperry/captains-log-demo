@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
+        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
-        "Replace '\u23f3' with 'Processing...' text",
-        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
-        "Replace '\u274c' error indicators with professional error styling",
+        "Replace '🎯' with 'Start' or use button variant styling",
+        "Replace '⏳' with 'Processing...' text",
+        "Replace '✅' success indicators with professional checkmarks or green highlights",
+        "Replace '❌' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2032,6 +2032,29 @@
       "priority": 2,
       "passes": true,
       "notes": "FEATURE: Enhance AI analysis to automatically identify speaker names from conversation context. For example, if transcript says 'I wanted to ask, are they going to be on site the RDE IT team. So I guess for Christine, I wanted to ask...', AI should map Speaker-2 to Christine. User can override if AI gets it wrong. This greatly improves transcript readability by showing real names instead of generic Speaker-1, Speaker-2 labels."
+    },
+    {
+      "id": "BUG-016",
+      "title": "TypeScript compile error: 'PUT' not assignable to type 'HttpMethod'",
+      "acceptanceCriteria": [
+        "TypeScript compilation succeeds without errors",
+        "HttpMethod type definition includes 'PUT' as valid method",
+        "src/services/api.ts line 280 compiles without type error",
+        "HttpMethod type includes: 'GET', 'POST', 'PUT', 'DELETE', 'PATCH'",
+        "All HTTP methods used in api.ts are defined in HttpMethod type",
+        "npm run build:deploy completes successfully",
+        "vite build completes without TypeScript errors",
+        "Frontend builds and deploys to app/static without errors",
+        "No regression in existing API calls using GET, POST, DELETE methods",
+        "TypeScript strict mode remains enabled",
+        "ESLint passes with no errors",
+        "PLAYWRIGHT: Verify application builds and starts successfully",
+        "PLAYWRIGHT: Verify PUT endpoint functionality works (e.g., update speaker names)",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUILD ERROR logged 2026-01-15 - TypeScript compilation fails at src/services/api.ts:280:5 with error TS2322: Type '\"PUT\"' is not assignable to type 'HttpMethod | undefined'. The HttpMethod type definition is missing 'PUT' method. Need to add 'PUT' to the HttpMethod type union in api.ts or types file. This blocks frontend build and deployment."
     }
   ]
 }
