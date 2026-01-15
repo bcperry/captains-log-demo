@@ -188,7 +188,7 @@ export function Sidebar({
                       speechStatus.connected ? 'text-green-600' : 'text-red-600'
                     }`}
                   >
-                    {speechStatus.message.replace(/^[✅❌🏛️]\s*/, '')}
+                    {speechStatus.message.replace(/^(✅|❌|🏛️)\s*/u, '')}
                   </p>
                 )}
               </div>
@@ -225,7 +225,7 @@ export function Sidebar({
                       openAIStatus.connected ? 'text-green-600' : 'text-red-600'
                     }`}
                   >
-                    {openAIStatus.message.replace(/^[✅❌]\s*/, '')}
+                    {openAIStatus.message.replace(/^(✅|❌)\s*/u, '')}
                   </p>
                 )}
               </div>
