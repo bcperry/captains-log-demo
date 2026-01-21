@@ -16,6 +16,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Optional
+from urllib.parse import quote, unquote
 
 from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
@@ -335,9 +336,10 @@ class BlobStorageClient:
                     expiry=datetime.now(UTC) + timedelta(hours=expiry_hours),
                 )
 
-                # Build full URL with SAS token
+                # Build full URL with SAS token (URL-encode blob_name to handle spaces/special chars)
                 endpoint = self.endpoint or f"https://{account_name}.blob.core.windows.net"
-                return f"{endpoint}/{self.container_name}/{blob_name}?{sas_token}"
+                encoded_blob_name = quote(blob_name, safe="/")
+                return f"{endpoint}/{self.container_name}/{encoded_blob_name}?{sas_token}"
 
             else:
                 # For managed identity, we need to use user delegation key
@@ -366,7 +368,9 @@ class BlobStorageClient:
                     start=start_time,
                 )
 
-                return f"{blob_client.url}?{sas_token}"
+                # URL-encode blob_name in URL to handle spaces/special chars
+                encoded_url = quote(blob_client.url, safe="/:@")
+                return f"{encoded_url}?{sas_token}"
 
         except AzureError as e:
             logger.error(f"Failed to generate SAS URL: {e}")
@@ -379,7 +383,7 @@ class BlobStorageClient:
             blob_url: Full blob URL
 
         Returns:
-            Blob name (path within container)
+            Blob name (path within container), URL-decoded to handle spaces/special chars
         """
         # URL format: https://account.blob.core.windows.net/container/blob/path
         # We need to extract everything after the container name
@@ -390,7 +394,8 @@ class BlobStorageClient:
             if len(parts) > 1:
                 # Remove any query string (SAS token)
                 blob_path = parts[1].split("?")[0]
-                return blob_path
+                # URL-decode to handle spaces and special characters
+                return unquote(blob_path)
 
         # Fallback: assume the last path segments are the blob name
         from urllib.parse import urlparse
@@ -398,10 +403,10 @@ class BlobStorageClient:
         parsed = urlparse(blob_url)
         path_parts = parsed.path.strip("/").split("/")
         if len(path_parts) > 1:
-            # Skip container name (first part) and return the rest
-            return "/".join(path_parts[1:])
+            # Skip container name (first part) and return the rest, URL-decoded
+            return unquote("/".join(path_parts[1:]))
 
-        return blob_url
+        return unquote(blob_url)
 
     def _generate_transcription_blob_name(
         self,

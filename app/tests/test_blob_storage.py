@@ -136,6 +136,32 @@ class TestBlobStorageClient:
         blob_name = client.extract_blob_name_from_url(url)
         assert blob_name == "user123/file.wav"
 
+    def test_extract_blob_name_from_url_with_spaces(self) -> None:
+        """Test extracting blob name from URL-encoded URL with spaces."""
+        settings = Settings(
+            azure_storage_container="audio-uploads",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        client = BlobStorageClient(settings)
+
+        # URL-encoded spaces (%20)
+        url = "https://storage.blob.core.windows.net/audio-uploads/user123/Captains%20Log%20Meeting_Jan%2015%202026/audio/file.wav"
+        blob_name = client.extract_blob_name_from_url(url)
+        assert blob_name == "user123/Captains Log Meeting_Jan 15 2026/audio/file.wav"
+
+    def test_extract_blob_name_from_url_with_special_chars(self) -> None:
+        """Test extracting blob name from URL with special characters."""
+        settings = Settings(
+            azure_storage_container="audio-uploads",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        client = BlobStorageClient(settings)
+
+        # URL-encoded special characters
+        url = "https://storage.blob.core.windows.net/audio-uploads/user123/file%23name%40test/audio/audio.wav?sas=token"
+        blob_name = client.extract_blob_name_from_url(url)
+        assert blob_name == "user123/file#name@test/audio/audio.wav"
+
 
 class TestInMemoryBlobClient:
     """Tests for InMemoryBlobClient."""
@@ -405,6 +431,15 @@ class TestSanitizeFilename:
 
         # The function removes the extension during sanitization
         assert "wav" not in sanitize_filename("test.wav") or sanitize_filename("test.wav") == "test"
+
+    def test_sanitize_handles_captains_log_filename(self) -> None:
+        """Test sanitize_filename handles the bug report filename with spaces."""
+        from storage.blob import sanitize_filename
+
+        # This is the exact filename from the bug report
+        result = sanitize_filename("Captains Log Meeting_Jan 15 2026.mp4")
+        # Spaces should be replaced with underscores
+        assert result == "Captains_Log_Meeting_Jan_15_2026"
 
 
 class TestUserPathMethods:
