@@ -2322,3 +2322,20 @@ Started: 2024-01-15
   - When multiple env vars might be set, order matters for priority
   - Always verify OAuth2 client_id in Swagger UI modal matches expected app registration
 ---
+
+## 2026-01-21 - US-089
+- What was implemented: Fixed URL encoding bug for filenames with spaces and special characters
+- Root cause: SAS URLs in `get_blob_sas_url()` were not URL-encoding blob names, causing malformed URLs for files with spaces/special chars. Also `extract_blob_name_from_url()` was not URL-decoding the path.
+- Files changed:
+  - `app/storage/blob.py` - Added `urllib.parse.quote/unquote` import, URL-encode blob_name in `get_blob_sas_url()`, URL-decode in `extract_blob_name_from_url()`
+  - `app/tests/test_blob_storage.py` - Added tests for URL-encoded paths with spaces and special chars, added test for exact bug report filename
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI), http://localhost:3000 (Frontend)
+  - Interactions verified: Upload Audio navigation, API docs load
+  - Screenshots taken: us089-swagger-docs.png, us089-frontend-main.png, us089-upload-audio.png
+- **Learnings:**
+  - Always URL-encode blob names when building SAS URLs with `quote(blob_name, safe="/")`
+  - Always URL-decode blob paths extracted from URLs with `unquote()`
+  - Azure blob client returns unencoded URLs but SAS URLs need encoding for HTTP transport
+  - The `sanitize_filename()` function already handles spaces by replacing with underscores
+---

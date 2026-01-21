@@ -2365,6 +2365,26 @@
       "priority": 1,
       "passes": true,
       "notes": "CRITICAL BUG logged 2026-01-15 - Backend returns 'token contains invalid claims' because of client ID collision. Container App has TWO client IDs:\n\n  AZURE_CLIENT_ID = 0e644592... (managed identity for Azure resources)\n  AZURE_ENTRA_CLIENT_ID = ec3c8d20... (app registration for user auth)\n\nsettings.py uses AliasChoices('azure_client_id', 'azure_entra_client_id') which checks AZURE_CLIENT_ID FIRST. Since it's set, Pydantic uses the managed identity client ID (0e644592) instead of the app registration (ec3c8d20).\n\nResult:\n- Frontend MSAL gets token with audience = ec3c8d20 (correct app registration)\n- Backend validates against = 0e644592 (wrong - managed identity)\n- Token validation fails: audience mismatch = 'invalid claims'\n\nFix: Either (1) rename AZURE_CLIENT_ID to AZURE_MANAGED_IDENTITY_CLIENT_ID in Bicep so it doesn't match the alias, (2) change AliasChoices order to ('azure_entra_client_id', 'azure_client_id'), or (3) remove AZURE_CLIENT_ID from container env entirely."
+    },
+    {
+      "id": "US-089",
+      "title": "Support filenames with spaces and special characters in transcription",
+      "acceptanceCriteria": [
+        "Application can process files with spaces in filename (e.g., 'Captains Log Meeting_Jan 15 2026.mp4')",
+        "Application can process files with underscores, dashes, and other special characters",
+        "Blob storage upload correctly handles URL-encoded filenames",
+        "Batch transcription API correctly references files with special characters",
+        "Frontend properly encodes filenames when uploading",
+        "Backend properly decodes and handles filenames with spaces",
+        "Transcription results display correct original filename",
+        "No errors when processing 'Captains Log Meeting_Jan 15 2026.mp4'",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "FIXED 2026-01-21 - Root cause: SAS URLs were not properly URL-encoding blob names with spaces/special chars. Fixed get_blob_sas_url() to use urllib.parse.quote() and extract_blob_name_from_url() to use unquote(). Added tests for URL-encoded paths and the specific filename from bug report."
     }
   ]
 }
