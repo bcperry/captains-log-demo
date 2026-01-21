@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
+        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
-        "Replace '\u23f3' with 'Processing...' text",
-        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
-        "Replace '\u274c' error indicators with professional error styling",
+        "Replace '🎯' with 'Start' or use button variant styling",
+        "Replace '⏳' with 'Processing...' text",
+        "Replace '✅' success indicators with professional checkmarks or green highlights",
+        "Replace '❌' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2142,7 +2142,7 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' \u2192 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' \u2192 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] \u2192 ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     },
     {
       "id": "BUG-020",
@@ -2385,6 +2385,26 @@
       "priority": 1,
       "passes": true,
       "notes": "FIXED 2026-01-21 - Root cause: SAS URLs were not properly URL-encoding blob names with spaces/special chars. Fixed get_blob_sas_url() to use urllib.parse.quote() and extract_blob_name_from_url() to use unquote(). Added tests for URL-encoded paths and the specific filename from bug report."
+    },
+    {
+      "id": "BUG-028",
+      "title": "File size limit too small - cannot upload 'Captains Log Meeting_Jan 15 2026.mp4'",
+      "acceptanceCriteria": [
+        "Application accepts and processes 'Captains Log Meeting_Jan 15 2026.mp4' file",
+        "File size limit increased to support larger meeting recordings (at least 500MB)",
+        "Frontend file upload size validation matches backend limit",
+        "Backend /transcribe endpoint accepts larger files",
+        "Blob storage upload handles larger files correctly",
+        "Azure Speech batch transcription processes larger audio files",
+        "Clear error message shown if file exceeds maximum size limit",
+        "No timeout errors during large file upload",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-21 - User reports 'file too large' error when attempting to upload 'Captains Log Meeting_Jan 15 2026.mp4'. Current file size limit is too restrictive for typical meeting recordings. Need to investigate:\n\n1. Frontend file size validation in upload component\n2. Backend MAX_FILE_SIZE or similar setting in settings.py or transcribe.py\n3. FastAPI request body size limits\n4. Azure Blob Storage chunked upload for large files\n5. Azure Speech batch transcription file size limits\n\nThe application MUST be able to process this specific file. Meeting recordings are commonly 100MB-1GB depending on duration and quality."
     }
   ]
 }
