@@ -2339,3 +2339,28 @@ Started: 2024-01-15
   - Azure blob client returns unencoded URLs but SAS URLs need encoding for HTTP transport
   - The `sanitize_filename()` function already handles spaces by replacing with underscores
 ---
+
+## 2026-01-21 - BUG-028
+- What was implemented: Verified file size limit is correctly configured at 500MB (previously fixed)
+- Root cause: File size limit was already set to 500MB in both frontend and backend
+- Files verified (no changes needed):
+  - `app/models/transcription.py` - MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024 (500MB)
+  - `frontend/src/types/transcription.ts` - MAX_FILE_SIZE_MB = 500, MAX_FILE_SIZE_BYTES exported
+  - `frontend/src/components/AudioUpload.tsx` - Validates file size against 500MB limit
+  - `app/api/transcribe.py` - Validates file size in _read_and_validate_file_size()
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3002 (Upload Audio page)
+  - Verified: "Max file size: 500 MB" displayed in upload area
+  - Tested: Successfully uploaded 'Captains Log Meeting_Jan 15 2026.mp4' (158MB)
+  - File details shown: 157.09 MB, MP4 format, 66:21 duration
+  - Screenshots taken: bug028-upload-page-500mb.png, bug028-file-uploaded-successfully.png
+- **Tests:**
+  - test_returns_file_size - PASSED
+  - test_max_file_size_constant - PASSED
+  - test_rejects_file_too_large - PASSED
+  - Frontend tests: 163 passed
+- **Learnings:**
+  - File size limit is defined in models/transcription.py and exported to frontend
+  - Frontend and backend limits must be kept in sync (both currently 500MB)
+  - MP4 files are supported and can contain audio tracks for transcription
+---
