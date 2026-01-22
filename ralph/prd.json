@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
+        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
-        "Replace '\u23f3' with 'Processing...' text",
-        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
-        "Replace '\u274c' error indicators with professional error styling",
+        "Replace '🎯' with 'Start' or use button variant styling",
+        "Replace '⏳' with 'Processing...' text",
+        "Replace '✅' success indicators with professional checkmarks or green highlights",
+        "Replace '❌' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2142,7 +2142,7 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' \u2192 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' \u2192 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] \u2192 ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     },
     {
       "id": "BUG-020",
@@ -2477,6 +2477,27 @@
       "priority": 1,
       "passes": true,
       "notes": "BUG logged 2026-01-22 - Batch transcription fails with '[Errno -2] Name or service not known' when creating transcription job. Error occurs after successful blob upload (Response status: 200 from blob storage).\n\nError trace:\n  speech.batch - ERROR - Request error creating transcription job: [Errno -2] Name or service not known\n  api.transcribe - ERROR - Failed to create batch transcription job: Request error: [Errno -2] Name or service not known\n  POST /transcribe/batch returns 503 Service Unavailable\n\nPossible causes:\n1. AZURE_SPEECH_REGION is empty or malformed\n2. Wrong cloud endpoint (using .azure.us but region is commercial)\n3. DNS resolution failing in container/WSL environment\n4. Region name incorrect (e.g., 'usgovvirginia' vs 'usgovva' vs 'virginia')\n5. Network connectivity issue to Azure Government endpoints\n\nDebug steps:\n1. Log the exact URL being constructed in BatchTranscriptionConfig.base_url\n2. Verify AZURE_SPEECH_REGION and AZURE_CLOUD env vars\n3. Test DNS resolution: nslookup usgovvirginia.api.cognitive.azure.us"
+    },
+    {
+      "id": "BUG-032",
+      "title": "Batch transcription URL uses AZURE_SPEECH_REGION but Speech resource is in different region",
+      "acceptanceCriteria": [
+        "Batch transcription API resolves correct endpoint for Azure Government",
+        "BatchTranscriptionConfig.base_url uses usgovvirginia (not usgovarizona) for Gov cloud",
+        "Extract actual region from AZURE_SPEECH_ENDPOINT if available (DNS shows it maps to usgovvirginia)",
+        "OR hardcode batch API region to 'usgovvirginia' for Government cloud (only supported region)",
+        "OR add AZURE_SPEECH_BATCH_REGION separate config for batch API",
+        "Real-time SDK transcription continues to work using AZURE_SPEECH_ENDPOINT",
+        "Batch transcription works for large files (1 hour, 550MB)",
+        "Test: nslookup usgovvirginia.api.cognitive.azure.us resolves successfully",
+        "Test: POST /transcribe/batch returns 200 and creates job (not 503)",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-22 - REGRESSION: Transcription was working previously with real-time SDK, but broke when batch transcription was added for large files.\n\nROOT CAUSE ANALYSIS:\n1. AZURE_SPEECH_ENDPOINT = https://<YOUR_SPEECH_ENDPOINT_HOST_2>/ (correct, works)\n2. AZURE_SPEECH_REGION = usgovarizona (from .env, matches Container App location)\n3. AZURE_LOCATION = usgovarizona (resource group location)\n\nBUT: Azure Speech batch transcription API is ONLY available in usgovvirginia for Government cloud. The endpoint URL pattern for batch API is:\n  https://{region}.api.cognitive.azure.us/speechtotext/v3.1\n\nSo batch.py constructs: https://usgovarizona.api.cognitive.azure.us/speechtotext/v3.1\nThis fails DNS because usgovarizona doesn't have the batch API endpoint.\n\nThe real-time SDK works because it uses AZURE_SPEECH_ENDPOINT directly, which Azure automatically routes to usgovvirginia (as proven by nslookup showing CNAME to usgovvirginia.api.cognitive.microsoft.us).\n\nFIX OPTIONS:\n1. Parse AZURE_SPEECH_ENDPOINT to extract actual region (complex)\n2. For Government cloud, always use 'usgovvirginia' for batch API (simple)\n3. Add separate AZURE_SPEECH_BATCH_REGION config (flexible)\n\nRECOMMENDED: Option 2 - hardcode 'usgovvirginia' for batch API when cloud=government, since it's the only supported region.\n\nFIXED 2026-01-22: Added batch_region property that always returns usgovvirginia for Government cloud. Commercial cloud uses the provided region. Tests updated and passing."
     }
   ]
 }

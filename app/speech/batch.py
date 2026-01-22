@@ -145,16 +145,32 @@ class BatchTranscriptionConfig:
         # Log the configuration for debugging
         logger.debug(
             f"BatchTranscriptionConfig initialized: region={self.region}, "
+            f"batch_region={self.batch_region}, "
             f"cloud={self.cloud.value}, base_url={self.base_url}"
         )
+
+    # Azure Government batch transcription API is only available in usgovvirginia
+    # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/batch-transcription
+    GOVERNMENT_BATCH_REGION = "usgovvirginia"
+
+    @property
+    def batch_region(self) -> str:
+        """Get the region for batch transcription API.
+
+        For Azure Government, batch transcription is only available in usgovvirginia,
+        regardless of where the Speech resource is deployed.
+        """
+        if self.cloud == AzureCloud.GOVERNMENT:
+            return self.GOVERNMENT_BATCH_REGION
+        return self.region
 
     @property
     def base_url(self) -> str:
         """Get the batch transcription API base URL."""
         if self.cloud == AzureCloud.GOVERNMENT:
-            return f"https://{self.region}.api.cognitive.azure.us/speechtotext/v3.1"
+            return f"https://{self.batch_region}.api.cognitive.azure.us/speechtotext/v3.1"
         else:
-            return f"https://{self.region}.api.cognitive.microsoft.com/speechtotext/v3.1"
+            return f"https://{self.batch_region}.api.cognitive.microsoft.com/speechtotext/v3.1"
 
     @property
     def hostname(self) -> str:
@@ -183,8 +199,8 @@ class BatchTranscriptionConfig:
                 f"DNS resolution failed for {hostname}. "
                 f"Error: {e}. "
                 f"Possible causes: "
-                f"1) AZURE_SPEECH_REGION='{self.region}' may be incorrect "
-                f"(try 'usgovvirginia' or 'eastus2'), "
+                f"1) Batch API region='{self.batch_region}' is not available "
+                f"(Azure Gov only supports 'usgovvirginia' for batch transcription), "
                 f"2) AZURE_CLOUD='{self.cloud.value}' may not match your Speech Services deployment, "
                 f"3) Network/DNS issues in your environment. "
                 f"Full URL: {self.base_url}"

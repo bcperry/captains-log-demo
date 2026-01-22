@@ -2445,3 +2445,21 @@ Started: 2024-01-15
   - Validate DNS synchronously with socket.gethostbyname() before async HTTP requests
   - Differentiate error types: DNS errors (config issue) vs network errors (transient) vs API errors (service issue)
 ---
+
+## 2026-01-22 - BUG-032
+- What was implemented: Fixed batch transcription region for Azure Government cloud
+- Root cause: Batch transcription API only available in usgovvirginia for Azure Gov, but code was using AZURE_SPEECH_REGION (usgovarizona) which has no batch API endpoint
+- Files changed:
+  - `app/speech/batch.py` - Added `batch_region` property that returns usgovvirginia for Government cloud, updated `base_url` to use `batch_region`
+  - `app/tests/test_batch_transcription.py` - Added tests for Government/Commercial batch region behavior, updated DNS test to use Commercial cloud
+  - `app/config/version.py` - Version bump to 1.2.2
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Verified: POST /transcribe/batch endpoint visible and documented
+  - Screenshot taken: bug032-batch-transcription-api.png
+  - Configuration verified: Government cloud with usgovarizona input correctly uses usgovvirginia for batch API
+- **Learnings:**
+  - Azure Government batch transcription API is only available in usgovvirginia
+  - Real-time SDK uses AZURE_SPEECH_ENDPOINT which auto-routes, but batch API builds URL from region
+  - Always use usgovvirginia for batch API in Government cloud regardless of Speech resource region
+---
