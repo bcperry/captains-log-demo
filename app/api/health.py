@@ -14,6 +14,9 @@ from pydantic import BaseModel, Field
 from config.settings import get_settings
 from speech import get_speech_client
 
+# Import version from main module
+API_VERSION = "1.1.0"  # Keep in sync with main.py
+
 # Configure structured logging
 logger = logging.getLogger(__name__)
 
@@ -37,7 +40,7 @@ class HealthResponse(BaseModel):
         default_factory=lambda: datetime.now(UTC),
         description="Timestamp of health check",
     )
-    version: str = Field(default="0.6.0", description="Application version")
+    version: str = Field(default=API_VERSION, description="Application version")
 
 
 class ReadinessResponse(BaseModel):

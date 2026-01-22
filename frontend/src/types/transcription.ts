@@ -73,5 +73,5 @@ export const SUPPORTED_AUDIO_FORMATS = [
 
 export const SUPPORTED_EXTENSIONS = ['wav', 'mp3', 'm4a', 'ogg', 'flac', 'mp4']
 
-export const MAX_FILE_SIZE_MB = 500
+export const MAX_FILE_SIZE_MB = 1024
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024

@@ -10,7 +10,7 @@ interface LayoutProps {
   onNavigate?: (view: ViewType) => void
 }
 
-const VERSION = '1.0.0'
+const VERSION = '1.1.0'
 
 // Get initial language from localStorage (runs once during module load)
 const getInitialLanguage = (): string => {

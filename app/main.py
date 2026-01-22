@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # API metadata for OpenAPI documentation
 API_TITLE = "Captain's Log API"
-API_VERSION = "1.0.0"
+API_VERSION = "1.1.0"
 API_DESCRIPTION = """
 # Captain's Log API
 

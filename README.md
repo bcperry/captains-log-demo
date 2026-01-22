@@ -97,7 +97,12 @@ A modern, AI-powered audio transcription and analysis application built with Rea
    npm run dev
    ```
 
-8. **Open your browser** to `http://localhost:3000`
+8. **One-liner for local development** (builds frontend and starts backend with hot reload)
+   ```bash
+   cd frontend && npm run build:deploy && cd ../app && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+9. **Open your browser** to `http://localhost:8000`
 
 ### Using Docker
 
