@@ -2428,6 +2428,27 @@
       "priority": 2,
       "passes": true,
       "notes": "BUG logged 2026-01-22 - Version is currently defined in multiple places:\n\n1. app/main.py: API_VERSION = '1.1.0'\n2. app/api/health.py: HealthResponse version field default = '0.6.0' (out of sync!)\n3. frontend/src/components/Layout.tsx: VERSION = '1.1.0'\n4. frontend/package.json: version = '1.1.0'\n5. frontend/package-lock.json: version = '1.1.0'\n\nThis causes version drift and requires updating 5 files for a version bump. Solution: Backend API_VERSION should be the single source of truth. Frontend should fetch from /health endpoint and display that. Health endpoint should import/use API_VERSION from main.py.\n\nFIXED 2026-01-22: Created app/config/version.py as single source of truth. Backend imports from there. Frontend fetches from /health endpoint on load."
+    },
+    {
+      "id": "BUG-030",
+      "title": "Stream timeout on large transcription jobs - 1 hour 550MB file fails",
+      "acceptanceCriteria": [
+        "Successfully transcribe 'Captains Log Meeting_Jan 15 2026.mp4' (1 hour, 550MB)",
+        "No HTTP stream timeout errors during transcription",
+        "Large files (500MB+, 1+ hour duration) complete successfully",
+        "Frontend shows progress indication for long-running jobs",
+        "Consider async job pattern: submit job, poll for status, retrieve results",
+        "OR implement chunked transcription for large audio files",
+        "OR increase timeout limits appropriately for batch transcription",
+        "Azure Speech batch transcription handles long audio without timeout",
+        "User receives transcription results even if browser connection is interrupted",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-22 - User reports stream timeout errors when transcribing large files like 'Captains Log Meeting_Jan 15 2026.mp4' (1 hour duration, 550MB file size). Current implementation may:\n\n1. Have HTTP request timeout before batch transcription completes\n2. Have Azure Container App timeout (default 240s)\n3. Not properly poll Azure Speech batch transcription status\n4. Frontend waiting synchronously for response\n\nPossible solutions:\n1. Async job pattern: POST /transcribe returns job ID immediately, frontend polls GET /transcribe/{job_id}/status\n2. Chunked transcription: Split audio into smaller segments, transcribe each, merge results\n3. Increase timeouts: Adjust FastAPI, Azure Container App, and Azure Speech settings\n4. WebSocket/SSE: Stream progress updates to frontend during long jobs\n\nAzure Speech batch transcription can handle files up to 1GB and hours of audio, but HTTP connection may timeout while waiting."
     }
   ]
 }

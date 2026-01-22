@@ -133,3 +133,33 @@ export interface AnalysisResult {
   confidence: number
   speakerNames?: Record<string, SpeakerIdentification>
 }
+
+// Batch transcription types
+export type BatchTranscriptionJobStatus = 'NotStarted' | 'Running' | 'Succeeded' | 'Failed'
+
+export interface BatchTranscriptionJobResponse {
+  jobId: string
+  status: BatchTranscriptionJobStatus
+  displayName: string
+  createdAt: string
+  blobUrl?: string
+  folderPath?: string
+}
+
+export interface BatchTranscriptionStatusResponse {
+  jobId: string
+  status: BatchTranscriptionJobStatus
+  displayName: string
+  createdAt: string
+  completedAt?: string
+  errorMessage?: string
+}
+
+export interface BatchTranscriptionResultResponse {
+  jobId: string
+  segments: import('./transcription').SpeakerSegment[]
+  fullText: string
+  language: string
+  durationMs: number
+  speakerCount: number
+}
