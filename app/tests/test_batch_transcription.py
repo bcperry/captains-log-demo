@@ -15,10 +15,13 @@ from models.transcription import BatchTranscriptionJobStatus
 from speech.batch import (
     BatchTranscriptionClient,
     BatchTranscriptionConfig,
+    BatchTranscriptionConfigError,
+    BatchTranscriptionDNSError,
     BatchTranscriptionError,
     BatchTranscriptionFailedError,
     BatchTranscriptionJob,
     BatchTranscriptionJobNotFoundError,
+    BatchTranscriptionNetworkError,
     BatchTranscriptionResult,
     InMemoryBatchTranscriptionClient,
     TranscriptionSegment,
@@ -105,6 +108,65 @@ class TestBatchTranscriptionConfig:
             cloud=AzureCloud.COMMERCIAL,
         )
         assert "eastus.api.cognitive.microsoft.com" in config.base_url
+
+    def test_config_empty_region_raises_error(self) -> None:
+        """Test that empty region raises BatchTranscriptionConfigError."""
+        from config.settings import AzureCloud
+
+        with pytest.raises(BatchTranscriptionConfigError) as exc_info:
+            BatchTranscriptionConfig(
+                subscription_key="test-key",
+                region="",
+                cloud=AzureCloud.GOVERNMENT,
+            )
+        assert "region is empty" in str(exc_info.value).lower()
+
+    def test_config_whitespace_region_raises_error(self) -> None:
+        """Test that whitespace-only region raises BatchTranscriptionConfigError."""
+        from config.settings import AzureCloud
+
+        with pytest.raises(BatchTranscriptionConfigError):
+            BatchTranscriptionConfig(
+                subscription_key="test-key",
+                region="   ",
+                cloud=AzureCloud.GOVERNMENT,
+            )
+
+    def test_config_region_is_normalized(self) -> None:
+        """Test that region is normalized (trimmed and lowercased)."""
+        from config.settings import AzureCloud
+
+        config = BatchTranscriptionConfig(
+            subscription_key="test-key",
+            region="  UsGovVirginia  ",
+            cloud=AzureCloud.GOVERNMENT,
+        )
+        assert config.region == "usgovvirginia"
+
+    def test_config_hostname_property(self) -> None:
+        """Test hostname extraction from base URL."""
+        from config.settings import AzureCloud
+
+        config = BatchTranscriptionConfig(
+            subscription_key="test-key",
+            region="usgovvirginia",
+            cloud=AzureCloud.GOVERNMENT,
+        )
+        assert config.hostname == "usgovvirginia.api.cognitive.azure.us"
+
+    def test_validate_dns_invalid_hostname(self) -> None:
+        """Test DNS validation fails for invalid hostname."""
+        from config.settings import AzureCloud
+
+        config = BatchTranscriptionConfig(
+            subscription_key="test-key",
+            region="invalid-region-that-does-not-exist",
+            cloud=AzureCloud.GOVERNMENT,
+        )
+        with pytest.raises(BatchTranscriptionDNSError) as exc_info:
+            config.validate_dns()
+        assert "dns resolution failed" in str(exc_info.value).lower()
+        assert "invalid-region-that-does-not-exist" in str(exc_info.value)
 
 
 class TestBatchTranscriptionClient:
@@ -363,6 +425,66 @@ class TestBatchTranscriptionAPI:
 
         assert response.status_code == 409
         assert "not complete" in response.json()["detail"].lower()
+
+    def test_get_batch_status_dns_error(
+        self,
+        client: TestClient,
+        mock_batch_client: MagicMock,
+    ) -> None:
+        """Test 503 when DNS resolution fails."""
+        mock_batch_client.get_transcription_status.side_effect = BatchTranscriptionDNSError(
+            "DNS resolution failed for usgovvirginia.api.cognitive.azure.us"
+        )
+
+        response = client.get("/transcribe/batch/job-123/status")
+
+        assert response.status_code == 503
+        assert "dns" in response.json()["detail"].lower()
+
+    def test_get_batch_status_network_error(
+        self,
+        client: TestClient,
+        mock_batch_client: MagicMock,
+    ) -> None:
+        """Test 503 when network error persists after retries."""
+        mock_batch_client.get_transcription_status.side_effect = BatchTranscriptionNetworkError(
+            "Network error after 3 retries"
+        )
+
+        response = client.get("/transcribe/batch/job-123/status")
+
+        assert response.status_code == 503
+        assert "network" in response.json()["detail"].lower()
+
+    def test_get_batch_result_dns_error(
+        self,
+        client: TestClient,
+        mock_batch_client: MagicMock,
+    ) -> None:
+        """Test 503 when DNS resolution fails on result fetch."""
+        mock_batch_client.get_transcription_result.side_effect = BatchTranscriptionDNSError(
+            "DNS resolution failed"
+        )
+
+        response = client.get("/transcribe/batch/job-123/result")
+
+        assert response.status_code == 503
+        assert "dns" in response.json()["detail"].lower()
+
+    def test_get_batch_result_network_error(
+        self,
+        client: TestClient,
+        mock_batch_client: MagicMock,
+    ) -> None:
+        """Test 503 when network error persists on result fetch."""
+        mock_batch_client.get_transcription_result.side_effect = BatchTranscriptionNetworkError(
+            "Network error after retries"
+        )
+
+        response = client.get("/transcribe/batch/job-123/result")
+
+        assert response.status_code == 503
+        assert "network" in response.json()["detail"].lower()
 
 
 class TestBatchModels:
