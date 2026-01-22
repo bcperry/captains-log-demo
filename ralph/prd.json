@@ -2498,6 +2498,25 @@
       "priority": 1,
       "passes": true,
       "notes": "BUG logged 2026-01-22 - REGRESSION: Transcription was working previously with real-time SDK, but broke when batch transcription was added for large files.\n\nROOT CAUSE ANALYSIS:\n1. AZURE_SPEECH_ENDPOINT = https://cog-speech6nobqi2gz72ee.cognitiveservices.azure.us/ (correct, works)\n2. AZURE_SPEECH_REGION = usgovarizona (from .env, matches Container App location)\n3. AZURE_LOCATION = usgovarizona (resource group location)\n\nBUT: Azure Speech batch transcription API is ONLY available in usgovvirginia for Government cloud. The endpoint URL pattern for batch API is:\n  https://{region}.api.cognitive.azure.us/speechtotext/v3.1\n\nSo batch.py constructs: https://usgovarizona.api.cognitive.azure.us/speechtotext/v3.1\nThis fails DNS because usgovarizona doesn't have the batch API endpoint.\n\nThe real-time SDK works because it uses AZURE_SPEECH_ENDPOINT directly, which Azure automatically routes to usgovvirginia (as proven by nslookup showing CNAME to usgovvirginia.api.cognitive.microsoft.us).\n\nFIX OPTIONS:\n1. Parse AZURE_SPEECH_ENDPOINT to extract actual region (complex)\n2. For Government cloud, always use 'usgovvirginia' for batch API (simple)\n3. Add separate AZURE_SPEECH_BATCH_REGION config (flexible)\n\nRECOMMENDED: Option 2 - hardcode 'usgovvirginia' for batch API when cloud=government, since it's the only supported region.\n\nFIXED 2026-01-22: Added batch_region property that always returns usgovvirginia for Government cloud. Commercial cloud uses the provided region. Tests updated and passing."
+    },
+    {
+      "id": "BUG-033",
+      "title": "My Recordings tab not showing newly transcribed videos - regression",
+      "acceptanceCriteria": [
+        "Newly transcribed recordings appear in My Recordings tab immediately after transcription completes",
+        "My Recordings list refreshes automatically or on navigation to show new items",
+        "GET /transcriptions endpoint returns all user's transcriptions including new ones",
+        "Metadata.json is saved correctly to blob storage after transcription",
+        "Frontend correctly fetches and displays transcription list from API",
+        "No JavaScript console errors when loading My Recordings tab",
+        "Transcription appears in list with correct filename, date, and preview text",
+        "mypy type checking passes",
+        "pytest tests pass",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-22 - REGRESSION: After recent changes (DNS fix for batch transcription, analysis text limit increase), the My Recordings tab no longer shows newly transcribed videos. User transcribed a new video but it's not appearing in the list.\n\nPossible causes:\n1. Metadata.json not being saved after batch transcription completes\n2. GET /transcriptions endpoint filtering incorrectly or returning empty\n3. Frontend not refreshing transcription list after new upload\n4. Blob storage path mismatch between save and list operations\n5. User ID extraction changed/broken causing wrong folder paths\n6. Cache issue - old list cached in frontend state\n\nDebug steps:\n1. Check browser DevTools Network tab for GET /transcriptions response\n2. Verify metadata.json exists in blob storage for new transcription\n3. Check backend logs for errors during metadata save\n4. Verify folder_path returned from transcription matches expected format\n\nFIXED 2026-01-22: Root cause was #1 - batch transcription result endpoint didn't save metadata.json. Added folder_path query parameter to GET /transcribe/batch/{job_id}/result that triggers metadata and transcript save when provided. Frontend updated to pass folderPath when fetching batch results."
     }
   ]
 }

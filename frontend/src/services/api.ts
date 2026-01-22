@@ -390,12 +390,20 @@ export const getBatchTranscriptionStatus = async (
 
 /**
  * Get the result of a completed batch transcription job.
+ * @param jobId - The batch job ID
+ * @param folderPath - Optional folder path to save metadata for My Recordings
  */
 export const getBatchTranscriptionResult = async (
-  jobId: string
+  jobId: string,
+  folderPath?: string
 ): Promise<BatchTranscriptionResultResponse> => {
+  const params = new URLSearchParams()
+  if (folderPath) {
+    params.append('folder_path', folderPath)
+  }
+  const queryString = params.toString()
   const raw = await request<BatchTranscriptionResultResponseRaw>(
-    `/transcribe/batch/${encodeURIComponent(jobId)}/result`
+    `/transcribe/batch/${encodeURIComponent(jobId)}/result${queryString ? `?${queryString}` : ''}`
   )
 
   return {
