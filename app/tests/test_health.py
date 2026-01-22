@@ -15,6 +15,7 @@ from api.health import (
     check_speech_health,
     router,
 )
+from config.version import API_VERSION
 
 
 @pytest.fixture
@@ -42,7 +43,7 @@ class TestHealthEndpoint:
         data = response.json()
         assert data["status"] == "healthy"
         assert "timestamp" in data
-        assert data["version"] == "0.6.0"
+        assert data["version"] == API_VERSION
 
     def test_always_returns_200(self, client: TestClient) -> None:
         """Test that health endpoint always returns 200 for liveness."""
@@ -182,7 +183,7 @@ class TestHealthModels:
         """Test HealthResponse model."""
         response = HealthResponse(status="healthy")
         assert response.status == "healthy"
-        assert response.version == "0.6.0"
+        assert response.version == API_VERSION
         assert response.timestamp is not None
 
     def test_readiness_response_model(self) -> None:

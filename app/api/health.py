@@ -12,10 +12,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from config.settings import get_settings
+from config.version import API_VERSION
 from speech import get_speech_client
-
-# Import version from main module
-API_VERSION = "1.1.0"  # Keep in sync with main.py
 
 # Configure structured logging
 logger = logging.getLogger(__name__)

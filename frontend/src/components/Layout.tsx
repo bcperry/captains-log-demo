@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Header } from './Header'
 import { Sidebar, type ViewType } from './Sidebar'
 import type { ServiceStatus } from '../types/layout'
-import { getReady } from '../services/api'
+import { getHealth, getReady } from '../services/api'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -10,7 +10,8 @@ interface LayoutProps {
   onNavigate?: (view: ViewType) => void
 }
 
-const VERSION = '1.1.0'
+// Fallback version if API is unavailable
+const FALLBACK_VERSION = '1.1.0'
 
 // Get initial language from localStorage (runs once during module load)
 const getInitialLanguage = (): string => {
@@ -36,6 +37,7 @@ const getInitialEndpointInfo = (): { endpoint?: string; region?: string } => {
 export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState(getInitialLanguage)
+  const [version, setVersion] = useState(FALLBACK_VERSION)
   const [speechStatus, setSpeechStatus] = useState<ServiceStatus>({
     name: 'Azure Speech Service',
     connected: false,
@@ -61,6 +63,22 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   const handleLanguageChange = useCallback((code: string) => {
     setSelectedLanguage(code)
     localStorage.setItem('preferredLanguage', code)
+  }, [])
+
+  // Fetch version from backend on mount
+  useEffect(() => {
+    const fetchVersion = async () => {
+      try {
+        const healthResponse = await getHealth()
+        if (healthResponse.version) {
+          setVersion(healthResponse.version)
+        }
+      } catch {
+        // Use fallback version if API unavailable
+        console.warn('Could not fetch version from API, using fallback')
+      }
+    }
+    fetchVersion()
   }, [])
 
   // Check service status on mount
@@ -175,7 +193,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
           openAIStatus={openAIStatus}
           region={region}
           endpoint={endpoint}
-          version={VERSION}
+          version={version}
           onTestSpeech={handleTestSpeech}
           onTestOpenAI={handleTestOpenAI}
           currentView={currentView}
@@ -189,7 +207,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
       {/* Footer */}
       <footer className="bg-gray-100 border-t border-gray-200 py-2">
         <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-          Captain&apos;s Log v{VERSION} | React + TypeScript + Tailwind CSS
+          Captain&apos;s Log v{version} | React + TypeScript + Tailwind CSS
         </div>
       </footer>
     </div>

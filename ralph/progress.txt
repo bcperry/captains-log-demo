@@ -2381,3 +2381,23 @@ Started: 2024-01-15
   - Test failures may be pre-existing and unrelated to current changes - focus on testing the specific change
   - Frontend and backend file size limits should match (both 1GB now)
 ---
+
+## 2026-01-22 - BUG-029
+- What was implemented: Centralized application version to single source of truth
+- Root cause: Version was defined in 5 places (main.py, health.py, Layout.tsx, package.json, package-lock.json)
+- Files changed:
+  - `app/config/version.py` - NEW: Single source of truth for API_VERSION and API_TITLE
+  - `app/main.py` - Import API_VERSION and API_TITLE from config.version
+  - `app/api/health.py` - Import API_VERSION from config.version
+  - `app/tests/test_health.py` - Import API_VERSION for dynamic version testing
+  - `frontend/src/components/Layout.tsx` - Fetch version from /health endpoint, use state
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (frontend), http://localhost:8001/docs (Swagger)
+  - Interactions verified: Version displays correctly in sidebar, footer, and OpenAPI docs
+  - Screenshots taken: bug029-version-centralized.png, bug029-swagger-version.png
+- **Learnings:**
+  - Single source of truth for version prevents drift across backend/frontend
+  - Frontend should fetch config from API rather than hardcoding
+  - Use FALLBACK_VERSION constant in frontend for graceful degradation
+  - Health endpoint is ideal for version exposure since it's unauthenticated
+---
