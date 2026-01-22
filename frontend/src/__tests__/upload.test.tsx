@@ -337,12 +337,12 @@ describe('transcription types', () => {
 
   it('exports MAX_FILE_SIZE_MB', async () => {
     const types = await import('../types/transcription')
-    expect(types.MAX_FILE_SIZE_MB).toBe(500)
+    expect(types.MAX_FILE_SIZE_MB).toBe(1024)
   })
 
   it('exports MAX_FILE_SIZE_BYTES', async () => {
     const types = await import('../types/transcription')
-    expect(types.MAX_FILE_SIZE_BYTES).toBe(500 * 1024 * 1024)
+    expect(types.MAX_FILE_SIZE_BYTES).toBe(1024 * 1024 * 1024)
   })
 })
 

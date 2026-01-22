@@ -164,8 +164,8 @@ ALLOWED_CONTENT_TYPES: dict[str, str] = {
 
 ALLOWED_EXTENSIONS: set[str] = {"wav", "mp3", "m4a", "mp4", "ogg", "flac"}
 
-# Maximum file size: 500 MB (to support large meeting recordings)
-MAX_FILE_SIZE_BYTES: int = 500 * 1024 * 1024
+# Maximum file size: 1 Gb (to support large meeting recordings)
+MAX_FILE_SIZE_BYTES: int = 1 * 1024 * 1024 * 1024
 
 # Default maximum speakers for diarization
 DEFAULT_MAX_SPEAKERS: int = 5

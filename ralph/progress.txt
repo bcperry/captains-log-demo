@@ -2364,3 +2364,20 @@ Started: 2024-01-15
   - Frontend and backend limits must be kept in sync (both currently 500MB)
   - MP4 files are supported and can contain audio tracks for transcription
 ---
+
+## 2026-01-22 - BUG-028
+- What was implemented: Fixed file size limit test expectations to match 1GB limit
+- Root cause: Code was updated to support 1GB files (MAX_FILE_SIZE_BYTES = 1GB), but tests still expected 500MB
+- Files changed:
+  - `app/tests/test_transcribe.py` - Updated test to expect 1GB (1 * 1024 * 1024 * 1024)
+  - `frontend/src/__tests__/upload.test.tsx` - Updated tests to expect 1024 MB
+  - `frontend/src/components/Layout.tsx` - Fixed VERSION variable (was renamed to DEFAULT_VERSION but not updated in usages)
+- **Playwright Verification:**
+  - Pages tested: http://localhost:3000 (authenticated user view)
+  - Interactions verified: Upload Audio page shows "Max file size: 1024 MB"
+  - Screenshots taken: bug028-file-size-verification.png
+- **Learnings:**
+  - When updating constants, ensure all tests are updated to match
+  - Test failures may be pre-existing and unrelated to current changes - focus on testing the specific change
+  - Frontend and backend file size limits should match (both 1GB now)
+---
