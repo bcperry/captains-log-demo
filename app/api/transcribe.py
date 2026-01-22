@@ -32,7 +32,6 @@ from models.transcription import (
     TranscriptionContent,
     TranscriptionContentSegment,
     TranscriptionMetadata,
-    TranscriptionRecord,
     TranscriptionResponse,
 )
 from speech import get_speech_client
@@ -195,7 +194,7 @@ async def transcribe_audio(
     Protected by JWT authentication.
     Optionally stores transcription in history.
     Saves audio file to Blob Storage when storage is configured.
-    
+
     Caching: Uses SHA256 hash of audio content to detect duplicate uploads.
     If use_cache=True and a transcription exists for the same audio, returns cached result.
 
@@ -234,7 +233,7 @@ async def transcribe_audio(
         if cached_meta:
             cache_metrics.record_hit()
             logger.info(f"Cache HIT for audio hash {audio_hash[:16]}... - returning cached transcription {cached_meta.get('id')}")
-            
+
             # Try to load full transcription from blob storage if available
             cached_folder_path = cached_meta.get("folder_path")
             # Parse original upload date from metadata
@@ -244,7 +243,7 @@ async def transcribe_audio(
                     original_upload_date = datetime.fromisoformat(cached_meta["upload_time"].replace("Z", "+00:00"))
                 except (ValueError, TypeError):
                     pass
-            
+
             if cached_folder_path and storage.is_configured():
                 try:
                     content_json = await storage.download_transcription_from_user_path(cached_folder_path)
@@ -262,10 +261,10 @@ async def transcribe_audio(
                         original_filename=cached_meta.get("filename"),
                     )
                 except BlobNotFoundError:
-                    logger.warning(f"Cached transcription blob not found, using metadata text")
+                    logger.warning("Cached transcription blob not found, using metadata text")
                 except Exception as e:
                     logger.warning(f"Failed to load cached transcription from blob: {e}")
-            
+
             return TranscriptionResponse(
                 text=cached_meta.get("text", ""),
                 language=cached_meta.get("language", "en-US"),
@@ -485,7 +484,7 @@ async def transcribe_audio_with_diarization(
     Returns segments with speaker labels and timestamps.
     Optionally stores transcription with diarization data in history.
     Saves audio file to Blob Storage when storage is configured.
-    
+
     Caching: Uses SHA256 hash of audio content to detect duplicate uploads.
     If use_cache=True and a diarized transcription exists for the same audio, returns cached result.
 
@@ -525,7 +524,7 @@ async def transcribe_audio_with_diarization(
         if cached_meta and cached_meta.get("has_diarization"):
             cache_metrics.record_hit()
             logger.info(f"Cache HIT for diarized audio hash {audio_hash[:16]}... - returning cached transcription")
-            
+
             # Parse original upload date from metadata
             original_upload_date = None
             if cached_meta.get("upload_time"):
@@ -533,7 +532,7 @@ async def transcribe_audio_with_diarization(
                     original_upload_date = datetime.fromisoformat(cached_meta["upload_time"].replace("Z", "+00:00"))
                 except (ValueError, TypeError):
                     pass
-            
+
             # Try to load full transcription from blob storage
             cached_folder_path = cached_meta.get("folder_path")
             if cached_folder_path and storage.is_configured():
@@ -558,7 +557,7 @@ async def transcribe_audio_with_diarization(
                     )
                 except Exception as e:
                     logger.warning(f"Failed to load cached diarized transcription: {e}")
-            
+
             cache_metrics.record_miss()
         else:
             cache_metrics.record_miss()
@@ -987,7 +986,7 @@ async def get_batch_transcription_status(
     "/batch/{job_id}/result",
     response_model=BatchTranscriptionResultResponse,
     summary="Get batch transcription result",
-    description="Retrieve the result of a completed batch transcription job.",
+    description="Retrieve the result of a completed batch transcription job. When folder_path is provided, saves metadata and transcript to blob storage for listing in My Recordings.",
     responses={
         401: {"description": "Authentication required"},
         404: {"description": "Job not found"},
@@ -997,15 +996,19 @@ async def get_batch_transcription_status(
 )
 async def get_batch_transcription_result(
     job_id: Annotated[str, Path(description="Batch transcription job ID")],
+    folder_path: Annotated[Optional[str], Query(description="Folder path from batch job submission, used to save metadata for My Recordings")] = None,
     user: AuthenticatedUser = Depends(get_current_user_azure),
     batch_client: BatchTranscriptionClient = Depends(get_batch_service),
+    storage: BlobStorageClient = Depends(get_blob_storage),
 ) -> BatchTranscriptionResultResponse:
     """Get the result of a completed batch transcription job.
 
     Args:
         job_id: ID of the batch transcription job
+        folder_path: Optional folder path to save metadata for My Recordings
         user: Authenticated user
         batch_client: Batch transcription client
+        storage: Blob storage client
 
     Returns:
         BatchTranscriptionResultResponse with transcribed segments
@@ -1023,6 +1026,74 @@ async def get_batch_transcription_result(
             )
             for seg in result.segments
         ]
+
+        # Save metadata and transcript to blob storage if folder_path provided
+        # This enables the transcription to appear in My Recordings
+        if folder_path and storage.is_configured():
+            try:
+                transcription_id = str(uuid.uuid4())
+
+                # Convert segments to content format (start/end in seconds)
+                content_segments = [
+                    TranscriptionContentSegment(
+                        speaker_id=seg.speaker_id,
+                        start_time=seg.start_time_ms / 1000.0,
+                        end_time=seg.end_time_ms / 1000.0,
+                        text=seg.text,
+                    )
+                    for seg in result.segments
+                ]
+
+                # Create transcription content JSON for blob storage
+                transcription_content = TranscriptionContent(
+                    transcript_id=transcription_id,
+                    user_id=user.oid,
+                    filename=None,  # Original filename not available in batch result
+                    upload_date=datetime.now(UTC),
+                    duration=result.duration_ms / 1000.0 if result.duration_ms else None,
+                    speaker_segments=content_segments,
+                    full_text=result.full_text,
+                    language=result.language,
+                    processing_time_ms=None,
+                    audio_hash=None,
+                )
+
+                # Save transcription JSON to blob storage
+                try:
+                    blob_storage_url = await storage.upload_transcription_with_user_path(
+                        user_id=user.oid,
+                        folder_path=folder_path,
+                        content_json=transcription_content.model_dump_json(),
+                        metadata={},
+                    )
+                    logger.info(f"Saved batch transcription JSON to blob storage: {blob_storage_url}")
+                except BlobUploadError as e:
+                    logger.warning(f"Failed to save batch transcription JSON: {e}")
+
+                # Save metadata JSON for listing in My Recordings
+                metadata = TranscriptionMetadata(
+                    id=folder_path,
+                    user_id=user.oid,
+                    filename="batch_transcription",
+                    upload_time=datetime.now(UTC),
+                    duration_ms=result.duration_ms,
+                    speaker_count=result.speaker_count,
+                    language=result.language,
+                    audio_format="wav",  # Batch transcription typically uses converted WAV
+                    file_size_bytes=0,  # Not available in batch result
+                    folder_path=folder_path,
+                    audio_hash=None,
+                    text=result.full_text[:200] if result.full_text else "",
+                    has_diarization=result.speaker_count > 1 if result.speaker_count else False,
+                )
+                await storage.save_metadata(
+                    user_id=user.oid,
+                    folder_path=folder_path,
+                    metadata_json=metadata.model_dump_json(),
+                )
+                logger.info(f"Saved batch transcription metadata to blob storage: {folder_path}/metadata.json")
+            except Exception as e:
+                logger.warning(f"Failed to save batch transcription metadata: {e}")
 
         return BatchTranscriptionResultResponse(
             job_id=job_id,

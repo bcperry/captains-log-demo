@@ -144,8 +144,8 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
               pollingIntervalRef.current = null
             }
 
-            // Get the result
-            const batchResult = await withAuth(() => getBatchTranscriptionResult(jobId))
+            // Get the result and save metadata to blob storage for My Recordings
+            const batchResult = await withAuth(() => getBatchTranscriptionResult(jobId, folderPath))
 
             const result: TranscriptionResult = {
               text: batchResult.fullText,

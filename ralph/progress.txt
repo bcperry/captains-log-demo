@@ -2463,3 +2463,24 @@ Started: 2024-01-15
   - Real-time SDK uses AZURE_SPEECH_ENDPOINT which auto-routes, but batch API builds URL from region
   - Always use usgovvirginia for batch API in Government cloud regardless of Speech resource region
 ---
+
+## 2026-01-22 - BUG-033
+- What was implemented: Fixed batch transcription not appearing in My Recordings tab
+- Root cause: When batch transcription result was fetched via `GET /transcribe/batch/{job_id}/result`, no metadata.json was saved to blob storage. The My Recordings tab lists transcriptions by scanning for metadata.json files.
+- Files changed:
+  - `app/api/transcribe.py` - Added `folder_path` query parameter to batch result endpoint, saves metadata.json and transcript.json when provided
+  - `frontend/src/services/api.ts` - Updated `getBatchTranscriptionResult` to accept and pass `folderPath` parameter
+  - `frontend/src/hooks/useTranscription.ts` - Pass `folderPath` when getting batch result to trigger metadata save
+  - `app/config/version.py` - Version bump to 1.2.3
+  - `frontend/package.json` - Version bump to 1.2.3
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Interactions verified: GET /transcribe/batch/{job_id}/result endpoint shows new folder_path parameter
+  - Description verified: "When folder_path is provided, saves metadata and transcript to blob storage for listing in My Recordings"
+  - Screenshot taken: batch-result-endpoint-with-folder-path.png
+- **Learnings:**
+  - Regular transcription endpoints save metadata.json inline after transcription
+  - Batch transcription has two phases: submit (uploads audio, returns folder_path) and result (gets text)
+  - Frontend must pass folder_path back to result endpoint to trigger metadata save
+  - Metadata.json is the key for My Recordings list - without it, transcription is invisible
+---
