@@ -168,7 +168,8 @@ class BatchTranscriptionConfig:
     def base_url(self) -> str:
         """Get the batch transcription API base URL."""
         if self.cloud == AzureCloud.GOVERNMENT:
-            return f"https://{self.batch_region}.api.cognitive.azure.us/speechtotext/v3.1"
+            # Azure Government uses .microsoft.us domain for cognitive services API
+            return f"https://{self.batch_region}.api.cognitive.microsoft.us/speechtotext/v3.1"
         else:
             return f"https://{self.batch_region}.api.cognitive.microsoft.com/speechtotext/v3.1"
 
