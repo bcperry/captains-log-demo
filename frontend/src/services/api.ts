@@ -282,4 +282,135 @@ export const updateSpeakerNames = (
   })
 }
 
+// Batch transcription types and functions for large files
+import type {
+  BatchTranscriptionJobResponse,
+  BatchTranscriptionStatusResponse,
+  BatchTranscriptionResultResponse,
+} from '../types'
+
+// Raw backend response types for batch transcription (snake_case)
+interface BatchTranscriptionJobResponseRaw {
+  job_id: string
+  status: 'NotStarted' | 'Running' | 'Succeeded' | 'Failed'
+  display_name: string
+  created_at: string
+  blob_url?: string
+  folder_path?: string
+}
+
+interface BatchTranscriptionStatusResponseRaw {
+  job_id: string
+  status: 'NotStarted' | 'Running' | 'Succeeded' | 'Failed'
+  display_name: string
+  created_at: string
+  completed_at?: string
+  error_message?: string
+}
+
+interface BatchTranscriptionResultResponseRaw {
+  job_id: string
+  segments: Array<{
+    speaker_id: string
+    text: string
+    start_time_ms: number
+    end_time_ms: number
+  }>
+  full_text: string
+  language: string
+  duration_ms: number
+  speaker_count: number
+}
+
+export interface BatchTranscriptionOptions {
+  language?: string
+  enableDiarization?: boolean
+  maxSpeakers?: number
+}
+
+/**
+ * Submit a file for batch transcription (async job pattern).
+ * Use for large files that might timeout with synchronous transcription.
+ */
+export const submitBatchTranscription = async (
+  file: File,
+  options: BatchTranscriptionOptions = {}
+): Promise<BatchTranscriptionJobResponse> => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  // Build query parameters
+  const params = new URLSearchParams()
+  if (options.language) {
+    params.append('language', options.language)
+  }
+  if (options.enableDiarization !== undefined) {
+    params.append('enable_diarization', options.enableDiarization.toString())
+  }
+  if (options.maxSpeakers) {
+    params.append('max_speakers', options.maxSpeakers.toString())
+  }
+  const queryString = params.toString()
+  const url = `/transcribe/batch${queryString ? `?${queryString}` : ''}`
+
+  const raw = await request<BatchTranscriptionJobResponseRaw>(url, {
+    method: 'POST',
+    body: formData,
+  })
+
+  return {
+    jobId: raw.job_id,
+    status: raw.status,
+    displayName: raw.display_name,
+    createdAt: raw.created_at,
+    blobUrl: raw.blob_url,
+    folderPath: raw.folder_path,
+  }
+}
+
+/**
+ * Poll the status of a batch transcription job.
+ */
+export const getBatchTranscriptionStatus = async (
+  jobId: string
+): Promise<BatchTranscriptionStatusResponse> => {
+  const raw = await request<BatchTranscriptionStatusResponseRaw>(
+    `/transcribe/batch/${encodeURIComponent(jobId)}/status`
+  )
+
+  return {
+    jobId: raw.job_id,
+    status: raw.status,
+    displayName: raw.display_name,
+    createdAt: raw.created_at,
+    completedAt: raw.completed_at,
+    errorMessage: raw.error_message,
+  }
+}
+
+/**
+ * Get the result of a completed batch transcription job.
+ */
+export const getBatchTranscriptionResult = async (
+  jobId: string
+): Promise<BatchTranscriptionResultResponse> => {
+  const raw = await request<BatchTranscriptionResultResponseRaw>(
+    `/transcribe/batch/${encodeURIComponent(jobId)}/result`
+  )
+
+  return {
+    jobId: raw.job_id,
+    segments: raw.segments.map((seg) => ({
+      speakerId: seg.speaker_id,
+      text: seg.text,
+      startTimeMs: seg.start_time_ms,
+      endTimeMs: seg.end_time_ms,
+    })),
+    fullText: raw.full_text,
+    language: raw.language,
+    durationMs: raw.duration_ms,
+    speakerCount: raw.speaker_count,
+  }
+}
+
 export { ApiError }

@@ -11,7 +11,7 @@ interface LayoutProps {
 }
 
 // Fallback version if API is unavailable
-const FALLBACK_VERSION = '1.1.0'
+const FALLBACK_VERSION = '1.2.0'
 
 // Get initial language from localStorage (runs once during module load)
 const getInitialLanguage = (): string => {

@@ -24,8 +24,9 @@ If you claim all stories pass without reading the file, you are WRONG.
    - DO NOT mark stories as passed without Playwright verification
 9. Update AGENTS.md files with learnings
 10. Update prd.json: `passes: true` (ONLY after Playwright verification succeeds)
-11. Append learnings to progress.txt
-12. Commit: `feat: [ID] - [Title]`
+11. Update the application version in the code and documentation, should be visible in the frontend and backend. follow (major.minor.patch)
+12. Append learnings to progress.txt
+13. Commit: `feat: [ID] - [Title]`
 
 
 ## Playwright Verification Required

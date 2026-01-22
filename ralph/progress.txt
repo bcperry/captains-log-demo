@@ -2401,3 +2401,26 @@ Started: 2024-01-15
   - Use FALLBACK_VERSION constant in frontend for graceful degradation
   - Health endpoint is ideal for version exposure since it's unauthenticated
 ---
+
+## 2026-01-22 - BUG-030
+- What was implemented: Added frontend batch transcription support for large files (>100MB)
+- Files changed:
+  - `frontend/src/types/api.ts` - Added batch transcription types (BatchTranscriptionJobResponse, BatchTranscriptionStatusResponse, BatchTranscriptionResultResponse)
+  - `frontend/src/types/transcription.ts` - Added 'polling' status and jobId to TranscriptionProgress
+  - `frontend/src/services/api.ts` - Added batch transcription API functions (submitBatchTranscription, getBatchTranscriptionStatus, getBatchTranscriptionResult)
+  - `frontend/src/hooks/useTranscription.ts` - Updated to use batch transcription for large files (>100MB) with polling
+  - `frontend/src/components/Layout.tsx` - Updated fallback version to 1.2.0
+  - `app/config/version.py` - Bumped version to 1.2.0
+  - `frontend/package.json` - Bumped version to 1.2.0
+- **Playwright Verification:**
+  - Pages tested: Upload Audio page at http://localhost:3000
+  - Verified: App loads, upload zone visible, max file size 1024MB displayed
+  - API docs verified batch endpoints: /transcribe/batch, /transcribe/batch/{job_id}/status, /transcribe/batch/{job_id}/result
+  - Screenshots taken: bug030-upload-page.png, bug030-api-docs.png
+- **Learnings:**
+  - Backend already had complete batch transcription API - only frontend needed updating
+  - Large file detection threshold set at 100MB (BATCH_TRANSCRIPTION_THRESHOLD_BYTES)
+  - Polling interval: 5 seconds with max 1 hour timeout (720 polls)
+  - useTranscription hook supports useBatchTranscription option to force batch mode
+  - Batch transcription uses Azure Speech batch API which handles files up to 1GB
+---

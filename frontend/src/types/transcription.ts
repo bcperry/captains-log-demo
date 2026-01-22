@@ -9,11 +9,12 @@ export interface FileInfo {
 }
 
 export interface TranscriptionProgress {
-  status: 'idle' | 'uploading' | 'transcribing' | 'complete' | 'error'
+  status: 'idle' | 'uploading' | 'transcribing' | 'polling' | 'complete' | 'error'
   progress: number // 0-100
   currentChunk?: number
   totalChunks?: number
   message?: string
+  jobId?: string // For batch transcription polling
 }
 
 export interface SpeakerSegment {
