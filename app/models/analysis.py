@@ -62,12 +62,12 @@ class AnalyzeRequest(BaseModel):
     text: str = Field(
         ...,
         min_length=1,
-        max_length=50000,
+        max_length=500000,
         description="The transcription text to analyze",
     )
     diarized_transcript: Optional[str] = Field(
         default=None,
-        max_length=100000,
+        max_length=1000000,
         description="Optional diarized transcript with speaker labels (e.g., 'Speaker 1 [00:00:01]: Hello')",
     )
     folder_path: Optional[str] = Field(
