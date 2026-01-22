@@ -143,6 +143,36 @@ class TestBatchTranscriptionConfig:
         )
         assert config.region == "usgovvirginia"
 
+    def test_government_batch_region_always_usgovvirginia(self) -> None:
+        """Test that Government cloud batch region is always usgovvirginia.
+
+        Azure Government batch transcription is only available in usgovvirginia,
+        even if the Speech resource is in a different region like usgovarizona.
+        """
+        from config.settings import AzureCloud
+
+        # Even when region is usgovarizona, batch_region should be usgovvirginia
+        config = BatchTranscriptionConfig(
+            subscription_key="test-key",
+            region="usgovarizona",
+            cloud=AzureCloud.GOVERNMENT,
+        )
+        assert config.region == "usgovarizona"  # Original region preserved
+        assert config.batch_region == "usgovvirginia"  # Batch API uses usgovvirginia
+        assert "usgovvirginia.api.cognitive.azure.us" in config.base_url
+
+    def test_commercial_batch_region_uses_provided_region(self) -> None:
+        """Test that Commercial cloud uses the provided region for batch API."""
+        from config.settings import AzureCloud
+
+        config = BatchTranscriptionConfig(
+            subscription_key="test-key",
+            region="eastus2",
+            cloud=AzureCloud.COMMERCIAL,
+        )
+        assert config.batch_region == "eastus2"  # Uses provided region
+        assert "eastus2.api.cognitive.microsoft.com" in config.base_url
+
     def test_config_hostname_property(self) -> None:
         """Test hostname extraction from base URL."""
         from config.settings import AzureCloud
@@ -158,10 +188,12 @@ class TestBatchTranscriptionConfig:
         """Test DNS validation fails for invalid hostname."""
         from config.settings import AzureCloud
 
+        # Use COMMERCIAL cloud to test invalid region
+        # (Government always uses usgovvirginia for batch)
         config = BatchTranscriptionConfig(
             subscription_key="test-key",
             region="invalid-region-that-does-not-exist",
-            cloud=AzureCloud.GOVERNMENT,
+            cloud=AzureCloud.COMMERCIAL,
         )
         with pytest.raises(BatchTranscriptionDNSError) as exc_info:
             config.validate_dns()
