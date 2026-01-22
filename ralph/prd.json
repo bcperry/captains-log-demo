@@ -2426,8 +2426,8 @@
         "Application loads without errors when started with uvicorn"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "BUG logged 2026-01-22 - Version is currently defined in multiple places:\n\n1. app/main.py: API_VERSION = '1.1.0'\n2. app/api/health.py: HealthResponse version field default = '0.6.0' (out of sync!)\n3. frontend/src/components/Layout.tsx: VERSION = '1.1.0'\n4. frontend/package.json: version = '1.1.0'\n5. frontend/package-lock.json: version = '1.1.0'\n\nThis causes version drift and requires updating 5 files for a version bump. Solution: Backend API_VERSION should be the single source of truth. Frontend should fetch from /health endpoint and display that. Health endpoint should import/use API_VERSION from main.py."
+      "passes": true,
+      "notes": "BUG logged 2026-01-22 - Version is currently defined in multiple places:\n\n1. app/main.py: API_VERSION = '1.1.0'\n2. app/api/health.py: HealthResponse version field default = '0.6.0' (out of sync!)\n3. frontend/src/components/Layout.tsx: VERSION = '1.1.0'\n4. frontend/package.json: version = '1.1.0'\n5. frontend/package-lock.json: version = '1.1.0'\n\nThis causes version drift and requires updating 5 files for a version bump. Solution: Backend API_VERSION should be the single source of truth. Frontend should fetch from /health endpoint and display that. Health endpoint should import/use API_VERSION from main.py.\n\nFIXED 2026-01-22: Created app/config/version.py as single source of truth. Backend imports from there. Frontend fetches from /health endpoint on load."
     }
   ]
 }

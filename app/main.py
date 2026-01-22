@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from api import auth_router, health_router, transcribe_router, transcriptions_router, analyze_router
 from auth.azure_auth import get_azure_scheme
 from config.settings import get_settings
+from config.version import API_TITLE, API_VERSION
 
 # Configure logging - set level from LOG_LEVEL env var (default INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -34,10 +35,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-# API metadata for OpenAPI documentation
-API_TITLE = "Captain's Log API"
-API_VERSION = "1.1.0"
 API_DESCRIPTION = """
 # Captain's Log API
 
