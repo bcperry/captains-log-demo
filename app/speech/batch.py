@@ -5,15 +5,20 @@ This module provides a client for Azure Speech Services Batch Transcription API 
 - Submission of batch transcription jobs with audio files from Blob Storage
 - Status polling for long-running transcription jobs
 - Result retrieval with speaker diarization support
+- Retry logic with exponential backoff for transient network errors
+- DNS validation and clear error messaging
 
 Reference: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/batch-transcription
 """
 
+import asyncio
 import logging
+import socket
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
+from urllib.parse import urlparse
 
 import httpx
 
@@ -24,6 +29,24 @@ logger = logging.getLogger(__name__)
 
 class BatchTranscriptionError(Exception):
     """Base exception for batch transcription errors."""
+
+    pass
+
+
+class BatchTranscriptionDNSError(BatchTranscriptionError):
+    """Raised when DNS resolution fails for the batch transcription endpoint."""
+
+    pass
+
+
+class BatchTranscriptionNetworkError(BatchTranscriptionError):
+    """Raised when network connectivity fails (transient error)."""
+
+    pass
+
+
+class BatchTranscriptionConfigError(BatchTranscriptionError):
+    """Raised when configuration is invalid or missing."""
 
     pass
 
@@ -87,6 +110,12 @@ class BatchTranscriptionResult:
 class BatchTranscriptionConfig:
     """Configuration for batch transcription API."""
 
+    # Retry configuration
+    MAX_RETRIES = 3
+    INITIAL_RETRY_DELAY = 1.0  # seconds
+    MAX_RETRY_DELAY = 10.0  # seconds
+    RETRY_BACKOFF_MULTIPLIER = 2.0
+
     def __init__(
         self,
         subscription_key: str,
@@ -99,10 +128,25 @@ class BatchTranscriptionConfig:
             subscription_key: Azure Speech Services subscription key
             region: Azure Speech Services region
             cloud: Azure cloud environment
+
+        Raises:
+            BatchTranscriptionConfigError: If region is empty or invalid
         """
+        if not region or not region.strip():
+            raise BatchTranscriptionConfigError(
+                "Azure Speech region is empty. Set AZURE_SPEECH_REGION environment variable "
+                "(e.g., 'usgovvirginia', 'eastus2')."
+            )
+
         self.subscription_key = subscription_key
-        self.region = region
+        self.region = region.strip().lower()
         self.cloud = cloud
+
+        # Log the configuration for debugging
+        logger.debug(
+            f"BatchTranscriptionConfig initialized: region={self.region}, "
+            f"cloud={self.cloud.value}, base_url={self.base_url}"
+        )
 
     @property
     def base_url(self) -> str:
@@ -111,6 +155,42 @@ class BatchTranscriptionConfig:
             return f"https://{self.region}.api.cognitive.azure.us/speechtotext/v3.1"
         else:
             return f"https://{self.region}.api.cognitive.microsoft.com/speechtotext/v3.1"
+
+    @property
+    def hostname(self) -> str:
+        """Extract the hostname from the base URL for DNS validation."""
+        parsed = urlparse(self.base_url)
+        return parsed.netloc
+
+    def validate_dns(self) -> bool:
+        """Validate that the hostname can be resolved via DNS.
+
+        Returns:
+            True if DNS resolution succeeds
+
+        Raises:
+            BatchTranscriptionDNSError: If DNS resolution fails
+        """
+        hostname = self.hostname
+        logger.debug(f"Validating DNS for hostname: {hostname}")
+
+        try:
+            socket.gethostbyname(hostname)
+            logger.debug(f"DNS resolution succeeded for {hostname}")
+            return True
+        except socket.gaierror as e:
+            error_msg = (
+                f"DNS resolution failed for {hostname}. "
+                f"Error: {e}. "
+                f"Possible causes: "
+                f"1) AZURE_SPEECH_REGION='{self.region}' may be incorrect "
+                f"(try 'usgovvirginia' or 'eastus2'), "
+                f"2) AZURE_CLOUD='{self.cloud.value}' may not match your Speech Services deployment, "
+                f"3) Network/DNS issues in your environment. "
+                f"Full URL: {self.base_url}"
+            )
+            logger.error(error_msg)
+            raise BatchTranscriptionDNSError(error_msg) from e
 
     @classmethod
     def from_settings(cls, settings: Optional[Settings] = None) -> "BatchTranscriptionConfig":
@@ -123,16 +203,16 @@ class BatchTranscriptionConfig:
             BatchTranscriptionConfig instance
 
         Raises:
-            BatchTranscriptionError: If required settings are missing
+            BatchTranscriptionConfigError: If required settings are missing
         """
         settings = settings or get_settings()
 
         if not settings.azure_speech_key:
-            raise BatchTranscriptionError(
+            raise BatchTranscriptionConfigError(
                 "Azure Speech key is required. Set AZURE_SPEECH_KEY environment variable."
             )
         if not settings.azure_speech_region:
-            raise BatchTranscriptionError(
+            raise BatchTranscriptionConfigError(
                 "Azure Speech region is required. Set AZURE_SPEECH_REGION environment variable."
             )
 
@@ -147,6 +227,7 @@ class BatchTranscriptionClient:
     """Client for Azure Speech Services Batch Transcription API.
 
     Provides methods to submit, poll, and retrieve batch transcription jobs.
+    Includes retry logic with exponential backoff for transient network errors.
     """
 
     def __init__(self, config: BatchTranscriptionConfig) -> None:
@@ -157,6 +238,7 @@ class BatchTranscriptionClient:
         """
         self._config = config
         self._http_client: Optional[httpx.AsyncClient] = None
+        self._dns_validated = False
 
     @property
     def config(self) -> BatchTranscriptionConfig:
@@ -182,6 +264,98 @@ class BatchTranscriptionClient:
             await self._http_client.aclose()
             self._http_client = None
 
+    def _validate_dns_once(self) -> None:
+        """Validate DNS resolution once per client lifetime.
+
+        Raises:
+            BatchTranscriptionDNSError: If DNS resolution fails
+        """
+        if not self._dns_validated:
+            self._config.validate_dns()
+            self._dns_validated = True
+
+    async def _execute_with_retry(
+        self,
+        operation_name: str,
+        request_func: "Callable[[], Coroutine[Any, Any, httpx.Response]]",
+    ) -> httpx.Response:
+        """Execute an HTTP request with retry logic for transient errors.
+
+        Args:
+            operation_name: Name of the operation for logging
+            request_func: Callable that returns a coroutine performing the HTTP request
+
+        Returns:
+            HTTP response
+
+        Raises:
+            BatchTranscriptionDNSError: If DNS resolution fails
+            BatchTranscriptionNetworkError: If network error persists after retries
+        """
+        last_exception: Optional[Exception] = None
+        delay = BatchTranscriptionConfig.INITIAL_RETRY_DELAY
+
+        for attempt in range(BatchTranscriptionConfig.MAX_RETRIES):
+            try:
+                # Execute the request - callable returns a coroutine
+                return await request_func()
+
+            except httpx.ConnectError as e:
+                last_exception = e
+                error_str = str(e)
+
+                # Check if this is a DNS error
+                if "Name or service not known" in error_str or "getaddrinfo" in error_str:
+                    # DNS error - validate and provide clear message
+                    try:
+                        self._config.validate_dns()
+                    except BatchTranscriptionDNSError:
+                        raise  # Re-raise with detailed message
+
+                    # DNS passes but still failing - network issue
+                    logger.warning(
+                        f"{operation_name} failed with DNS-like error but DNS resolves. "
+                        f"Attempt {attempt + 1}/{BatchTranscriptionConfig.MAX_RETRIES}. "
+                        f"URL: {self._config.base_url}. Error: {e}"
+                    )
+                else:
+                    # Other connection error - retry
+                    logger.warning(
+                        f"{operation_name} connection error. "
+                        f"Attempt {attempt + 1}/{BatchTranscriptionConfig.MAX_RETRIES}. "
+                        f"Retrying in {delay:.1f}s. Error: {e}"
+                    )
+
+                if attempt < BatchTranscriptionConfig.MAX_RETRIES - 1:
+                    await asyncio.sleep(delay)
+                    delay = min(
+                        delay * BatchTranscriptionConfig.RETRY_BACKOFF_MULTIPLIER,
+                        BatchTranscriptionConfig.MAX_RETRY_DELAY,
+                    )
+
+            except httpx.TimeoutException as e:
+                last_exception = e
+                logger.warning(
+                    f"{operation_name} timeout. "
+                    f"Attempt {attempt + 1}/{BatchTranscriptionConfig.MAX_RETRIES}. "
+                    f"Retrying in {delay:.1f}s. Error: {e}"
+                )
+
+                if attempt < BatchTranscriptionConfig.MAX_RETRIES - 1:
+                    await asyncio.sleep(delay)
+                    delay = min(
+                        delay * BatchTranscriptionConfig.RETRY_BACKOFF_MULTIPLIER,
+                        BatchTranscriptionConfig.MAX_RETRY_DELAY,
+                    )
+
+        # All retries exhausted
+        error_msg = (
+            f"{operation_name} failed after {BatchTranscriptionConfig.MAX_RETRIES} attempts. "
+            f"URL: {self._config.base_url}. Last error: {last_exception}"
+        )
+        logger.error(error_msg)
+        raise BatchTranscriptionNetworkError(error_msg) from last_exception
+
     async def create_transcription_job(
         self,
         content_urls: list[str],
@@ -205,10 +379,17 @@ class BatchTranscriptionClient:
             Job ID for the created transcription
 
         Raises:
+            BatchTranscriptionDNSError: If DNS resolution fails
+            BatchTranscriptionNetworkError: If network error persists after retries
             BatchTranscriptionError: If job creation fails
         """
+        # Validate DNS on first request
+        self._validate_dns_once()
+
         client = await self._get_client()
         url = f"{self._config.base_url}/transcriptions"
+
+        logger.info(f"Creating batch transcription job. URL: {url}")
 
         # Build transcription request body
         properties: dict[str, object] = {
@@ -232,10 +413,9 @@ class BatchTranscriptionClient:
         }
 
         try:
-            response = await client.post(
-                url,
-                headers=self._get_headers(),
-                json=body,
+            response = await self._execute_with_retry(
+                "Create transcription job",
+                lambda: client.post(url, headers=self._get_headers(), json=body),
             )
 
             if response.status_code == 201:
@@ -252,7 +432,18 @@ class BatchTranscriptionClient:
                     f"Failed to create transcription job: {response.status_code} - {error_detail}"
                 )
 
+        except (BatchTranscriptionDNSError, BatchTranscriptionNetworkError):
+            raise  # Re-raise our custom exceptions
         except httpx.RequestError as e:
+            error_str = str(e)
+            # Check for DNS-like errors that weren't caught by retry logic
+            if "Name or service not known" in error_str or "getaddrinfo" in error_str:
+                logger.error(f"DNS error creating transcription job. URL: {url}. Error: {e}")
+                raise BatchTranscriptionDNSError(
+                    f"DNS resolution failed for batch transcription endpoint. "
+                    f"URL: {url}. Error: {e}. "
+                    f"Check AZURE_SPEECH_REGION and AZURE_CLOUD settings."
+                ) from e
             logger.error(f"Request error creating transcription job: {e}")
             raise BatchTranscriptionError(f"Request error: {e}") from e
 
@@ -267,13 +458,21 @@ class BatchTranscriptionClient:
 
         Raises:
             BatchTranscriptionJobNotFoundError: If job is not found
+            BatchTranscriptionDNSError: If DNS resolution fails
+            BatchTranscriptionNetworkError: If network error persists after retries
             BatchTranscriptionError: If status check fails
         """
+        # Validate DNS on first request
+        self._validate_dns_once()
+
         client = await self._get_client()
         url = f"{self._config.base_url}/transcriptions/{job_id}"
 
         try:
-            response = await client.get(url, headers=self._get_headers())
+            response = await self._execute_with_retry(
+                "Get transcription status",
+                lambda: client.get(url, headers=self._get_headers()),
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -286,6 +485,8 @@ class BatchTranscriptionClient:
                     f"Failed to get transcription status: {response.status_code} - {error_detail}"
                 )
 
+        except (BatchTranscriptionDNSError, BatchTranscriptionNetworkError, BatchTranscriptionJobNotFoundError):
+            raise  # Re-raise our custom exceptions
         except httpx.RequestError as e:
             logger.error(f"Request error getting transcription status: {e}")
             raise BatchTranscriptionError(f"Request error: {e}") from e
@@ -334,6 +535,8 @@ class BatchTranscriptionClient:
         Raises:
             BatchTranscriptionJobNotFoundError: If job is not found
             BatchTranscriptionFailedError: If job failed or not complete
+            BatchTranscriptionDNSError: If DNS resolution fails
+            BatchTranscriptionNetworkError: If network error persists after retries
             BatchTranscriptionError: If result retrieval fails
         """
         # First check job status
@@ -354,7 +557,10 @@ class BatchTranscriptionClient:
         files_url = f"{self._config.base_url}/transcriptions/{job_id}/files"
 
         try:
-            response = await client.get(files_url, headers=self._get_headers())
+            response = await self._execute_with_retry(
+                "Get transcription files",
+                lambda: client.get(files_url, headers=self._get_headers()),
+            )
 
             if response.status_code != 200:
                 raise BatchTranscriptionError(
@@ -375,13 +581,18 @@ class BatchTranscriptionClient:
                 raise BatchTranscriptionError("No transcription result file found")
 
             # Download and parse the result file
-            result_response = await client.get(result_url)
+            result_response = await self._execute_with_retry(
+                "Download transcription result",
+                lambda: client.get(result_url),
+            )
             if result_response.status_code != 200:
                 raise BatchTranscriptionError("Failed to download transcription result")
 
             result_data = result_response.json()
             return self._parse_transcription_result(result_data, job_id)
 
+        except (BatchTranscriptionDNSError, BatchTranscriptionNetworkError):
+            raise  # Re-raise our custom exceptions
         except httpx.RequestError as e:
             logger.error(f"Request error getting transcription result: {e}")
             raise BatchTranscriptionError(f"Request error: {e}") from e
@@ -500,13 +711,21 @@ class BatchTranscriptionClient:
 
         Raises:
             BatchTranscriptionJobNotFoundError: If job is not found
+            BatchTranscriptionDNSError: If DNS resolution fails
+            BatchTranscriptionNetworkError: If network error persists after retries
             BatchTranscriptionError: If deletion fails
         """
+        # Validate DNS on first request
+        self._validate_dns_once()
+
         client = await self._get_client()
         url = f"{self._config.base_url}/transcriptions/{job_id}"
 
         try:
-            response = await client.delete(url, headers=self._get_headers())
+            response = await self._execute_with_retry(
+                "Delete transcription job",
+                lambda: client.delete(url, headers=self._get_headers()),
+            )
 
             if response.status_code == 204:
                 logger.info(f"Deleted batch transcription job: {job_id}")
@@ -517,6 +736,8 @@ class BatchTranscriptionClient:
                     f"Failed to delete transcription job: {response.status_code}"
                 )
 
+        except (BatchTranscriptionDNSError, BatchTranscriptionNetworkError, BatchTranscriptionJobNotFoundError):
+            raise  # Re-raise our custom exceptions
         except httpx.RequestError as e:
             logger.error(f"Request error deleting transcription job: {e}")
             raise BatchTranscriptionError(f"Request error: {e}") from e

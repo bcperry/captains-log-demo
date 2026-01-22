@@ -2424,3 +2424,24 @@ Started: 2024-01-15
   - useTranscription hook supports useBatchTranscription option to force batch mode
   - Batch transcription uses Azure Speech batch API which handles files up to 1GB
 ---
+
+## 2026-01-22 - BUG-031
+- What was implemented: Fixed batch transcription DNS resolution error with retry logic, clear error messaging, and validation
+- Root cause: DNS resolution failures were being caught as generic exceptions without clear messaging or retry logic
+- Files changed:
+  - `app/speech/batch.py` - Added DNS validation, retry logic with exponential backoff, new exception types (BatchTranscriptionDNSError, BatchTranscriptionNetworkError, BatchTranscriptionConfigError)
+  - `app/speech/__init__.py` - Exported new exception types
+  - `app/api/transcribe.py` - Added specific error handling for DNS and network errors with clear 503 responses
+  - `app/tests/test_batch_transcription.py` - Added tests for empty region, DNS validation, and network error handling
+  - `app/config/version.py` - Bumped version to 1.2.1
+- **Playwright Verification:**
+  - Pages tested: http://localhost:8000/docs (Swagger UI)
+  - Interactions verified: POST /transcribe/batch endpoint visible and expandable
+  - Screenshots taken: bug031-batch-transcription-endpoint.png
+- **Learnings:**
+  - DNS errors show as "[Errno -2] Name or service not known" - validate region before requests
+  - Use Callable type hint for retry functions: `Callable[[], Coroutine[Any, Any, httpx.Response]]`
+  - Retry logic should use exponential backoff with configurable delays (1.0s initial, 10.0s max, 2.0x multiplier)
+  - Validate DNS synchronously with socket.gethostbyname() before async HTTP requests
+  - Differentiate error types: DNS errors (config issue) vs network errors (transient) vs API errors (service issue)
+---

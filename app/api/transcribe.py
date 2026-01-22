@@ -38,9 +38,12 @@ from models.transcription import (
 from speech import get_speech_client
 from speech.batch import (
     BatchTranscriptionClient,
+    BatchTranscriptionConfigError,
+    BatchTranscriptionDNSError,
     BatchTranscriptionError,
     BatchTranscriptionFailedError,
     BatchTranscriptionJobNotFoundError,
+    BatchTranscriptionNetworkError,
     InMemoryBatchTranscriptionClient,
     TranscriptionStatus,
     get_batch_transcription_client,
@@ -888,6 +891,27 @@ async def create_batch_transcription(
             folder_path=folder_path,
         )
 
+    except BatchTranscriptionDNSError as e:
+        logger.error(f"DNS resolution failed for batch transcription: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"DNS resolution failed: {e}. Check AZURE_SPEECH_REGION and AZURE_CLOUD settings.",
+        ) from e
+
+    except BatchTranscriptionNetworkError as e:
+        logger.error(f"Network error creating batch transcription job: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Network error (retries exhausted): {e}",
+        ) from e
+
+    except BatchTranscriptionConfigError as e:
+        logger.error(f"Configuration error for batch transcription: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Configuration error: {e}",
+        ) from e
+
     except BatchTranscriptionError as e:
         logger.error(f"Failed to create batch transcription job: {e}")
         raise HTTPException(
@@ -939,6 +963,18 @@ async def get_batch_transcription_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Transcription job not found: {job_id}",
         )
+    except BatchTranscriptionDNSError as e:
+        logger.error(f"DNS resolution failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"DNS resolution failed: {e}",
+        ) from e
+    except BatchTranscriptionNetworkError as e:
+        logger.error(f"Network error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Network error: {e}",
+        ) from e
     except BatchTranscriptionError as e:
         logger.error(f"Failed to get transcription status: {e}")
         raise HTTPException(
@@ -1007,6 +1043,18 @@ async def get_batch_transcription_result(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Transcription job failed: {e}",
         )
+    except BatchTranscriptionDNSError as e:
+        logger.error(f"DNS resolution failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"DNS resolution failed: {e}",
+        ) from e
+    except BatchTranscriptionNetworkError as e:
+        logger.error(f"Network error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Network error: {e}",
+        ) from e
     except BatchTranscriptionError as e:
         if "not complete" in str(e).lower():
             raise HTTPException(

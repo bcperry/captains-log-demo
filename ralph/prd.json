@@ -1379,12 +1379,12 @@
       "acceptanceCriteria": [
         "Remove all emoji characters from UI (section headers, buttons, labels)",
         "Replace emoji with text labels or subtle icons from icon library",
-        "Update all component headers: '📁 Upload' -> 'Upload Recording'",
+        "Update all component headers: '\ud83d\udcc1 Upload' -> 'Upload Recording'",
         "Update all button labels to plain text with professional styling",
-        "Replace '🎯' with 'Start' or use button variant styling",
-        "Replace '⏳' with 'Processing...' text",
-        "Replace '✅' success indicators with professional checkmarks or green highlights",
-        "Replace '❌' error indicators with professional error styling",
+        "Replace '\ud83c\udfaf' with 'Start' or use button variant styling",
+        "Replace '\u23f3' with 'Processing...' text",
+        "Replace '\u2705' success indicators with professional checkmarks or green highlights",
+        "Replace '\u274c' error indicators with professional error styling",
         "Remove emoji from TranscriptionResults component headers",
         "Remove emoji from AudioUpload component headers",
         "Remove emoji from health status indicator labels",
@@ -2142,7 +2142,7 @@
       ],
       "priority": 1,
       "passes": true,
-      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' → 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' → 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] → ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
+      "notes": "BUG logged 2026-01-15 - Custom speaker names are NOW working in transcript chat bubbles (BUG-018 fixed), but AI Analysis sections (Key Points, Action Items, Participants, Summary) still display generic 'Speaker 1', 'Speaker 2' labels instead of custom names 'Marvin', 'Christine'. Need to apply speaker name mapping to all AI analysis text content:\n\nKey Points: Replace 'Speaker 1 inquired...' \u2192 'Marvin inquired...'\nAction Items assignee: 'Speaker 1' \u2192 'Marvin'\nParticipants: ['Speaker 1', 'Speaker 2'] \u2192 ['Marvin', 'Christine']\nSummary: Replace speaker labels in summary text\n\nThis requires text processing to find and replace speaker labels with custom names using the speaker_names mapping from analysis.json. Should be display-only transformation (don't modify saved analysis.json)."
     },
     {
       "id": "BUG-020",
@@ -2442,6 +2442,11 @@
         "OR increase timeout limits appropriately for batch transcription",
         "Azure Speech batch transcription handles long audio without timeout",
         "User receives transcription results even if browser connection is interrupted",
+        "If chunking is used, final result is a COMPLETE end-to-end transcript",
+        "Chunked segments are merged seamlessly with correct timestamps",
+        "Speaker diarization remains consistent across chunk boundaries",
+        "No gaps or overlaps in merged transcript timeline",
+        "Full text output reads as single continuous transcription",
         "mypy type checking passes",
         "pytest tests pass",
         "Application loads without errors when started with uvicorn"
@@ -2449,6 +2454,29 @@
       "priority": 1,
       "passes": true,
       "notes": "BUG logged 2026-01-22 - User reports stream timeout errors when transcribing large files like 'Captains Log Meeting_Jan 15 2026.mp4' (1 hour duration, 550MB file size). Current implementation may:\n\n1. Have HTTP request timeout before batch transcription completes\n2. Have Azure Container App timeout (default 240s)\n3. Not properly poll Azure Speech batch transcription status\n4. Frontend waiting synchronously for response\n\nPossible solutions:\n1. Async job pattern: POST /transcribe returns job ID immediately, frontend polls GET /transcribe/{job_id}/status\n2. Chunked transcription: Split audio into smaller segments, transcribe each, merge results\n3. Increase timeouts: Adjust FastAPI, Azure Container App, and Azure Speech settings\n4. WebSocket/SSE: Stream progress updates to frontend during long jobs\n\nAzure Speech batch transcription can handle files up to 1GB and hours of audio, but HTTP connection may timeout while waiting."
+    },
+    {
+      "id": "BUG-031",
+      "title": "Batch transcription fails with DNS error - Name or service not known",
+      "acceptanceCriteria": [
+        "POST /transcribe/batch returns 200 and creates transcription job successfully",
+        "Azure Speech batch API URL resolves correctly for both Government and Commercial clouds",
+        "Test: curl -I https://{region}.api.cognitive.azure.us/speechtotext/v3.1/transcriptions returns 401 (not DNS error)",
+        "Test: python -c \"import socket; socket.gethostbyname('{region}.api.cognitive.azure.us')\" succeeds",
+        "BatchTranscriptionConfig.base_url returns valid resolvable hostname",
+        "AZURE_SPEECH_REGION environment variable is set correctly (e.g., 'usgovvirginia')",
+        "AZURE_CLOUD environment variable matches the Speech Services deployment",
+        "Error message clearly indicates DNS/network issue vs configuration issue",
+        "Add retry logic with exponential backoff for transient network errors",
+        "Log the full URL being requested when DNS resolution fails",
+        "mypy type checking passes",
+        "pytest tests pass with mocked DNS resolution",
+        "Integration test: submit batch job to real Azure Speech endpoint succeeds",
+        "Application loads without errors when started with uvicorn"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "BUG logged 2026-01-22 - Batch transcription fails with '[Errno -2] Name or service not known' when creating transcription job. Error occurs after successful blob upload (Response status: 200 from blob storage).\n\nError trace:\n  speech.batch - ERROR - Request error creating transcription job: [Errno -2] Name or service not known\n  api.transcribe - ERROR - Failed to create batch transcription job: Request error: [Errno -2] Name or service not known\n  POST /transcribe/batch returns 503 Service Unavailable\n\nPossible causes:\n1. AZURE_SPEECH_REGION is empty or malformed\n2. Wrong cloud endpoint (using .azure.us but region is commercial)\n3. DNS resolution failing in container/WSL environment\n4. Region name incorrect (e.g., 'usgovvirginia' vs 'usgovva' vs 'virginia')\n5. Network connectivity issue to Azure Government endpoints\n\nDebug steps:\n1. Log the exact URL being constructed in BatchTranscriptionConfig.base_url\n2. Verify AZURE_SPEECH_REGION and AZURE_CLOUD env vars\n3. Test DNS resolution: nslookup usgovvirginia.api.cognitive.azure.us"
     }
   ]
 }
