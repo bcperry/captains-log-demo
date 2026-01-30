@@ -181,15 +181,35 @@ http://localhost:8000/auth/callback  # FastAPI default
    
 4. Set **Supported account types** as needed
 
-## Step 7: Create Client Secret (Optional)
+## Step 7: Enable Public Client (Required for PKCE)
 
-If your backend needs to call Microsoft Graph or validate tokens server-side:
+This application uses **Public Client with PKCE** (Proof Key for Code Exchange) instead of client secrets. This is more secure and complies with Microsoft's Safe Secrets Standard.
 
-1. Go to **App registrations** > Your app > **Certificates & secrets**
-2. Click **New client secret**
-3. Add a description and expiration period
-4. Click **Add**
-5. **Copy the secret value immediately** (it won't be shown again)
+### What is PKCE?
+
+PKCE is a security extension for OAuth 2.0 that eliminates the need for client secrets in:
+- Single Page Applications (SPAs)
+- Mobile applications
+- Desktop applications
+
+The MSAL.js library in the frontend automatically uses PKCE for secure authentication.
+
+### Enable Public Client
+
+#### Portal Method
+
+1. Go to **App registrations** > Your app > **Authentication**
+2. Scroll to **Advanced settings**
+3. Set **Allow public client flows** to **Yes**
+4. Click **Save**
+
+#### CLI Method
+
+```bash
+az ad app update --id <your-client-id> --is-fallback-public-client true
+```
+
+> **Note**: Client secrets are NOT required for this application. The backend validates tokens using JWT verification (JWKS), and the frontend uses PKCE for secure token acquisition.
 
 ## Step 8: Configure Application Settings
 
@@ -200,12 +220,11 @@ Set the following environment variables in your application:
 AZURE_TENANT_ID=<your-tenant-id>
 AZURE_CLIENT_ID=<your-application-id>
 
-# Optional - only if using client credentials flow
-AZURE_CLIENT_SECRET=<your-client-secret>
-
 # Cloud environment
 AZURE_CLOUD=government  # or 'commercial'
 ```
+
+> **Note**: No `AZURE_CLIENT_SECRET` is required. This app uses Public Client with PKCE.
 
 ## Step 9: Deploy Bicep Infrastructure
 
@@ -281,12 +300,12 @@ curl https://login.microsoftonline.us/<tenant-id>/discovery/v2.0/keys
 
 ## Security Best Practices
 
-1. **Rotate client secrets** regularly (recommended: 6 months)
-2. **Use managed identities** when possible instead of client secrets
+1. **Use Public Client with PKCE** - This app uses PKCE, eliminating the need for client secrets
+2. **Use managed identities** for Azure service-to-service authentication
 3. **Enable Conditional Access** policies for additional security
 4. **Monitor sign-in logs** in Entra ID for suspicious activity
-5. **Use certificate credentials** instead of secrets for production
-6. **Implement token caching** to reduce authentication overhead
+5. **Implement token caching** to reduce authentication overhead
+6. **Enable public client flows** in the app registration for PKCE support
 
 ## Related Documentation
 

@@ -95,10 +95,8 @@ class Settings(BaseSettings):
         description="Azure Entra ID application (client) ID (backend API)",
         validation_alias=AliasChoices("azure_entra_client_id", "azure_client_id"),
     )
-    azure_client_secret: Optional[str] = Field(
-        default=None,
-        description="Azure Entra ID client secret (for service-to-service auth)",
-    )
+    # Note: No client_secret - we use Public Client with PKCE (Authorization Code Flow)
+    # This complies with Microsoft's Safe Secrets Standard
     openapi_client_id: Optional[str] = Field(
         default=None,
         description="Azure Entra ID client ID for Swagger UI OAuth (defaults to azure_client_id)",

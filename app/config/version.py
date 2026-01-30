@@ -5,7 +5,7 @@ The frontend fetches the version from the /health API endpoint.
 """
 
 # Application version - update this for new releases
-API_VERSION = "1.2.3"
+API_VERSION = "1.3.0"
 
 # API metadata
 API_TITLE = "Captain's Log API"
