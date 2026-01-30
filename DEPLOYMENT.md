@@ -13,14 +13,19 @@ This guide covers both local development and Azure cloud deployment of the Strea
 
 1. **Configure Environment**
    ```bash
-   cd app
-   copy .env.example .env
+   # From project root
+   cp .env.example .env
    ```
    
 2. **Edit .env file** with your Azure Speech service details:
    ```
    AZURE_SPEECH_KEY=your-32-character-speech-service-key
    AZURE_SPEECH_REGION=eastus
+   AZURE_TENANT_ID=your-tenant-id
+   AZURE_CLIENT_ID=your-client-id
+   # Frontend uses VITE_ prefixed versions
+   VITE_AZURE_TENANT_ID=your-tenant-id
+   VITE_AZURE_CLIENT_ID=your-client-id
    ```
 
 3. **Install and Run**
@@ -89,9 +94,29 @@ The deployment creates these Azure resources:
 |----------|---------|---------------|
 | **Resource Group** | Container for all resources | Named with environment name |
 | **Speech Service** | Azure AI Speech-to-Text | S0 tier, multi-language |
+| **Storage Account** | Audio file storage for batch transcription | Standard_LRS, blob versioning enabled |
 | **App Service Plan** | Hosting infrastructure | Linux, B1 tier, auto-scaling |
 | **App Service** | Web application hosting | Python 3.11, Streamlit configured |
 | **Managed Identity** | Secure authentication | No keys stored in code |
+
+### Storage Account Configuration
+
+The deployment creates an Azure Storage Account with:
+
+- **Container**: `audio-uploads` - stores uploaded audio files for batch transcription
+- **SKU**: Standard_LRS (locally redundant storage) - use Standard_GRS for production geo-redundancy
+- **Access Tier**: Hot - optimized for frequently accessed data
+- **Security Features**:
+  - HTTPS only (TLS 1.2 minimum)
+  - Public blob access disabled
+  - Managed identity authentication via Storage Blob Data Contributor role
+- **Versioning**: Enabled for audit trail
+- **Soft Delete**: 7-day retention for blob recovery
+
+**Environment Variables for Storage**:
+- `AZURE_STORAGE_ACCOUNT`: Storage account name
+- `AZURE_STORAGE_CONTAINER`: Container name (audio-uploads)
+- `AZURE_STORAGE_ENDPOINT`: Blob service endpoint URL
 
 ### Environment-Specific Deployments
 

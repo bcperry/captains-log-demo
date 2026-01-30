@@ -10,11 +10,24 @@
     },
     "principalId": {
       "value": "${AZURE_PRINCIPAL_ID}"
-    },      "resourceGroupName": {
+    },
+    "resourceGroupName": {
       "value": "rg-${AZURE_ENV_NAME}"
     },
     "webContainerImage": {
       "value": "${webContainerImage}"
+    },
+    "entraIdTenantId": {
+      "value": "${AZURE_ENTRA_TENANT_ID}"
+    },
+    "entraIdClientId": {
+      "value": "${AZURE_ENTRA_CLIENT_ID}"
+    },
+    "azureCloud": {
+      "value": "${AZURE_CLOUD=government}"
+    },
+    "enableEntraAuth": {
+      "value": "${ENABLE_ENTRA_AUTH=false}"
     }
   }
 }

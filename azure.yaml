@@ -1,6 +1,11 @@
-name: captains-log-with-streamlit
+name: captains-log
 services:
-  web:
+  api:
     project: .
     language: docker
-    host: appservice
+    host: containerapp
+    docker:
+      buildArgs:
+        - VITE_AZURE_CLIENT_ID=${AZURE_ENTRA_CLIENT_ID}
+        - VITE_AZURE_TENANT_ID=${AZURE_ENTRA_TENANT_ID}
+        - VITE_AZURE_CLOUD=${AZURE_CLOUD}

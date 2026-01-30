@@ -1,3 +1,22 @@
 *.venv
 *.azure
 *.ipynb
+
+
+.env
+
+*__pycache__/
+
+*_cache*
+app/config/__pycache__/*
+
+
+*.pyc
+app/config/__pycache__/settings.cpython-314.pyc
+app/tests/__pycache__/test_settings.cpython-314-pytest-9.0.2.pyc
+app/config/__pycache__/settings.cpython-314.pyc
+
+
+app/static/*
+Captains Log Meeting_Jan 15 2026.mp4
+app/config/__pycache__/settings.cpython-314.pyc

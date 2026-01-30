@@ -1,0 +1,793 @@
+import { useState, useEffect, useCallback } from 'react'
+import { getTranscriptions, deleteTranscription, getTranscription, getTranscriptionContent, getAnalysis } from '../services/api'
+import { TranscriptDisplay } from './TranscriptDisplay'
+import { applyCustomSpeakerNames } from '../utils/transcriptUtils'
+import type { SpeakerSegment } from '../types/transcription'
+import type { AnalysisResult } from '../types/api'
+
+// Utility to download content as a file
+const downloadFile = (content: string, filename: string, mimeType: string) => {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// Generate filename with recording ID and timestamp
+const generateFilename = (id: string, createdAt: string, suffix: string, extension: string): string => {
+  const date = new Date(createdAt)
+  const timestamp = date.toISOString().slice(0, 10).replace(/-/g, '')
+  const shortId = id.slice(0, 8)
+  return `${shortId}_${timestamp}_${suffix}.${extension}`
+}
+
+// Backend response segment type (snake_case)
+interface SpeakerSegmentRaw {
+  speaker_id: string
+  text: string
+  start_time_ms: number
+  end_time_ms: number
+}
+
+// Backend response types (snake_case)
+interface TranscriptionRecordRaw {
+  id: string
+  user_id: string
+  text: string
+  language: string
+  audio_format: string
+  file_size_bytes: number
+  duration_ms: number | null
+  blob_url: string | null
+  blob_storage_url: string | null
+  created_at: string
+  has_diarization: boolean
+  speaker_count: number | null
+  speaker_ids: string[] | null
+  segments: SpeakerSegmentRaw[] | null
+  language_detected: string | null
+  has_analysis: boolean
+}
+
+interface TranscriptionListResponseRaw {
+  transcriptions: TranscriptionRecordRaw[]
+  total: number
+  page: number
+  per_page: number
+}
+
+// Frontend types (camelCase)
+interface TranscriptionItem {
+  id: string
+  text: string
+  language: string
+  audioFormat: string
+  fileSizeBytes: number
+  durationMs: number | null
+  createdAt: string
+  hasDiarization: boolean
+  speakerCount: number | null
+  speakerIds: string[] | null
+  segments: SpeakerSegment[] | null
+  blobStorageUrl: string | null
+  languageDetected: string | null
+  status: 'complete' | 'analyzed'
+  hasAnalysis: boolean
+}
+
+interface MyRecordingsProps {
+  onViewTranscription?: (transcription: TranscriptionItem) => void
+  onBack?: () => void
+}
+
+type SortField = 'createdAt' | 'fileSizeBytes' | 'text'
+type SortOrder = 'asc' | 'desc'
+type StatusFilter = 'all' | 'complete' | 'analyzed'
+
+export function MyRecordings({ onViewTranscription, onBack }: MyRecordingsProps) {
+  const [recordings, setRecordings] = useState<TranscriptionItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [perPage] = useState(10)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortField, setSortField] = useState<SortField>('createdAt')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [selectedRecording, setSelectedRecording] = useState<TranscriptionItem | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [savedAnalysis, setSavedAnalysis] = useState<AnalysisResult | null>(null)
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null)
+
+  // Show download success message briefly
+  const showDownloadMessage = useCallback((filename: string) => {
+    setDownloadMessage(`Downloaded: ${filename}`)
+    setTimeout(() => setDownloadMessage(null), 3000)
+  }, [])
+
+  // Download handlers for detail view
+  // Helper to get display name for speaker ID using saved analysis
+  const getSpeakerDisplayName = useCallback((speakerId: string): string => {
+    if (savedAnalysis?.speakerNames) {
+      // Try exact match first
+      if (savedAnalysis.speakerNames[speakerId]) {
+        return savedAnalysis.speakerNames[speakerId].name
+      }
+      // Try normalized format (Guest-1 -> Speaker_1, Speaker-1 -> Speaker_1)
+      const normalizedId = speakerId
+        .replace(/^Guest/i, 'Speaker')  // Guest -> Speaker prefix
+        .replace(/-/g, '_')              // hyphen -> underscore
+        .replace(/ /g, '_')              // space -> underscore
+      if (savedAnalysis.speakerNames[normalizedId]) {
+        return savedAnalysis.speakerNames[normalizedId].name
+      }
+      // Try with underscore format (Speaker-1 -> Speaker_1, Speaker 1 -> Speaker_1)
+      const underscoreId = speakerId.replace(/-/g, '_').replace(/ /g, '_')
+      if (savedAnalysis.speakerNames[underscoreId]) {
+        return savedAnalysis.speakerNames[underscoreId].name
+      }
+      // Try with hyphen format (Speaker_1 -> Speaker-1, Speaker 1 -> Speaker-1)
+      const hyphenId = speakerId.replace(/_/g, '-').replace(/ /g, '-')
+      if (savedAnalysis.speakerNames[hyphenId]) {
+        return savedAnalysis.speakerNames[hyphenId].name
+      }
+      // Try with space format (Speaker_1 -> Speaker 1, Speaker-1 -> Speaker 1)
+      const spaceId = speakerId.replace(/_/g, ' ').replace(/-/g, ' ')
+      if (savedAnalysis.speakerNames[spaceId]) {
+        return savedAnalysis.speakerNames[spaceId].name
+      }
+    }
+    // Fall back to formatted speaker name
+    return speakerId.replace('_', ' ').replace(/-/g, ' ').replace(/^Guest/, 'Speaker ')
+  }, [savedAnalysis])
+
+  const handleDownloadTxt = useCallback(() => {
+    if (!selectedRecording) return
+    
+    // Build transcript text with speaker names if diarization available
+    let content: string
+    if (selectedRecording.hasDiarization && selectedRecording.segments && selectedRecording.segments.length > 0) {
+      content = selectedRecording.segments
+        .map((seg) => {
+          const speakerName = getSpeakerDisplayName(seg.speakerId)
+          return `${speakerName}: ${seg.text}`
+        })
+        .join('\n\n')
+    } else {
+      content = selectedRecording.text
+    }
+    
+    const filename = generateFilename(selectedRecording.id, selectedRecording.createdAt, 'transcript', 'txt')
+    downloadFile(content, filename, 'text/plain')
+    showDownloadMessage(filename)
+  }, [selectedRecording, showDownloadMessage, getSpeakerDisplayName])
+
+  const handleDownloadJson = useCallback(() => {
+    if (!selectedRecording) return
+    
+    const data = {
+      id: selectedRecording.id,
+      text: selectedRecording.text,
+      language: selectedRecording.language,
+      languageDetected: selectedRecording.languageDetected,
+      audioFormat: selectedRecording.audioFormat,
+      durationMs: selectedRecording.durationMs,
+      fileSizeBytes: selectedRecording.fileSizeBytes,
+      createdAt: selectedRecording.createdAt,
+      hasDiarization: selectedRecording.hasDiarization,
+      speakerCount: selectedRecording.speakerCount,
+      speakerIds: selectedRecording.speakerIds,
+      segments: selectedRecording.segments,
+    }
+    
+    const filename = generateFilename(selectedRecording.id, selectedRecording.createdAt, 'transcript', 'json')
+    downloadFile(JSON.stringify(data, null, 2), filename, 'application/json')
+    showDownloadMessage(filename)
+  }, [selectedRecording, showDownloadMessage])
+
+  const handleDownloadAnalysis = useCallback(() => {
+    if (!selectedRecording || !savedAnalysis) return
+    
+    const filename = generateFilename(selectedRecording.id, selectedRecording.createdAt, 'analysis', 'json')
+    downloadFile(JSON.stringify(savedAnalysis, null, 2), filename, 'application/json')
+    showDownloadMessage(filename)
+  }, [selectedRecording, savedAnalysis, showDownloadMessage])
+
+  const transformRecord = (raw: TranscriptionRecordRaw): TranscriptionItem => ({
+    id: raw.id,
+    text: raw.text,
+    language: raw.language,
+    audioFormat: raw.audio_format,
+    fileSizeBytes: raw.file_size_bytes,
+    durationMs: raw.duration_ms,
+    createdAt: raw.created_at,
+    hasDiarization: raw.has_diarization,
+    speakerCount: raw.speaker_count,
+    speakerIds: raw.speaker_ids,
+    segments: raw.segments?.map(seg => ({
+      speakerId: seg.speaker_id,
+      text: seg.text,
+      startTimeMs: seg.start_time_ms,
+      endTimeMs: seg.end_time_ms,
+    })) ?? null,
+    blobStorageUrl: raw.blob_storage_url,
+    languageDetected: raw.language_detected,
+    status: raw.has_diarization ? 'analyzed' : 'complete',
+    hasAnalysis: raw.has_analysis,
+  })
+
+  const loadRecordings = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // Fetch as raw response and transform
+      const response = await getTranscriptions(page, perPage) as unknown as TranscriptionListResponseRaw
+      const items = response.transcriptions.map(transformRecord)
+      setRecordings(items)
+      setTotal(response.total)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load recordings')
+    } finally {
+      setLoading(false)
+    }
+  }, [page, perPage])
+
+  useEffect(() => {
+    loadRecordings()
+  }, [loadRecordings])
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this recording?')) return
+    
+    setDeletingId(id)
+    try {
+      await deleteTranscription(id)
+      setRecordings((prev) => prev.filter((r) => r.id !== id))
+      setTotal((prev) => prev - 1)
+      if (selectedRecording?.id === id) {
+        setSelectedRecording(null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete recording')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const [loadingContent, setLoadingContent] = useState(false)
+
+  const handleViewDetail = async (recording: TranscriptionItem) => {
+    try {
+      setLoadingContent(true)
+      setSavedAnalysis(null) // Reset analysis when switching recordings
+      
+      // Fetch full transcription details
+      const fullRecord = await getTranscription(recording.id) as unknown as TranscriptionRecordRaw
+      let transformed = transformRecord(fullRecord)
+
+      // If blob storage URL exists or has diarization, fetch full content from blob storage
+      if (fullRecord.blob_storage_url || fullRecord.has_diarization) {
+        try {
+          const contentResponse = await getTranscriptionContent(recording.id)
+          // Convert speaker_segments from seconds to milliseconds
+          if (contentResponse.content.speaker_segments && contentResponse.content.speaker_segments.length > 0) {
+            transformed = {
+              ...transformed,
+              segments: contentResponse.content.speaker_segments.map(seg => ({
+                speakerId: seg.speaker_id,
+                text: seg.text,
+                startTimeMs: Math.round(seg.start_time * 1000),
+                endTimeMs: Math.round(seg.end_time * 1000),
+              })),
+              hasDiarization: true,
+              speakerCount: new Set(contentResponse.content.speaker_segments.map(s => s.speaker_id)).size,
+              durationMs: contentResponse.content.duration ? Math.round(contentResponse.content.duration * 1000) : transformed.durationMs,
+            }
+          }
+        } catch (blobErr) {
+          // Fall back to basic record if blob fetch fails
+          console.warn('Failed to fetch content from blob storage, using basic record:', blobErr)
+        }
+      }
+
+      // Load saved analysis if exists
+      if (recording.hasAnalysis) {
+        try {
+          const analysis = await getAnalysis(recording.id)
+          setSavedAnalysis(analysis)
+        } catch (analysisErr) {
+          console.warn('Failed to load saved analysis:', analysisErr)
+        }
+      }
+
+      setSelectedRecording(transformed)
+      if (onViewTranscription) {
+        onViewTranscription(transformed)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load transcription details')
+    } finally {
+      setLoadingContent(false)
+    }
+  }
+
+  // Filter and sort recordings
+  const filteredRecordings = recordings
+    .filter((r) => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        return (
+          r.text.toLowerCase().includes(query) ||
+          r.audioFormat.toLowerCase().includes(query)
+        )
+      }
+      return true
+    })
+    .filter((r) => {
+      // Status filter
+      if (statusFilter === 'all') return true
+      return r.status === statusFilter
+    })
+    .sort((a, b) => {
+      let comparison = 0
+      switch (sortField) {
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          break
+        case 'fileSizeBytes':
+          comparison = a.fileSizeBytes - b.fileSizeBytes
+          break
+        case 'text':
+          comparison = a.text.localeCompare(b.text)
+          break
+      }
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+
+  const totalPages = Math.ceil(total / perPage)
+
+  const formatDuration = (ms: number | null) => {
+    if (!ms) return 'N/A'
+    const seconds = Math.floor(ms / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  const getStatusBadge = (status: 'complete' | 'analyzed') => {
+    const styles = {
+      complete: 'bg-green-100 text-green-800',
+      analyzed: 'bg-purple-100 text-purple-800',
+    }
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status]}`}>
+        {status === 'complete' ? 'Complete' : 'Analyzed'}
+      </span>
+    )
+  }
+
+  // Detail view
+  if (selectedRecording) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        {/* Download success toast */}
+        {downloadMessage && (
+          <div className="fixed top-4 right-4 bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse" data-testid="download-toast">
+            {downloadMessage}
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => setSelectedRecording(null)}
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to recordings
+          </button>
+          <div className="flex items-center gap-2">
+            {/* Download buttons */}
+            <button
+              onClick={handleDownloadTxt}
+              className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+              data-testid="download-txt-btn"
+              title="Download transcript as plain text"
+            >
+              Download TXT
+            </button>
+            <button
+              onClick={handleDownloadJson}
+              className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+              data-testid="download-json-btn"
+              title="Download transcript with metadata as JSON"
+            >
+              Download JSON
+            </button>
+            {savedAnalysis && (
+              <button
+                onClick={handleDownloadAnalysis}
+                className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                data-testid="download-analysis-btn"
+                title="Download AI analysis as JSON"
+              >
+                Download Analysis
+              </button>
+            )}
+            <button
+              onClick={() => handleDelete(selectedRecording.id)}
+              disabled={deletingId === selectedRecording.id}
+              className="px-4 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {deletingId === selectedRecording.id ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            {getStatusBadge(selectedRecording.status)}
+            <span className="text-sm text-gray-500">{selectedRecording.language}</span>
+            <span className="text-sm text-gray-500">{selectedRecording.audioFormat.toUpperCase()}</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">Duration:</span>
+              <p className="font-medium">{formatDuration(selectedRecording.durationMs)}</p>
+            </div>
+            <div>
+              <span className="text-gray-500">File Size:</span>
+              <p className="font-medium">{formatFileSize(selectedRecording.fileSizeBytes)}</p>
+            </div>
+            <div>
+              <span className="text-gray-500">Uploaded:</span>
+              <p className="font-medium">{formatDate(selectedRecording.createdAt)}</p>
+            </div>
+            {selectedRecording.languageDetected && (
+              <div>
+                <span className="text-gray-500">Language:</span>
+                <p className="font-medium">{selectedRecording.languageDetected}</p>
+              </div>
+            )}
+            {selectedRecording.speakerCount && (
+              <div>
+                <span className="text-gray-500">Speakers:</span>
+                <p className="font-medium">{selectedRecording.speakerCount}</p>
+              </div>
+            )}
+            {selectedRecording.speakerIds && selectedRecording.speakerIds.length > 0 && (
+              <div className="col-span-2">
+                <span className="text-gray-500">Speaker IDs:</span>
+                <p className="font-medium">{selectedRecording.speakerIds.join(', ')}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Transcription</h3>
+            {/* Show speaker bubbles if diarization is available */}
+            {selectedRecording.hasDiarization && selectedRecording.segments && selectedRecording.segments.length > 0 ? (
+              <TranscriptDisplay segments={selectedRecording.segments} speakerNames={savedAnalysis?.speakerNames} />
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                <p className="text-gray-700 whitespace-pre-wrap">{selectedRecording.text}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Show saved analysis if available */}
+          {savedAnalysis && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">AI Analysis</h3>
+              <div className="space-y-4">
+                {/* Summary - apply speaker name mapping */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h5 className="text-sm font-semibold text-blue-800 mb-2">Summary</h5>
+                  <p className="text-blue-700">{applyCustomSpeakerNames(savedAnalysis.summary, savedAnalysis.speakerNames)}</p>
+                </div>
+
+                {/* Key Points - apply speaker name mapping */}
+                {savedAnalysis.keyPoints && savedAnalysis.keyPoints.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h5 className="text-sm font-semibold text-green-800 mb-2">Key Points</h5>
+                    <ul className="space-y-1">
+                      {savedAnalysis.keyPoints.map((point, index) => (
+                        <li key={index} className="text-green-700 flex items-start">
+                          <span className="mr-2">•</span>
+                          <span>{applyCustomSpeakerNames(point, savedAnalysis.speakerNames)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Action Items - apply speaker name mapping to task and assignee */}
+                {savedAnalysis.actionItems && savedAnalysis.actionItems.length > 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h5 className="text-sm font-semibold text-yellow-800 mb-2">Action Items</h5>
+                    <div className="space-y-2">
+                      {savedAnalysis.actionItems.map((item, index) => (
+                        <div key={index} className="bg-white rounded p-2 text-sm">
+                          <p className="text-yellow-800">{applyCustomSpeakerNames(item.task, savedAnalysis.speakerNames)}</p>
+                          {item.assignee && <p className="text-gray-600 text-xs">Assignee: {applyCustomSpeakerNames(item.assignee, savedAnalysis.speakerNames)}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Participants and Topics - apply speaker name mapping to participants */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {savedAnalysis.participants && savedAnalysis.participants.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">Participants</h5>
+                      <ul className="space-y-1">
+                        {savedAnalysis.participants.map((p, i) => (
+                          <li key={i} className="text-gray-600 text-sm">• {applyCustomSpeakerNames(p, savedAnalysis.speakerNames)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {savedAnalysis.topics && savedAnalysis.topics.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">Topics</h5>
+                      <ul className="space-y-1">
+                        {savedAnalysis.topics.map((t, i) => (
+                          <li key={i} className="text-gray-600 text-sm">• {t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Prompt to generate analysis if not available */}
+          {!savedAnalysis && selectedRecording.hasAnalysis === false && (
+            <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+              <p className="text-gray-600">No AI analysis available for this recording.</p>
+              <p className="text-sm text-gray-500 mt-1">Upload and analyze the audio again to generate insights.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Empty state
+  if (!loading && recordings.length === 0 && !error) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-800">My Recordings</h2>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="text-blue-600 hover:text-blue-800 text-sm transition-colors"
+            >
+              ← Back to Upload
+            </button>
+          )}
+        </div>
+        <div className="text-center py-12">
+          <svg
+            className="w-16 h-16 mx-auto text-gray-400 mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+            />
+          </svg>
+          <h3 className="text-lg font-medium text-gray-700 mb-2">No recordings yet</h3>
+          <p className="text-gray-500 mb-6">
+            Upload your first audio file to start transcribing!
+          </p>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Upload Audio
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-gray-800">My Recordings</h2>
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="text-blue-600 hover:text-blue-800 text-sm transition-colors"
+          >
+            ← Back to Upload
+          </button>
+        )}
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+          <button onClick={() => setError(null)} className="ml-2 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Search and filters */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Search recordings..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            className="px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Status</option>
+            <option value="complete">Complete</option>
+            <option value="analyzed">Analyzed</option>
+          </select>
+          <select
+            value={`${sortField}-${sortOrder}`}
+            onChange={(e) => {
+              const [field, order] = e.target.value.split('-') as [SortField, SortOrder]
+              setSortField(field)
+              setSortOrder(order)
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="createdAt-desc">Newest First</option>
+            <option value="createdAt-asc">Oldest First</option>
+            <option value="fileSizeBytes-desc">Largest First</option>
+            <option value="fileSizeBytes-asc">Smallest First</option>
+            <option value="text-asc">A-Z</option>
+            <option value="text-desc">Z-A</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Loading state */}
+      {loading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-500">Loading recordings...</p>
+        </div>
+      )}
+
+      {/* Recordings list */}
+      {!loading && filteredRecordings.length > 0 && (
+        <div className="space-y-3">
+          {filteredRecordings.map((recording) => (
+            <div
+              key={recording.id}
+              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    {getStatusBadge(recording.status)}
+                    <span className="text-xs text-gray-500">
+                      {recording.audioFormat.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-gray-700 line-clamp-2 mb-2">
+                    {recording.text.slice(0, 150)}
+                    {recording.text.length > 150 ? '...' : ''}
+                  </p>
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span>{formatDate(recording.createdAt)}</span>
+                    <span>{formatDuration(recording.durationMs)}</span>
+                    <span>{formatFileSize(recording.fileSizeBytes)}</span>
+                    {recording.languageDetected && <span>{recording.languageDetected}</span>}
+                    {recording.speakerCount && <span>{recording.speakerCount} speakers</span>}
+                    {recording.hasAnalysis && (
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                        Analysis available
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <button
+                    onClick={() => handleViewDetail(recording)}
+                    disabled={loadingContent}
+                    className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {loadingContent ? 'Loading...' : 'View'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(recording.id)}
+                    disabled={deletingId === recording.id}
+                    className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === recording.id ? '...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* No results after filtering */}
+      {!loading && recordings.length > 0 && filteredRecordings.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No recordings match your search criteria.
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Showing {(page - 1) * perPage + 1} to {Math.min(page * perPage, total)} of {total} recordings
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
