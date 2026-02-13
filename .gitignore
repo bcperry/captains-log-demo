@@ -2,6 +2,7 @@
 *.azure
 *.ipynb
 
+.secret-patterns/
 
 .env
 

@@ -1,0 +1,13 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: no-azure-secrets
+        name: Block Azure IDs and secrets
+        language: script
+        entry: .secret-patterns/check.sh
+        types: [text]
