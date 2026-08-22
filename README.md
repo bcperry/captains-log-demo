@@ -1,33 +1,33 @@
-# 🎤 Captain's Log - AI-Powered Audio Transcription & Analysis
+# Captain's Log: AI-Assisted Transcription and Analysis
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Azure](https://img.shields.io/badge/Azure-Speech%20%26%20OpenAI-blue)](https://azure.microsoft.com/)
-[![React](https://img.shields.io/badge/React-19+-blue)](https://react.dev/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.128+-green)](https://fastapi.tiangolo.com/)
-[![Python](https://img.shields.io/badge/Python-3.11+-blue)](https://www.python.org/)
-[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+A full-stack application for transcribing long-form audio and turning it into summaries, action items, and structured reports. The project evolved from a prototype built to process complete two-hour test events for downstream analysis and event notes.
 
-A modern, AI-powered audio transcription and analysis application built with React, FastAPI, Azure Speech Services, and Azure OpenAI. Perfect for transcribing meetings, interviews, lectures, and other audio content with intelligent summarization and action item extraction.
+## Portfolio summary
 
-## ✨ Features
+- **Problem:** Long technical events produce hours of audio that are difficult to search, review, and convert into usable notes.
+- **Solution:** React and FastAPI application using Azure Speech Services, Azure OpenAI, and Cosmos DB.
+- **Enterprise design:** Microsoft Entra authentication, Azure Government support, container deployment, and automated tests.
+- **User experience:** Time-range selection, processing statistics, confidence metrics, and TXT/JSON/report exports.
 
-- 🎯 **High-Quality Audio Transcription** - Powered by Azure Speech Services with support for multiple languages
-- 🤖 **AI-Powered Analysis** - Intelligent summarization and action item extraction using Azure OpenAI
-- ⏱️ **Flexible Duration Control** - Transcribe full audio or select specific time ranges
-- 🔒 **Enterprise Security** - Azure Entra ID authentication with Azure Government support
-- 📊 **Real-time Statistics** - Processing time, word count, and confidence metrics
-- 💾 **Multiple Export Formats** - Download as TXT, JSON, or comprehensive analysis reports
-- 🎨 **Modern Web Interface** - Clean, responsive React UI with Tailwind CSS
-- 🚀 **Easy Deployment** - Ready for Azure Container Apps with Docker support
+## Features
 
-## 🏗️ Architecture
+- **High-quality transcription** with Azure Speech Services and multiple-language support
+- **AI-assisted analysis** for summaries and action-item extraction
+- **Flexible duration control** for full files or selected time ranges
+- **Enterprise security** with Microsoft Entra ID and Azure Government support
+- **Processing statistics** including processing time, word count, and confidence metrics
+- **Multiple export formats** including TXT, JSON, and analysis reports
+- **Responsive web interface** built with React, TypeScript, Vite, and Tailwind CSS
+- **Container deployment** for Azure Container Apps
+
+## Architecture
 
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
 - **Backend**: FastAPI + Python 3.11+
 - **Authentication**: Azure Entra ID (MSAL)
 - **Services**: Azure Speech Services, Azure OpenAI, Azure Cosmos DB
 
-## 🚀 Quick Start
+## Quick start
 
 ### Prerequisites
 
